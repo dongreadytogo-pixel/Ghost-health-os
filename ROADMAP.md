@@ -38,28 +38,34 @@ Get real Fitbit data flowing into storage through the existing port.
   contract suite over it (deferred until a Supabase project/env is available)
 - 🔜 Fitbit OAuth2 token exchange + refresh flow
 
-## M2 — Metrics & scoring pipeline 🗺️
+## M2 — Metrics & scoring pipeline ✅
 
 Turn stored samples into daily scores and trends.
 
-- 🗺️ Baseline engine (trailing-window HRV/RHR means) for personalized recovery
-- 🗺️ Daily Ghost Score job composing all available categories
-- 🗺️ Additional category scorers: nutrition, workout load, blood-sugar trend,
-  hydration, heart, stress, consistency
-- 🗺️ Training-load / readiness / overtraining-risk model
-- 🗺️ Correlation engine (sleep↔recovery, protein↔recovery, meals↔blood sugar, …)
+- ✅ Baseline engine (trailing-window HRV/RHR means) for personalized recovery
+- ✅ `ComputeDailyScores` use-case composing all available categories into the
+  Ghost Score with a focus area
+- ✅ Additional category scorers: nutrition, hydration, blood-sugar trend
+  (non-diagnostic), heart, stress, consistency
+- ✅ Training-load (ACWR) / readiness / overtraining-risk model
+- ✅ Correlation engine (Pearson + plain-language insights: sleep↔recovery,
+  protein↔recovery, meals↔blood sugar, …)
 
-## M3 — AI agents & memory 🗺️
+## M3 — AI agents & memory 🔜 (foundations ✅)
 
 The "team of specialists."
 
-- 🗺️ LLM port + Claude adapter (`@ghost/infrastructure`)
-- 🗺️ Agent runtime: Health Analyst, Fitness/Recovery/Nutrition/Blood-Sugar/Sleep/
-  Habit/Motivation Coaches, Prediction Engine, Conversation Engine, Report
-  Generator, Memory Engine
-- 🗺️ AI Memory store (durable user patterns: schedule, meal timing, goals)
-- 🗺️ Agents narrate strictly from `Score.contributions` (no invented rationale)
-- 🗺️ Prediction engine with explicit confidence + uncertainty
+- ✅ LLM port (`@ghost/application`) + Claude adapter (`@ghost/infrastructure`,
+  official Anthropic SDK, injectable transport, refusal → typed error)
+- ✅ Deterministic Thai daily-summary report generator (grounded, no
+  hallucination — every line traces to a computed score)
+- ✅ `CoachAgent` (Conversation Engine): answers natural Thai questions grounded
+  on the day's computed scores, with a strict non-diagnostic system prompt
+- 🔜 Remaining specialist agents (Fitness/Recovery/Nutrition/Sleep/Habit/
+  Motivation Coaches, Prediction Engine, Report Generator variants)
+- 🔜 AI Memory store (durable user patterns: schedule, meal timing, goals)
+- 🔜 Prediction engine with explicit confidence + uncertainty
+- 🔜 Live Claude wiring (needs an `ANTHROPIC_API_KEY` at runtime)
 
 ## M4 — Delivery: LINE assistant 🗺️
 

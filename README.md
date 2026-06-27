@@ -16,8 +16,9 @@ channels, and UI are all replaceable parts plugged into a stable, well-tested co
 
 ## Current status
 
-This repository has completed **M0 (foundation)** and **M1 (persistence & sync)**.
-What exists today is real, typed, and tested — not scaffolding stubs:
+This repository has completed **M0 (foundation)**, **M1 (persistence & sync)**,
+and **M2 (metrics & scoring)**, plus the **M3 (AI) foundations**. What exists
+today is real, typed, and tested — not scaffolding stubs:
 
 | Area | Status |
 | --- | --- |
@@ -26,13 +27,15 @@ What exists today is real, typed, and tested — not scaffolding stubs:
 | Result/error model, branded types, validation guards | ✅ Done |
 | Normalized health-sample contracts (sleep, recovery, workout, blood sugar) | ✅ Done |
 | `HealthDataProvider` port (the "no hardcoded Fitbit" seam) | ✅ Done |
-| Metrics engine: Sleep, Recovery, **Ghost Score** (explainable) | ✅ Done |
-| `@ghost/application` — `SyncHealthData` ingestion use-case | ✅ Done |
+| Metrics engine: Sleep, Recovery, Nutrition, Hydration, Blood-sugar trend, Heart, Stress, Consistency, Training-load (ACWR), **Ghost Score** — all explainable | ✅ Done |
+| Personal baseline engine + correlation engine (Pearson + insights) | ✅ Done |
+| `@ghost/application` — `SyncHealthData` + `ComputeDailyScores` use-cases | ✅ Done |
 | `HealthSampleRepository` port + idempotent `sampleKey`, in-memory store + contract suite | ✅ Done |
-| `@ghost/infrastructure` — `FitbitProvider` adapter + `HttpClient` port | ✅ Done |
+| `@ghost/infrastructure` — `FitbitProvider` + `HttpClient` + **Claude `LlmClient`** adapters | ✅ Done |
+| Deterministic Thai daily-summary report + grounded `CoachAgent` (Conversation Engine) | ✅ Done |
 | PostgreSQL/Supabase schema (idempotent upsert + RLS) | ✅ Done |
-| **43 unit tests, all green** | ✅ Done |
-| Supabase repo wiring, OAuth flow, AI agents, API, dashboard, LINE bot | 🗺️ Roadmapped — see [`ROADMAP.md`](./ROADMAP.md) |
+| **86 unit tests, all green** | ✅ Done |
+| Supabase repo wiring, OAuth/API-key wiring, remaining agents, API, dashboard, LINE bot | 🗺️ Roadmapped — see [`ROADMAP.md`](./ROADMAP.md) |
 
 The guiding principle: **build a small, deep, correct core first**, then grow
 outward layer by layer without ever redesigning the center.
@@ -73,14 +76,17 @@ ghost-health-os/
 │   │       └── metrics/        # sleep / recovery / Ghost Score calculators
 │   ├── application/            # @ghost/application — use-cases over ports
 │   │   └── src/
-│   │       ├── ports/          # Clock (injectable time)
-│   │       └── use-cases/      # SyncHealthData (provider → normalize → store)
+│   │       ├── ports/          # Clock, LlmClient (injectable time & AI)
+│   │       ├── use-cases/      # SyncHealthData, ComputeDailyScores
+│   │       ├── reporting/      # deterministic Thai daily-summary generator
+│   │       └── agents/         # CoachAgent (grounded Conversation Engine)
 │   └── infrastructure/         # @ghost/infrastructure — concrete adapters
 │       ├── db/                 # PostgreSQL/Supabase schema (idempotent + RLS)
 │       └── src/
 │           ├── http/           # HttpClient port + fetch implementation
 │           ├── persistence/    # in-memory repo + reusable contract suite
-│           └── providers/      # FitbitProvider adapter + payload mapper
+│           ├── providers/      # FitbitProvider adapter + payload mapper
+│           └── llm/            # ClaudeLlmClient (official Anthropic SDK)
 ├── ARCHITECTURE.md             # layering, dependency rules, extension points
 ├── ROADMAP.md                  # the full spec mapped to incremental milestones
 └── CONTRIBUTING.md             # conventions, how to add a provider / metric
@@ -105,6 +111,23 @@ const result = await sync.execute({ userId, range: { start, end } });
 
 Re-running the same range is safe: the repository upserts on `sampleKey`, so
 nothing duplicates.
+
+### Daily scores, a report, and AI coaching (M2 + M3)
+
+```ts
+import { ComputeDailyScores, generateDailySummary, CoachAgent } from '@ghost/application';
+import { ClaudeLlmClient } from '@ghost/infrastructure';
+
+// 1. Compose every category the data supports into the Ghost Score
+const daily = await new ComputeDailyScores(repository).execute({ userId, date });
+
+// 2. Deterministic Thai summary — no LLM, every line traces to a score
+if (daily.ok) console.log(generateDailySummary(daily.value));
+
+// 3. Natural-language coaching, grounded on those exact scores
+const coach = new CoachAgent(new ClaudeLlmClient({ apiKey: process.env.ANTHROPIC_API_KEY }));
+const answer = await coach.ask('วันนี้ควรเล่นอะไร', daily.value); // "what should I train today?"
+```
 
 ---
 

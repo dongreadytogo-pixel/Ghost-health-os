@@ -22,4 +22,11 @@ export * from './repositories/health-sample-repository.js';
 // Metrics (the brain)
 export * from './metrics/sleep-score.js';
 export * from './metrics/recovery-score.js';
+export * from './metrics/baseline.js';
+export * from './metrics/nutrition-score.js';
+export * from './metrics/blood-sugar-score.js';
+export * from './metrics/training-load.js';
+export * from './metrics/vitals-score.js';
+export * from './metrics/consistency-score.js';
+export * from './metrics/correlation.js';
 export * from './metrics/ghost-score.js';
