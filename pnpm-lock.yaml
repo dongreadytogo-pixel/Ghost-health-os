@@ -15,6 +15,25 @@ importers:
         specifier: ^3.0.5
         version: 3.2.6(@types/node@20.19.43)
 
+  apps/line-bot:
+    dependencies:
+      '@ghost/application':
+        specifier: workspace:*
+        version: link:../../packages/application
+      '@ghost/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^4.20240909.0
+        version: 4.20260627.1
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.5
+        version: 3.2.6(@types/node@20.19.43)
+
   packages/application:
     dependencies:
       '@ghost/domain':
@@ -73,6 +92,9 @@ packages:
   '@babel/runtime@7.29.7':
     resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
     engines: {node: '>=6.9.0'}
+
+  '@cloudflare/workers-types@4.20260627.1':
+    resolution: {integrity: sha512-QhVvier1eW9Ydw96N/Ez79i5CSGy7h39JucrUejQmAWQw9qBdlB1aOTjaD93EGYrV0t9U81YWetI3LcaxxILNw==}
 
   '@esbuild/aix-ppc64@0.28.1':
     resolution: {integrity: sha512-Svl7tq8k/08+p6CXPpRjQ1fKX+1odH/BQbb48fV6fj3CWHhsoIOoY87w1oHXm0qEpkIK3ZfVgp0hed3XBXzXMQ==}
@@ -648,6 +670,8 @@ snapshots:
       json-schema-to-ts: 3.1.1
 
   '@babel/runtime@7.29.7': {}
+
+  '@cloudflare/workers-types@4.20260627.1': {}
 
   '@esbuild/aix-ppc64@0.28.1':
     optional: true

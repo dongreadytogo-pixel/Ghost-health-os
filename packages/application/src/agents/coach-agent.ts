@@ -25,24 +25,34 @@ const SYSTEM_PROMPT = [
 export class CoachAgent {
   constructor(private readonly llm: LlmClient) {}
 
+  /**
+   * Answer a question. When `context` (the day's computed scores) is provided,
+   * the answer is grounded on it; otherwise the agent acts as a general health
+   * coach — useful before any wearable data is connected.
+   */
   async ask(
     question: string,
-    context: DailyScores,
+    context?: DailyScores,
   ): Promise<Result<string>> {
-    const grounding = generateDailySummary(context);
-    const messages: LlmMessage[] = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      {
-        role: 'user',
-        content: [
+    const userContent = context
+      ? [
           'ข้อมูลสุขภาพวันนี้ (ใช้อ้างอิงเท่านั้น):',
           '"""',
-          grounding,
+          generateDailySummary(context),
           '"""',
           '',
           `คำถาม: ${question}`,
-        ].join('\n'),
-      },
+        ].join('\n')
+      : [
+          'ยังไม่มีข้อมูลสุขภาพที่ซิงค์เข้ามา ตอบเป็นคำแนะนำทั่วไปเชิงให้ความรู้',
+          'และถ้าจำเป็นต้องใช้ข้อมูลส่วนตัว ให้บอกว่ายังไม่ได้เชื่อมต่ออุปกรณ์.',
+          '',
+          `คำถาม: ${question}`,
+        ].join('\n');
+
+    const messages: LlmMessage[] = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userContent },
     ];
 
     return this.llm.complete({ messages, temperature: 0.4, maxTokens: 1024 });

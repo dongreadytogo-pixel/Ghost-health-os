@@ -1,0 +1,16 @@
+{
+  // Cloudflare Worker config for the Ghost Health OS LINE assistant.
+  // Secrets (never commit these) are set with `wrangler secret put <NAME>` or
+  // in the Cloudflare dashboard → Settings → Variables and Secrets:
+  //   GEMINI_API_KEY              (free key from aistudio.google.com)
+  //   LINE_CHANNEL_SECRET         (LINE Developers → Basic settings)
+  //   LINE_CHANNEL_ACCESS_TOKEN   (LINE Developers → Messaging API)
+  "name": "ghost-line-bot",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-11-01",
+  "observability": { "enabled": true },
+  "vars": {
+    // Non-secret config only. Override the model here if desired.
+    "GEMINI_MODEL": "gemini-2.0-flash"
+  }
+}
