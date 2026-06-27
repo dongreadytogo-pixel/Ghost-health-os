@@ -29,6 +29,7 @@ const SAMPLE_PAYLOAD = {
 
 const stubHttp = (response: HttpResponse): HttpClient => ({
   get: async () => response,
+  post: async () => response,
 });
 
 describe('mapFitbitSleep', () => {
@@ -128,6 +129,9 @@ describe('FitbitProvider', () => {
       accessToken: 't',
       http: {
         get: async () => {
+          throw new Error('socket hang up');
+        },
+        post: async () => {
           throw new Error('socket hang up');
         },
       },
