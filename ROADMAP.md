@@ -21,17 +21,22 @@ The provider-agnostic, fully-tested core.
 - ✅ Sleep, Recovery, and **Ghost Score** calculators
 - ✅ 23 passing unit tests
 
-## M1 — Persistence & sync 🔜
+## M1 — Persistence & sync ✅
 
 Get real Fitbit data flowing into storage through the existing port.
 
-- 🔜 `@ghost/application`: `SyncHealthData` use-case (provider → normalize → store)
-- 🔜 Repository ports in domain; Supabase/PostgreSQL implementations in
-  `@ghost/infrastructure`
-- 🔜 `FitbitProvider implements HealthDataProvider` (OAuth2, rate-limit aware)
-- 🔜 Database schema + migrations for the entities in the spec's data model
-- 🔜 Provider **contract test suite** all adapters must pass
-- 🔜 Idempotent upserts keyed on `SampleSource.externalId`
+- ✅ `@ghost/application`: `SyncHealthData` use-case (provider → normalize → store)
+- ✅ `HealthSampleRepository` port in domain + idempotent `sampleKey` identity
+- ✅ `InMemoryHealthSampleRepository` reference implementation
+- ✅ Repository **contract test suite** all stores must pass
+- ✅ `FitbitProvider implements HealthDataProvider` (bearer auth, 401/429/transport
+  mapped to typed `DomainError`s), with a pure, tested payload mapper
+- ✅ `HttpClient` port so adapters are unit-testable without network
+- ✅ PostgreSQL/Supabase schema with unique `sample_key` (idempotent upsert) and
+  row-level security for user isolation
+- 🔜 Wire the Supabase repository implementation against the schema + run the
+  contract suite over it (deferred until a Supabase project/env is available)
+- 🔜 Fitbit OAuth2 token exchange + refresh flow
 
 ## M2 — Metrics & scoring pipeline 🗺️
 

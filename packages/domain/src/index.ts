@@ -15,7 +15,9 @@ export * from './value-objects/score.js';
 
 // Health data contracts
 export * from './health/samples.js';
+export * from './health/sample-key.js';
 export * from './providers/health-data-provider.js';
+export * from './repositories/health-sample-repository.js';
 
 // Metrics (the brain)
 export * from './metrics/sleep-score.js';

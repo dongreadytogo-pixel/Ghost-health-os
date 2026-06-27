@@ -1,0 +1,24 @@
+{
+  "name": "@ghost/application",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Use-cases orchestrating the Ghost Health OS domain over ports. Depends inward on @ghost/domain only.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ghost/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

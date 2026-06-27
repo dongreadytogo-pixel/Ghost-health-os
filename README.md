@@ -16,8 +16,8 @@ channels, and UI are all replaceable parts plugged into a stable, well-tested co
 
 ## Current status
 
-This repository is at its **foundation milestone**. What exists today is real,
-typed, and tested — not scaffolding stubs:
+This repository has completed **M0 (foundation)** and **M1 (persistence & sync)**.
+What exists today is real, typed, and tested — not scaffolding stubs:
 
 | Area | Status |
 | --- | --- |
@@ -27,8 +27,12 @@ typed, and tested — not scaffolding stubs:
 | Normalized health-sample contracts (sleep, recovery, workout, blood sugar) | ✅ Done |
 | `HealthDataProvider` port (the "no hardcoded Fitbit" seam) | ✅ Done |
 | Metrics engine: Sleep, Recovery, **Ghost Score** (explainable) | ✅ Done |
-| 23 unit tests, all green | ✅ Done |
-| Application layer, infrastructure adapters, API, dashboard, LINE bot | 🗺️ Roadmapped — see [`ROADMAP.md`](./ROADMAP.md) |
+| `@ghost/application` — `SyncHealthData` ingestion use-case | ✅ Done |
+| `HealthSampleRepository` port + idempotent `sampleKey`, in-memory store + contract suite | ✅ Done |
+| `@ghost/infrastructure` — `FitbitProvider` adapter + `HttpClient` port | ✅ Done |
+| PostgreSQL/Supabase schema (idempotent upsert + RLS) | ✅ Done |
+| **43 unit tests, all green** | ✅ Done |
+| Supabase repo wiring, OAuth flow, AI agents, API, dashboard, LINE bot | 🗺️ Roadmapped — see [`ROADMAP.md`](./ROADMAP.md) |
 
 The guiding principle: **build a small, deep, correct core first**, then grow
 outward layer by layer without ever redesigning the center.
@@ -59,21 +63,48 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full layering.
 ```
 ghost-health-os/
 ├── packages/
-│   └── domain/                 # @ghost/domain — pure core (no I/O, no framework)
+│   ├── domain/                 # @ghost/domain — pure core (no I/O, no framework)
+│   │   └── src/
+│   │       ├── shared/         # Result, branded types, validation guards
+│   │       ├── value-objects/  # Score (0–100, banded, explainable)
+│   │       ├── health/         # normalized contracts + idempotent sampleKey
+│   │       ├── providers/      # HealthDataProvider port
+│   │       ├── repositories/   # HealthSampleRepository port
+│   │       └── metrics/        # sleep / recovery / Ghost Score calculators
+│   ├── application/            # @ghost/application — use-cases over ports
+│   │   └── src/
+│   │       ├── ports/          # Clock (injectable time)
+│   │       └── use-cases/      # SyncHealthData (provider → normalize → store)
+│   └── infrastructure/         # @ghost/infrastructure — concrete adapters
+│       ├── db/                 # PostgreSQL/Supabase schema (idempotent + RLS)
 │       └── src/
-│           ├── shared/         # Result, branded types, validation guards
-│           ├── value-objects/  # Score (0–100, banded, explainable)
-│           ├── health/         # normalized health-sample contracts
-│           ├── providers/      # HealthDataProvider port
-│           └── metrics/        # sleep / recovery / Ghost Score calculators
+│           ├── http/           # HttpClient port + fetch implementation
+│           ├── persistence/    # in-memory repo + reusable contract suite
+│           └── providers/      # FitbitProvider adapter + payload mapper
 ├── ARCHITECTURE.md             # layering, dependency rules, extension points
 ├── ROADMAP.md                  # the full spec mapped to incremental milestones
 └── CONTRIBUTING.md             # conventions, how to add a provider / metric
 ```
 
-Future packages (`@ghost/application`, `@ghost/infrastructure`) and apps
-(`apps/api`, `apps/dashboard`, `apps/line-bot`) are described in the roadmap and
-slot into this same workspace.
+Future apps (`apps/api`, `apps/dashboard`, `apps/line-bot`) are described in the
+roadmap and slot into this same workspace.
+
+### Wiring a sync (M1)
+
+```ts
+import { SyncHealthData } from '@ghost/application';
+import { FitbitProvider, InMemoryHealthSampleRepository, fetchHttpClient } from '@ghost/infrastructure';
+
+const provider = new FitbitProvider({ userId, accessToken, http: fetchHttpClient });
+const repository = new InMemoryHealthSampleRepository(); // swap for Supabase later
+
+const sync = new SyncHealthData(provider, repository);
+const result = await sync.execute({ userId, range: { start, end } });
+// result.ok ? { fetched, inserted, updated } : typed DomainError
+```
+
+Re-running the same range is safe: the repository upserts on `sampleKey`, so
+nothing duplicates.
 
 ---
 
