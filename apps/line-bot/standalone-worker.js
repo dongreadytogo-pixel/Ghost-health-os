@@ -229,8 +229,14 @@ async function askGeminiVision(env, systemPrompt, promptText, base64, mimeType) 
       generationConfig: { maxOutputTokens: 2048 },
     }),
   });
-  if (res.status === 429) return { text: QUOTA_MSG, ok: false };
-  if (!res.ok) return { text: 'ขออภัยครับ ตอนนี้ระบบ AI ไม่ว่าง ลองใหม่อีกครั้งนะครับ 🙏', ok: false };
+  if (res.status === 429) {
+    const d = await geminiErrorDetail(res);
+    return { text: QUOTA_MSG + (d ? '\n\n🔧 (debug) ' + d.slice(0, 350) : ''), ok: false };
+  }
+  if (!res.ok) {
+    const d = await geminiErrorDetail(res);
+    return { text: 'ขออภัยครับ ระบบ AI มีปัญหา (สถานะ ' + res.status + ')' + (d ? '\n🔧 (debug) ' + d.slice(0, 350) : ''), ok: false };
+  }
   const data = await res.json();
   const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
   const out = Array.isArray(parts) ? parts.map((p) => (p && p.text) || '').join('') : '';
@@ -379,6 +385,15 @@ async function saveState(memory, key, state) {
 
 // ---------- Gemini + LINE ----------
 
+async function geminiErrorDetail(res) {
+  try {
+    const e = await res.json();
+    return (e && e.error && e.error.message) || '';
+  } catch {
+    return '';
+  }
+}
+
 async function askGemini(env, systemPrompt, history, userContent) {
   const model = env.GEMINI_MODEL || 'gemini-2.0-flash';
   const url = `${GEMINI_BASE}/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
@@ -392,8 +407,14 @@ async function askGemini(env, systemPrompt, history, userContent) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ system_instruction: { parts: [{ text: systemPrompt }] }, contents, generationConfig: { maxOutputTokens: 2048 } }),
   });
-  if (res.status === 429) return { text: QUOTA_MSG, ok: false };
-  if (!res.ok) return { text: 'ขออภัยครับ ตอนนี้ระบบ AI ไม่ว่าง ลองใหม่อีกครั้งนะครับ 🙏', ok: false };
+  if (res.status === 429) {
+    const d = await geminiErrorDetail(res);
+    return { text: QUOTA_MSG + (d ? '\n\n🔧 (debug) ' + d.slice(0, 350) : ''), ok: false };
+  }
+  if (!res.ok) {
+    const d = await geminiErrorDetail(res);
+    return { text: 'ขออภัยครับ ระบบ AI มีปัญหา (สถานะ ' + res.status + ')' + (d ? '\n🔧 (debug) ' + d.slice(0, 350) : ''), ok: false };
+  }
   const data = await res.json();
   const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
   const out = Array.isArray(parts) ? parts.map((p) => (p && p.text) || '').join('') : '';
