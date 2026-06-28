@@ -67,15 +67,22 @@ const CRYPTO_MAP = {
   dogecoin: 'dogecoin', doge: 'dogecoin', cardano: 'cardano', ada: 'cardano',
 };
 
+const QUOTA_MSG =
+  '⏳ ตอนนี้ AI ฟรีถึงลิมิตชั่วคราวครับ ลองใหม่ใน 1-2 นาที\nถ้ายังไม่ได้ = ใช้ครบโควต้าของวันนี้แล้ว จะรีเซ็ตประมาณ 14:00 น. (บ่าย 2 โมง) ตามเวลาไทย 🙏';
+
 const QUICK_REPLY = {
   items: [
     quickAction('💪 สุขภาพ', 'โหมดสุขภาพ'),
     quickAction('📈 หุ้น', 'โหมดหุ้น'),
+    quickCameraRoll('📸 ส่งภาพ Fitbit'),
     quickAction('🔄 เริ่มใหม่', 'เริ่มใหม่'),
   ],
 };
 function quickAction(label, text) {
   return { type: 'action', action: { type: 'message', label, text } };
+}
+function quickCameraRoll(label) {
+  return { type: 'action', action: { type: 'cameraRoll', label } };
 }
 
 export default {
@@ -224,7 +231,7 @@ async function askGeminiVision(env, systemPrompt, promptText, base64, mimeType) 
       generationConfig: { maxOutputTokens: 2048 },
     }),
   });
-  if (res.status === 429) return { text: 'วันนี้ใช้ AI ฟรีครบโควต้าแล้วครับ ลองใหม่อีกสักครู่นะครับ 🙏', ok: false };
+  if (res.status === 429) return { text: QUOTA_MSG, ok: false };
   if (!res.ok) return { text: 'ขออภัยครับ ตอนนี้ระบบ AI ไม่ว่าง ลองใหม่อีกครั้งนะครับ 🙏', ok: false };
   const data = await res.json();
   const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
@@ -387,7 +394,7 @@ async function askGemini(env, systemPrompt, history, userContent) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ system_instruction: { parts: [{ text: systemPrompt }] }, contents, generationConfig: { maxOutputTokens: 2048 } }),
   });
-  if (res.status === 429) return { text: 'วันนี้ใช้ AI ฟรีครบโควต้าแล้วครับ ลองใหม่อีกสักครู่นะครับ 🙏', ok: false };
+  if (res.status === 429) return { text: QUOTA_MSG, ok: false };
   if (!res.ok) return { text: 'ขออภัยครับ ตอนนี้ระบบ AI ไม่ว่าง ลองใหม่อีกครั้งนะครับ 🙏', ok: false };
   const data = await res.json();
   const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
