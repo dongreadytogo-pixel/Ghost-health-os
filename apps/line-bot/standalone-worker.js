@@ -34,13 +34,14 @@ const STOCK_PROMPT = [
 const HEALTH_INTRO = '💪 เข้าสู่โหมดสุขภาพแล้วครับ!\nถามได้เลย เช่น "ควรกินโปรตีนเท่าไหร่" หรือ "นอนไม่พอทำไงดี"\n📸 แคปหน้าจอแอปสุขภาพ (Google Health/Fitbit) หรือรูปอาหาร ส่งมาให้สรุป+วิเคราะห์ได้เลย\n(ข้อมูลเพื่อการศึกษา ไม่วินิจฉัยโรคนะครับ)';
 const STOCK_INTRO = '📈 เข้าสู่โหมดหุ้นมือโปรแล้วครับ! (ดึงราคาสด + ข่าวได้)\nลองถาม เช่น "ราคา TSLA ตอนนี้ มีข่าวอะไร" / "เทียบ NVDA กับ AMD" / "ราคา bitcoin"\n📸 ส่งภาพกราฟ (เช่น TradingView) มาให้วิเคราะห์เทคนิคได้เลย\n⚠️ ข้อมูลเพื่อการศึกษา ไม่ใช่คำแนะนำการลงทุน';
 
-const STOCK_IMAGE_PROMPT =
-  'นี่คือภาพกราฟราคาจากแอปเทรด (เช่น TradingView) ช่วยวิเคราะห์เชิงเทคนิคแบบมือโปร: ระบุชื่อสินทรัพย์/ไทม์เฟรมถ้าเห็น, เทรนด์ปัจจุบัน, แนวรับ-แนวต้านสำคัญ (ใส่ตัวเลขจากภาพถ้าอ่านได้), รูปแบบราคา/อินดิเคเตอร์ที่ปรากฏ, โซนเข้าซื้อที่น่าสนใจ, จุดตัดขาดทุน (stop loss) และเป้าหมายทำกำไรโดยประมาณ, พร้อมประเมินความเสี่ยงและ risk-reward. ตอบภาษาไทยกระชับ จัดด้วยอิโมจิ ไม่ใช้มาร์กดาวน์. จบด้วยบรรทัดนี้เป๊ะ: "⚠️ (นี่ไม่ใช่การแนะนำการลงทุน เป็นเพียงการคาดการณ์เพื่อการศึกษา)"';
-const HEALTH_IMAGE_PROMPT =
-  'วิเคราะห์รูปนี้เชิงสุขภาพแบบให้ความรู้:\n' +
-  '- ถ้าเป็นภาพหน้าจอแอปสุขภาพ/ฟิตเนส (เช่น Google Health, Fitbit, Apple Health): อ่านตัวเลขที่เห็นทั้งหมด เช่น เวลานอน/ช่วงหลับลึก-REM, ชีพจรขณะพัก, จำนวนก้าว, แคลอรี, คะแนนความพร้อม/ฟื้นตัว แล้วสรุปเป็นภาษาไทย พร้อมให้คำแนะนำการดูแลตัวเองวันนี้ (เช่น ควรพักหรือออกกำลังกาย, การนอน, การดื่มน้ำ)\n' +
-  '- ถ้าเป็นรูปอาหาร: ประเมินคุณค่าทางโภชนาการและโปรตีน/แคลอรีคร่าวๆ\n' +
-  'ห้ามวินิจฉัยโรค ตอบกระชับ ไม่ใช้มาร์กดาวน์ จบด้วยคำแนะนำสั้นๆ และแนะนำปรึกษาแพทย์เมื่อจำเป็น';
+const IMAGE_SYSTEM_PROMPT =
+  'คุณคือผู้ช่วย AI ที่เชี่ยวชาญทั้งการวิเคราะห์กราฟการลงทุน สุขภาพ และโภชนาการ พูดไทยกระชับ เป็นกันเอง ไม่วินิจฉัยโรค และไม่ฟันธง/การันตีผลการลงทุน';
+const UNIVERSAL_IMAGE_PROMPT =
+  'ดูรูปนี้ ระบุเองว่าเป็นประเภทไหน แล้ววิเคราะห์ให้เหมาะสม:\n' +
+  '1) กราฟราคา/หุ้น/คริปโต (เช่น TradingView): วิเคราะห์เทคนิคแบบมือโปร — เทรนด์, แนวรับ-แนวต้าน (ใส่ตัวเลขถ้าอ่านได้), รูปแบบ/อินดิเคเตอร์, โซนเข้าซื้อ, จุดตัดขาดทุน (stop loss), เป้ากำไร, ความเสี่ยง/risk-reward. จบด้วยบรรทัดนี้เป๊ะ: "⚠️ (นี่ไม่ใช่การแนะนำการลงทุน เป็นเพียงการคาดการณ์เพื่อการศึกษา)"\n' +
+  '2) หน้าจอแอปสุขภาพ/ฟิตเนส (Google Health/Fitbit/Apple Health): อ่านตัวเลขที่เห็น (การนอน/หลับลึก-REM, ชีพจรขณะพัก, ก้าว, แคลอรี, คะแนนความพร้อม) สรุป + แนะนำการดูแลตัวเองวันนี้ ไม่วินิจฉัยโรค\n' +
+  '3) รูปอาหาร: ประเมินแคลอรี โปรตีน ไขมัน คาร์โบไฮเดรต และไฟเบอร์โดยประมาณ + คำแนะนำสั้นๆ\n' +
+  'ตอบภาษาไทยกระชับ ไม่ใช้มาร์กดาวน์ (ห้ามใช้ ** ## ---) ใช้อิโมจิและเว้นบรรทัดแทน';
 const WELCOME_TEXT = 'สวัสดีครับ! ผมคือ Ghost ผู้ช่วย AI ส่วนตัวของคุณ 🤖\nกดปุ่มด้านล่างเพื่อเลือกโหมด:\n💪 "โหมดสุขภาพ" — โค้ชสุขภาพ\n📈 "โหมดหุ้น" — ที่ปรึกษาการลงทุน (ราคาสด+ข่าว)\n🔄 "เริ่มใหม่" — ล้างความจำ';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
@@ -74,7 +75,7 @@ const QUICK_REPLY = {
   items: [
     quickAction('💪 สุขภาพ', 'โหมดสุขภาพ'),
     quickAction('📈 หุ้น', 'โหมดหุ้น'),
-    quickCameraRoll('📸 ส่งภาพ Fitbit'),
+    quickCameraRoll('📸 ส่งภาพ'),
     quickAction('🔄 เริ่มใหม่', 'เริ่มใหม่'),
   ],
 };
@@ -174,20 +175,17 @@ async function handleImage(env, replyToken, userId, messageId) {
     return;
   }
 
-  const systemPrompt = state.mode === 'stock' ? STOCK_PROMPT : HEALTH_PROMPT;
-  const prompt = state.mode === 'stock' ? STOCK_IMAGE_PROMPT : HEALTH_IMAGE_PROMPT;
-
+  // Image analysis auto-detects type (chart / health screen / food) regardless of mode.
   let result;
   try {
-    result = await askGeminiVision(env, systemPrompt, prompt, img.base64, img.mimeType);
+    result = await askGeminiVision(env, IMAGE_SYSTEM_PROMPT, UNIVERSAL_IMAGE_PROMPT, img.base64, img.mimeType);
   } catch {
     result = { text: 'ขออภัยครับ วิเคราะห์รูปไม่ได้ชั่วคราว ลองใหม่อีกครั้งนะครับ 🙏', ok: false };
   }
   await replyText(token, replyToken, result.text);
 
   if (memory && result.ok) {
-    const note = state.mode === 'stock' ? '[ผู้ใช้ส่งภาพกราฟมาให้วิเคราะห์]' : '[ผู้ใช้ส่งรูปมาให้วิเคราะห์]';
-    state.history.push({ role: 'user', text: note });
+    state.history.push({ role: 'user', text: '[ผู้ใช้ส่งรูปมาให้วิเคราะห์]' });
     state.history.push({ role: 'model', text: result.text });
     if (state.history.length > MEMORY_TURNS) state.history = state.history.slice(state.history.length - MEMORY_TURNS);
     await saveState(memory, key, state);
