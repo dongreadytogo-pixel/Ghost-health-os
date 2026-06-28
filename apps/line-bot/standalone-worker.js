@@ -31,8 +31,13 @@ const STOCK_PROMPT = [
   'ข้อจำกัด: ห้ามฟันธง/การันตีกำไร เน้นความน่าจะเป็นเชิงสถิติ/เทคนิค ทุกคำตอบเป็นข้อมูลเพื่อการศึกษา ไม่ใช่คำแนะนำการลงทุน',
 ].join('\n');
 
-const HEALTH_INTRO = '💪 เข้าสู่โหมดสุขภาพแล้วครับ!\nถามได้เลย เช่น "ควรกินโปรตีนเท่าไหร่" หรือ "นอนไม่พอทำไงดี"\n(ข้อมูลเพื่อการศึกษา ไม่วินิจฉัยโรคนะครับ)';
-const STOCK_INTRO = '📈 เข้าสู่โหมดหุ้นมือโปรแล้วครับ! (ดึงราคาสด + ข่าวได้)\nลองถาม เช่น "ราคา TSLA ตอนนี้ มีข่าวอะไร" / "เทียบ NVDA กับ AMD" / "ราคา bitcoin"\n⚠️ ข้อมูลเพื่อการศึกษา ไม่ใช่คำแนะนำการลงทุน';
+const HEALTH_INTRO = '💪 เข้าสู่โหมดสุขภาพแล้วครับ!\nถามได้เลย เช่น "ควรกินโปรตีนเท่าไหร่" หรือ "นอนไม่พอทำไงดี"\n📸 ส่งรูปอาหารมาให้ประเมินโภชนาการได้ด้วย\n(ข้อมูลเพื่อการศึกษา ไม่วินิจฉัยโรคนะครับ)';
+const STOCK_INTRO = '📈 เข้าสู่โหมดหุ้นมือโปรแล้วครับ! (ดึงราคาสด + ข่าวได้)\nลองถาม เช่น "ราคา TSLA ตอนนี้ มีข่าวอะไร" / "เทียบ NVDA กับ AMD" / "ราคา bitcoin"\n📸 ส่งภาพกราฟ (เช่น TradingView) มาให้วิเคราะห์เทคนิคได้เลย\n⚠️ ข้อมูลเพื่อการศึกษา ไม่ใช่คำแนะนำการลงทุน';
+
+const STOCK_IMAGE_PROMPT =
+  'นี่คือภาพกราฟราคาจากแอปเทรด (เช่น TradingView) ช่วยวิเคราะห์เชิงเทคนิคแบบมือโปร: ระบุชื่อสินทรัพย์/ไทม์เฟรมถ้าเห็น, เทรนด์ปัจจุบัน, แนวรับ-แนวต้านสำคัญ (ใส่ตัวเลขจากภาพถ้าอ่านได้), รูปแบบราคา/อินดิเคเตอร์ที่ปรากฏ, โซนเข้าซื้อที่น่าสนใจ, จุดตัดขาดทุน (stop loss) และเป้าหมายทำกำไรโดยประมาณ, พร้อมประเมินความเสี่ยงและ risk-reward. ตอบภาษาไทยกระชับ จัดด้วยอิโมจิ ไม่ใช้มาร์กดาวน์. จบด้วยบรรทัดนี้เป๊ะ: "⚠️ (นี่ไม่ใช่การแนะนำการลงทุน เป็นเพียงการคาดการณ์เพื่อการศึกษา)"';
+const HEALTH_IMAGE_PROMPT =
+  'วิเคราะห์รูปนี้เชิงสุขภาพแบบให้ความรู้ เช่น ถ้าเป็นอาหารให้ประเมินคุณค่าทางโภชนาการและปริมาณโปรตีน/แคลอรีคร่าวๆ, ถ้าเป็นฉลากโภชนาการให้สรุปจุดเด่นและสิ่งที่ควรระวัง. ห้ามวินิจฉัยโรค ตอบภาษาไทยกระชับ ไม่ใช้มาร์กดาวน์ จบด้วยการแนะนำให้ปรึกษาแพทย์/นักโภชนาการเมื่อจำเป็น';
 const WELCOME_TEXT = 'สวัสดีครับ! ผมคือ Ghost ผู้ช่วย AI ส่วนตัวของคุณ 🤖\nกดปุ่มด้านล่างเพื่อเลือกโหมด:\n💪 "โหมดสุขภาพ" — โค้ชสุขภาพ\n📈 "โหมดหุ้น" — ที่ปรึกษาการลงทุน (ราคาสด+ข่าว)\n🔄 "เริ่มใหม่" — ล้างความจำ';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
@@ -86,6 +91,9 @@ export default {
     for (const event of body.events || []) {
       if (event.type === 'follow' && event.replyToken) {
         ctx.waitUntil(replyText(env.LINE_CHANNEL_ACCESS_TOKEN, event.replyToken, WELCOME_TEXT));
+      } else if (event.type === 'message' && event.message && event.message.type === 'image' && event.replyToken) {
+        const userId = event.source && event.source.userId;
+        ctx.waitUntil(handleImage(env, event.replyToken, userId, event.message.id));
       } else if (event.type === 'message' && event.message && event.message.type === 'text' && event.replyToken) {
         const userId = event.source && event.source.userId;
         ctx.waitUntil(handleMessage(env, event.replyToken, userId, event.message.text));
@@ -140,6 +148,86 @@ async function handleMessage(env, replyToken, userId, text) {
     if (state.history.length > MEMORY_TURNS) state.history = state.history.slice(state.history.length - MEMORY_TURNS);
     await saveState(memory, key, state);
   }
+}
+
+// ---------- image analysis (TradingView charts, food photos) ----------
+
+async function handleImage(env, replyToken, userId, messageId) {
+  const memory = env.CHAT_MEMORY && userId ? env.CHAT_MEMORY : null;
+  const key = userId ? 'chat:' + userId : null;
+  const token = env.LINE_CHANNEL_ACCESS_TOKEN;
+  const state = memory ? await loadState(memory, key) : { mode: 'health', history: [] };
+
+  const img = await getLineImage(token, messageId);
+  if (!img) {
+    await replyText(token, replyToken, 'ขออภัยครับ โหลดรูปไม่สำเร็จ ลองส่งใหม่อีกครั้งนะครับ 🙏');
+    return;
+  }
+
+  const systemPrompt = state.mode === 'stock' ? STOCK_PROMPT : HEALTH_PROMPT;
+  const prompt = state.mode === 'stock' ? STOCK_IMAGE_PROMPT : HEALTH_IMAGE_PROMPT;
+
+  let result;
+  try {
+    result = await askGeminiVision(env, systemPrompt, prompt, img.base64, img.mimeType);
+  } catch {
+    result = { text: 'ขออภัยครับ วิเคราะห์รูปไม่ได้ชั่วคราว ลองใหม่อีกครั้งนะครับ 🙏', ok: false };
+  }
+  await replyText(token, replyToken, result.text);
+
+  if (memory && result.ok) {
+    const note = state.mode === 'stock' ? '[ผู้ใช้ส่งภาพกราฟมาให้วิเคราะห์]' : '[ผู้ใช้ส่งรูปมาให้วิเคราะห์]';
+    state.history.push({ role: 'user', text: note });
+    state.history.push({ role: 'model', text: result.text });
+    if (state.history.length > MEMORY_TURNS) state.history = state.history.slice(state.history.length - MEMORY_TURNS);
+    await saveState(memory, key, state);
+  }
+}
+
+async function getLineImage(token, messageId) {
+  try {
+    const res = await fetch(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    let mime = res.headers.get('content-type') || 'image/jpeg';
+    if (!/^image\//.test(mime)) mime = 'image/jpeg';
+    return { base64: arrayBufferToBase64(buf), mimeType: mime };
+  } catch {
+    return null;
+  }
+}
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function askGeminiVision(env, systemPrompt, promptText, base64, mimeType) {
+  const model = env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const url = `${GEMINI_BASE}/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ role: 'user', parts: [{ inline_data: { mime_type: mimeType, data: base64 } }, { text: promptText }] }],
+      generationConfig: { maxOutputTokens: 2048 },
+    }),
+  });
+  if (res.status === 429) return { text: 'วันนี้ใช้ AI ฟรีครบโควต้าแล้วครับ ลองใหม่อีกสักครู่นะครับ 🙏', ok: false };
+  if (!res.ok) return { text: 'ขออภัยครับ ตอนนี้ระบบ AI ไม่ว่าง ลองใหม่อีกครั้งนะครับ 🙏', ok: false };
+  const data = await res.json();
+  const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  const out = Array.isArray(parts) ? parts.map((p) => (p && p.text) || '').join('') : '';
+  if (!out) return { text: 'ขออภัยครับ อ่านรูปไม่ออก ลองส่งภาพที่ชัดขึ้นนะครับ 🙏', ok: false };
+  return { text: out, ok: true };
 }
 
 // ---------- live market data ----------
