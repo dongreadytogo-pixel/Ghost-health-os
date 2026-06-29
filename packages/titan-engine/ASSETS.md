@@ -51,6 +51,50 @@ Kenney 2D + LPC characters (ระวัง CC-BY-SA) + game-icons + Kenney UI/a
 
 ---
 
+## 1.5) 🛒 ชุดที่แนะนำให้โหลดเลย (Concrete picks)
+
+คัดมาเป็นชุด ๆ พร้อมลิงก์ — โหลดตามนี้ได้ทันที (เน้น **CC0** เพื่อผูกมัดน้อยสุด).
+ครอบคลุมสิ่งที่คุณระบุ: โมเดล, รูปตัวละคร, UI, ซาวด์เอฟเฟกต์.
+(🎵 เพลง BG ข้ามไป — คุณมีของตัวเองแล้ว ดูข้อ "BGM" ท้ายเอกสาร)
+
+### 🧍 โมเดล + ตัวละคร + มอนสเตอร์ (3D, CC0)
+- **Quaternius** — https://quaternius.com
+  - *Ultimate Modular Characters*, *Ultimate Animated Character Pack*,
+    *Animated Monsters / RPG Monsters* (ตัวละคร, มอนสเตอร์, อาวุธ)
+- **KayKit (Kay Lousberg)** — https://kaylousberg.itch.io
+  - *KayKit: Adventurers*, *KayKit: Skeletons*, *KayKit: Dungeon Remastered*
+    (ฮีโร่ + ศัตรู + ฉากดันเจียน สไตล์เดียวกันทั้งชุด)
+- **Kenney** — https://kenney.nl/assets?q=3d
+  - *Mini Characters 1*, *Modular Dungeon Kit*, *Survival Kit* (props/ฉาก)
+- **Poly Pizza** — https://poly.pizza (ค้นหาเสริมเฉพาะชิ้น; ดู license ต่อชิ้น)
+- **อนิเมชัน:** **Mixamo** — https://mixamo.com (rig+เดิน/ตี/ตายอัตโนมัติ ฟรี)
+
+### 🖼️ UI (ปุ่ม/กรอบ/แผง/เคอร์เซอร์) (CC0)
+- **Kenney** — https://kenney.nl/assets?q=ui
+  - *UI Pack*, *UI Pack: RPG Expansion*, *Game Icons*, *Cursor Pack*,
+    *Fantasy UI Borders*
+
+### ⚔️ ไอคอนสกิล/ไอเทม/affix
+- **game-icons.net** — https://game-icons.net (~4,000 ไอคอน, **CC-BY 3.0 ต้องเครดิต**)
+  เหมาะแมปเข้ากับ `ItemDefinition`/`SkillDefId` แบบ data-driven
+
+### 🔊 ซาวด์เอฟเฟกต์ (CC0 / royalty-free)
+- **Kenney Audio** — https://kenney.nl/assets?q=audio
+  - *RPG Audio*, *UI Audio*, *Impact Sounds*, *Interface Sounds*
+- **Freesound** — https://freesound.org (ตั้งฟิลเตอร์ license = **CC0** เท่านั้น)
+- **Sonniss GDC Game Audio Bundle** — https://sonniss.com/gameaudiogdc
+  (royalty-free เชิงพาณิชย์, ปล่อยฟรีทุกปี)
+- **สร้างเอง:** jsfxr / Bfxr / ChipTone (SFX 8-bit ที่กลายเป็นของเรา)
+
+### 🔡 ฟอนต์ (รองรับภาษาไทย, OFL ฝังในเกมได้)
+- **Google Fonts** — https://fonts.google.com — เช่น *Noto Sans Thai*, *Sarabun*,
+  *IBM Plex Sans Thai*, *Kanit*, *Mitr*
+
+> ✅ ทุกชุดข้างบนใช้ในเกมเชิงพาณิชย์ได้. อย่าลืมบันทึกแต่ละชิ้นใน
+> [`ATTRIBUTIONS.md`](./ATTRIBUTIONS.md) — โดยเฉพาะ game-icons (CC-BY) ที่ **ต้องเครดิต**.
+
+---
+
 ## 2) 🧍 โมเดล & ตัวละคร (3D)
 
 | แหล่ง | License | เหมาะกับ |
