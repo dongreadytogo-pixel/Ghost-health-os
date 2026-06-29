@@ -1,0 +1,21 @@
+{
+  "name": "@titan/engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Project Titan — deterministic, data-driven simulation core for an idle MMORPG. Pure, seedable, replayable, no I/O.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}
