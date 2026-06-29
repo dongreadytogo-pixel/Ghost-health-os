@@ -41,6 +41,28 @@ The playable, headless game loop — fully unit-tested (67 tests).
 **Exit criteria met:** deterministic (same seed ⇒ identical event log),
 typechecks clean, all tests green.
 
+## ✅ Phase 1.5 — Mounts, Companions, Random Skills & Rarity (DONE)
+
+The "charm" layer — all rarity-scaled, all deterministic, all unit-tested.
+
+- **Rarity (everything):** one global table (common → mythic) drives power and
+  drop weight for items, mounts, companions and skills, plus a rare **shiny /
+  prismatic** roll (~1 in 256) that stacks a bonus multiplier on anything.
+- **Mounts (ขี่ม้า):** ridden companions granting rarity-scaled attributes and a
+  capped attack-speed boost; fold into the player build like gear.
+- **Companions (จับมอนสเตอร์เข้าทีม):** defeated monsters can be **tamed** into a
+  party that walks behind the hero and fights — each with rolled rarity, a
+  growing **bond** that strengthens it, and a chance at an innate random skill.
+  Healer companions even heal the hero.
+- **Fusion (รวมร่าง/วิวัฒนาการ):** merge two companions into one a tier rarer;
+  the world **auto-fuses** duplicate-rarity companions during idle play.
+- **Random skills:** rarity-rolled abilities (burst / multistrike / lifesteal /
+  heal) the hero and companions **auto-cast** on cooldown in battle.
+- **Party synergy:** a team aura buffs damage per companion, with a bonus when
+  the whole active party shares one rarity.
+- **Performance:** active-party caching + a roster cap keep offline
+  fast-forwarding fast even after thousands of captures.
+
 ---
 
 ## ⏭️ Phase 2 — Inventory, Equipment & Economy (next)

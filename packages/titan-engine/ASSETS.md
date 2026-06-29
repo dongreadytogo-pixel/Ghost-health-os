@@ -38,36 +38,39 @@
 
 ---
 
-## 1) 🎨 ทิศทางศิลป์ที่แนะนำ (Mobile-First)
+## 1) 🎨 ทิศทางศิลป์ที่เลือก: **2D Pixel** ✅ (Mobile-First)
 
-มีสองแนวที่คุ้ม. เลือกแนวเดียวเพื่อความกลมกลืน:
+โปรเจกต์เลือกแนว **2D Pixel / Sprite** — เบาบนมือถือ ทำงานไว เปลี่ยนรูปตัวละคร/มอนสเตอร์
+ได้ง่ายแบบ data-driven (แค่สลับ spritesheet). เน้นแหล่ง **CC0** ก่อนเพื่อผูกมัดน้อยสุด,
+ใช้ CC-BY (เช่น game-icons) เฉพาะที่จำเป็นและลงเครดิตให้ครบ.
 
-**แนะนำ A — Low-Poly 3D (CC0 เป็นหลัก, กลมกลืน, เบาบนมือถือ)**
-ตัวละคร/มอนสเตอร์/ฉากจาก Quaternius + KayKit, อนิเมชันจาก Mixamo, ไอคอนสกิลจาก
-game-icons, UI/เสียงจาก Kenney. แทบทั้งหมดเป็น **CC0** → ผูกมัดน้อยที่สุด.
+> ⚠️ หลีกเลี่ยง/ระวังชุด **LPC** บางส่วนที่เป็น **CC-BY-SA** (copyleft) ถ้าไม่อยากผูกมัด
+> ให้เปิดสิทธิ์งานดัดแปลงแบบเดียวกัน — มีให้เลือกเป็นทางเลือกเสริมเท่านั้น.
 
-**ทางเลือก B — 2D Sprite / Pixel**
-Kenney 2D + LPC characters (ระวัง CC-BY-SA) + game-icons + Kenney UI/audio.
+*(เก็บแนว Low-Poly 3D ไว้เป็นทางเลือกอนาคต: Quaternius/KayKit CC0 + Mixamo)*
 
 ---
 
-## 1.5) 🛒 ชุดที่แนะนำให้โหลดเลย (Concrete picks)
+## 1.5) 🛒 ชุดที่แนะนำให้โหลดเลย (Concrete picks — 2D Pixel)
 
-คัดมาเป็นชุด ๆ พร้อมลิงก์ — โหลดตามนี้ได้ทันที (เน้น **CC0** เพื่อผูกมัดน้อยสุด).
-ครอบคลุมสิ่งที่คุณระบุ: โมเดล, รูปตัวละคร, UI, ซาวด์เอฟเฟกต์.
+คัดมาเป็นชุด ๆ พร้อมลิงก์ — โหลดตามนี้ได้ทันที (เน้น **CC0**).
+ครอบคลุมสิ่งที่ระบุ: ตัวละคร/มอนสเตอร์ (เปลี่ยนรูปได้), UI, ซาวด์เอฟเฟกต์.
 (🎵 เพลง BG ข้ามไป — คุณมีของตัวเองแล้ว ดูข้อ "BGM" ท้ายเอกสาร)
 
-### 🧍 โมเดล + ตัวละคร + มอนสเตอร์ (3D, CC0)
-- **Quaternius** — https://quaternius.com
-  - *Ultimate Modular Characters*, *Ultimate Animated Character Pack*,
-    *Animated Monsters / RPG Monsters* (ตัวละคร, มอนสเตอร์, อาวุธ)
-- **KayKit (Kay Lousberg)** — https://kaylousberg.itch.io
-  - *KayKit: Adventurers*, *KayKit: Skeletons*, *KayKit: Dungeon Remastered*
-    (ฮีโร่ + ศัตรู + ฉากดันเจียน สไตล์เดียวกันทั้งชุด)
-- **Kenney** — https://kenney.nl/assets?q=3d
-  - *Mini Characters 1*, *Modular Dungeon Kit*, *Survival Kit* (props/ฉาก)
-- **Poly Pizza** — https://poly.pizza (ค้นหาเสริมเฉพาะชิ้น; ดู license ต่อชิ้น)
-- **อนิเมชัน:** **Mixamo** — https://mixamo.com (rig+เดิน/ตี/ตายอัตโนมัติ ฟรี)
+### 🧍 ตัวละคร + มอนสเตอร์ + ฉาก (2D Pixel, CC0)
+- **Kenney** — https://kenney.nl/assets/category:2D
+  - *Tiny Dungeon*, *Tiny Town*, *Tiny Battle*, *1-Bit Pack*, *Roguelike/RPG Pack*,
+    *Pixel Platformer* (ตัวละคร, มอนสเตอร์, ไทล์ฉาก — สไตล์เดียวกันทั้งชุด)
+- **0x72 — Dungeon Tileset II** — https://0x72.itch.io/dungeontileset-ii (CC0)
+  ฮีโร่ + มอนสเตอร์ + ฉากดันเจียน มีอนิเมชันเดิน/ตี
+- **Pixel Frog — Pixel Adventure** — https://pixelfrog-assets.itch.io (CC0)
+  ตัวละคร/ศัตรูมีอนิเมชันครบ เหมาะ mobile
+- **OpenGameArt** (กรอง 2D + CC0) — https://opengameart.org เสริมมอนสเตอร์เฉพาะชิ้น
+- *(ทางเลือกเสริม)* **LPC characters** — https://opengameart.org/content/lpc-collection
+  สร้างตัวละครต่อชุดได้เยอะ **แต่เป็น CC-BY-SA** (copyleft) — ใช้เมื่อพร้อมรับเงื่อนไข
+
+> 💡 ระบบ engine เก็บ "ชื่อ sprite/atlas" เป็น field ใน definition ได้ →
+> **เปลี่ยนรูปตัวละคร/มอนสเตอร์ได้โดยไม่แตะโค้ด** (แค่สลับไฟล์ + ชื่อใน data).
 
 ### 🖼️ UI (ปุ่ม/กรอบ/แผง/เคอร์เซอร์) (CC0)
 - **Kenney** — https://kenney.nl/assets?q=ui

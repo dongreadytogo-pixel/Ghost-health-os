@@ -10,9 +10,12 @@
 
 import type { ItemSlot } from '../content/definitions.js';
 import type { ItemInstance } from '../loot/loot.js';
+import type { MountInstance } from '../mounts/mount.js';
+import { roundHalfUp } from '../shared/math.js';
 import {
   addAttributes,
   deriveStats,
+  DEFAULT_STAT_FORMULA,
   ZERO_ATTRIBUTES,
   type Attributes,
   type DerivedStats,
@@ -25,6 +28,8 @@ export type Equipment = Partial<Record<ItemSlot, ItemInstance>>;
 export interface PlayerBuild {
   readonly allocated: Attributes;
   readonly equipment: Equipment;
+  /** Currently-ridden mount, if any. Contributes attributes and attack speed. */
+  readonly mount?: MountInstance;
 }
 
 export function effectiveAttributes(build: PlayerBuild): Attributes {
@@ -32,14 +37,24 @@ export function effectiveAttributes(build: PlayerBuild): Attributes {
   for (const item of Object.values(build.equipment)) {
     if (item) total = addAttributes(total, item.totalAttributes);
   }
+  if (build.mount) total = addAttributes(total, build.mount.bonusAttributes);
   return total;
 }
 
 export function playerStats(
   build: PlayerBuild,
-  config?: StatFormulaConfig,
+  config: StatFormulaConfig = DEFAULT_STAT_FORMULA,
 ): DerivedStats {
-  return deriveStats(effectiveAttributes(build), config);
+  const stats = deriveStats(effectiveAttributes(build), config);
+  if (!build.mount) return stats;
+  // A mount also speeds up attacks, on top of the agility it grants.
+  return {
+    ...stats,
+    attackIntervalTicks: Math.max(
+      config.minAttackIntervalTicks,
+      roundHalfUp(stats.attackIntervalTicks * build.mount.attackSpeedMultiplier),
+    ),
+  };
 }
 
 export const emptyBuild = (allocated: Attributes = ZERO_ATTRIBUTES): PlayerBuild => ({

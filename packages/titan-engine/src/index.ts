@@ -20,12 +20,18 @@ export * from './progression/leveling.js';
 
 // Content (data-driven definitions + registry)
 export * from './content/definitions.js';
+export * from './content/rarity.js';
 export * from './content/registry.js';
 export * from './content/starter-content.js';
 
 // Systems
 export * from './combat/combat.js';
 export * from './loot/loot.js';
+export * from './skills/skill.js';
+export * from './mounts/mount.js';
+export * from './companions/companion.js';
+export * from './companions/capture.js';
+export * from './companions/fusion.js';
 
 // Entities
 export * from './entities/combatant.js';

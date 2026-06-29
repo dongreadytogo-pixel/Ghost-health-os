@@ -1,13 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import { World, evenAllocation } from './world.js';
+import { World, evenAllocation, DEFAULT_WORLD_CONFIG } from './world.js';
 import { ContentRegistry } from '../content/registry.js';
-import { STARTER_CONTENT } from '../content/starter-content.js';
+import {
+  STARTER_CONTENT,
+  STARTER_MOUNTS,
+  STARTER_SKILLS,
+} from '../content/starter-content.js';
 import { asZoneDefId } from '../shared/branded.js';
 import { isOk } from '../shared/result.js';
 import { Rng } from '../shared/rng.js';
 import { ZERO_ATTRIBUTES, type Attributes } from '../stats/stats.js';
 import { emptyBuild } from '../entities/player.js';
 import { unwrap } from '../shared/result.js';
+import { makeMountInstance } from '../mounts/mount.js';
+import { rollSkillInstance } from '../skills/skill.js';
+import type { WorldEvent } from './world.js';
 
 const registry = new ContentRegistry().register(STARTER_CONTENT);
 const zone = unwrap(registry.zone(asZoneDefId('verdant_fringe')));
@@ -94,6 +101,147 @@ describe('World — core idle loop', () => {
   it('emptyBuild produces a valid, runnable world', () => {
     const world = new World(registry, zone, Rng.fromSeed(3), emptyBuild());
     expect(() => world.run(100)).not.toThrow();
+  });
+});
+
+const countEvents = (log: WorldEvent[], type: WorldEvent['type']): number =>
+  log.filter((e) => e.type === type).length;
+
+describe('World — mounts (ขี่ม้า)', () => {
+  it('a mount makes the hero attack faster and stronger', () => {
+    const mount = makeMountInstance(STARTER_MOUNTS[0]!, 'mythic', true);
+    const mounted = new World(registry, zone, Rng.fromSeed(1), {
+      allocated: strongHero,
+      equipment: {},
+      mount,
+    });
+    const onFoot = new World(registry, zone, Rng.fromSeed(1), {
+      allocated: strongHero,
+      equipment: {},
+    });
+    const mountedKills = countEvents(mounted.run(1500), 'kill');
+    const footKills = countEvents(onFoot.run(1500), 'kill');
+    expect(mountedKills).toBeGreaterThan(footKills);
+  });
+});
+
+describe('World — companions (จับมอนสเตอร์เข้าทีม)', () => {
+  it('captures monsters into the party as it hunts', () => {
+    const world = new World(
+      registry,
+      zone,
+      Rng.fromSeed(3),
+      { allocated: strongHero, equipment: {} },
+      { ...DEFAULT_WORLD_CONFIG, capture: { ...DEFAULT_WORLD_CONFIG.capture, baseChance: 0.5 } },
+    );
+    const log = world.run(4000);
+    expect(countEvents(log, 'companionJoined')).toBeGreaterThan(0);
+    expect(world.snapshot().roster.length).toBeGreaterThan(0);
+  });
+
+  it('caps the active party but keeps extras in the roster', () => {
+    const world = new World(
+      registry,
+      zone,
+      Rng.fromSeed(5),
+      { allocated: strongHero, equipment: {} },
+      {
+        ...DEFAULT_WORLD_CONFIG,
+        capture: { ...DEFAULT_WORLD_CONFIG.capture, baseChance: 1 },
+        autoFuse: false,
+      },
+    );
+    world.run(3000);
+    const snap = world.snapshot();
+    expect(snap.party.length).toBeLessThanOrEqual(DEFAULT_WORLD_CONFIG.maxPartySize);
+    expect(snap.roster.length).toBeGreaterThanOrEqual(snap.party.length);
+  });
+
+  it('auto-fuses duplicate-rarity companions into rarer ones', () => {
+    const world = new World(
+      registry,
+      zone,
+      Rng.fromSeed(5),
+      { allocated: strongHero, equipment: {} },
+      {
+        ...DEFAULT_WORLD_CONFIG,
+        capture: { ...DEFAULT_WORLD_CONFIG.capture, baseChance: 1 },
+        autoFuse: true,
+      },
+    );
+    const log = world.run(3000);
+    expect(countEvents(log, 'fusion')).toBeGreaterThan(0);
+  });
+
+  it('companions contribute damage: a party clears faster than a lone hero', () => {
+    const weak: Attributes = { ...ZERO_ATTRIBUTES, strength: 10, agility: 6, vitality: 12, dexterity: 10, luck: 4 };
+    const solo = new World(registry, zone, Rng.fromSeed(8), { allocated: weak, equipment: {} }, {
+      ...DEFAULT_WORLD_CONFIG,
+      capture: { ...DEFAULT_WORLD_CONFIG.capture, baseChance: 0 },
+    });
+    const withParty = new World(registry, zone, Rng.fromSeed(8), { allocated: weak, equipment: {} }, {
+      ...DEFAULT_WORLD_CONFIG,
+      capture: { ...DEFAULT_WORLD_CONFIG.capture, baseChance: 1 },
+    });
+    expect(countEvents(withParty.run(4000), 'kill')).toBeGreaterThanOrEqual(
+      countEvents(solo.run(4000), 'kill'),
+    );
+  });
+});
+
+describe('World — random skills', () => {
+  it('the hero auto-casts equipped skills in battle', () => {
+    const skills = STARTER_SKILLS.map((d) => rollSkillInstance(d, Rng.fromSeed(2)));
+    const world = new World(
+      registry,
+      zone,
+      Rng.fromSeed(1),
+      { allocated: strongHero, equipment: {} },
+      DEFAULT_WORLD_CONFIG,
+      { level: 1, currentExp: 0 },
+      { skills },
+    );
+    const log = world.run(1500);
+    expect(countEvents(log, 'skill')).toBeGreaterThan(0);
+  });
+
+  it('skills make the hero clear faster', () => {
+    const skills = STARTER_SKILLS.map((d) => rollSkillInstance(d, Rng.fromSeed(2)));
+    const withSkills = new World(
+      registry, zone, Rng.fromSeed(7),
+      { allocated: strongHero, equipment: {} },
+      DEFAULT_WORLD_CONFIG, { level: 1, currentExp: 0 }, { skills },
+    );
+    const without = new World(
+      registry, zone, Rng.fromSeed(7),
+      { allocated: strongHero, equipment: {} },
+    );
+    expect(countEvents(withSkills.run(1500), 'kill')).toBeGreaterThan(
+      countEvents(without.run(1500), 'kill'),
+    );
+  });
+});
+
+describe('World — determinism with all systems active', () => {
+  it('same seed reproduces an identical log with mounts, party and skills', () => {
+    const build = (seed: number): World =>
+      new World(
+        registry,
+        zone,
+        Rng.fromSeed(seed),
+        {
+          allocated: strongHero,
+          equipment: {},
+          mount: makeMountInstance(STARTER_MOUNTS[1]!, 'rare', false),
+        },
+        {
+          ...DEFAULT_WORLD_CONFIG,
+          capture: { ...DEFAULT_WORLD_CONFIG.capture, baseChance: 0.4, skillPool: STARTER_SKILLS },
+        },
+        { level: 1, currentExp: 0 },
+        { skills: STARTER_SKILLS.map((d) => rollSkillInstance(d, Rng.fromSeed(99))) },
+      );
+    expect(build(123).run(2000)).toEqual(build(123).run(2000));
   });
 });
 

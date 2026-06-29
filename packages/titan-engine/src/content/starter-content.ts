@@ -10,6 +10,8 @@ import {
   asAffixDefId,
   asItemDefId,
   asMonsterDefId,
+  asMountDefId,
+  asSkillDefId,
   asZoneDefId,
 } from '../shared/branded.js';
 import { deriveStats } from '../stats/stats.js';
@@ -20,6 +22,8 @@ import type {
   MonsterDefinition,
   ZoneDefinition,
 } from './definitions.js';
+import type { MountDefinition } from '../mounts/mount.js';
+import type { SkillDefinition } from '../skills/skill.js';
 
 const affixes: AffixDefinition[] = [
   {
@@ -155,6 +159,59 @@ const zones: ZoneDefinition[] = [
       { monsterId: asMonsterDefId('meadow_crawler'), weight: 8 },
       { monsterId: asMonsterDefId('thicket_stalker'), weight: 2 },
     ],
+  },
+];
+
+/**
+ * Mounts and skills are not part of the registry's ContentBundle (they are
+ * rolled into instances at runtime), so they're exported as plain definition
+ * lists for callers to roll from.
+ */
+export const STARTER_MOUNTS: readonly MountDefinition[] = [
+  {
+    id: asMountDefId('dawnstrider'),
+    name: 'Dawnstrider',
+    baseBonus: { agility: 4, strength: 2 },
+    baseSpeedBonus: 0.1,
+  },
+  {
+    id: asMountDefId('emberhoof'),
+    name: 'Emberhoof',
+    baseBonus: { strength: 5, vitality: 2 },
+    baseSpeedBonus: 0.06,
+  },
+];
+
+export const STARTER_SKILLS: readonly SkillDefinition[] = [
+  {
+    id: asSkillDefId('cleave'),
+    name: 'Cleave',
+    kind: 'burst',
+    baseCooldownTicks: 60,
+    basePower: 3,
+  },
+  {
+    id: asSkillDefId('flurry'),
+    name: 'Flurry',
+    kind: 'multistrike',
+    baseCooldownTicks: 45,
+    basePower: 0.9,
+    hits: 3,
+  },
+  {
+    id: asSkillDefId('siphon'),
+    name: 'Siphon Strike',
+    kind: 'lifesteal',
+    baseCooldownTicks: 50,
+    basePower: 2,
+    lifestealFraction: 0.5,
+  },
+  {
+    id: asSkillDefId('mend'),
+    name: 'Mend',
+    kind: 'heal',
+    baseCooldownTicks: 90,
+    basePower: 0.25,
   },
 ];
 

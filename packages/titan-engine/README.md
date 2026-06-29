@@ -34,13 +34,26 @@ src/
   shared/        Result, branded ids, math, seedable RNG   (kernel)
   stats/         Attributes → DerivedStats (data-driven formula, retunable)
   progression/   experience curve + cascading level-ups
-  content/       definitions (data) + ContentRegistry (plugin lookup)
+  content/       definitions (data) + rarity table + ContentRegistry (plugin lookup)
   combat/        resolveAttack(): hit, crit, defense-mitigated damage
   loot/          drop tables + random prefix/suffix item generation
-  entities/      Combatant runtime + classless player build
-  world/         World: the auto-battle idle loop (emits events)
+  skills/        random, rarity-scaled abilities + cast resolution
+  mounts/        ridden companions: attribute + attack-speed bonuses
+  companions/    taming/capture, bond growth, fusion (evolution)
+  entities/      Combatant runtime + classless player build (+ mount)
+  world/         World: the auto-battle idle loop with party & auto-skills
   simulation/    offline fast-forward + "while you were away" summary
 ```
+
+### Signature features
+
+- **Rarity on everything** (items, mounts, companions, skills) from one global
+  table, plus a rare **shiny / prismatic** roll that stacks a bonus.
+- **Mounts (ขี่ม้า)** — ride for more power and faster swings.
+- **Companions (จับมอนสเตอร์เข้าทีม)** — tame defeated monsters into a party that
+  fights beside you, grows a **bond**, and **fuses** into rarer forms.
+- **Random auto-cast skills** for the hero and companions; **party synergy**
+  rewards a same-rarity team.
 
 Key seams:
 
@@ -83,7 +96,7 @@ for (const event of world.tick()) {
 ## Tests
 
 ```bash
-pnpm --filter @titan/engine test       # 67 tests
+pnpm --filter @titan/engine test       # 113 tests
 pnpm --filter @titan/engine typecheck
 ```
 

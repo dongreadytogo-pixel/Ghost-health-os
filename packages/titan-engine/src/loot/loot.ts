@@ -19,6 +19,7 @@ import type {
   MonsterDefinition,
   Rarity,
 } from '../content/definitions.js';
+import { rarityRank } from '../content/rarity.js';
 
 export interface RolledAffix {
   readonly affixId: AffixDefId;
@@ -41,17 +42,6 @@ export interface LootResult {
   readonly gold: number;
   readonly items: readonly ItemInstance[];
 }
-
-const RARITY_ORDER: readonly Rarity[] = [
-  'common',
-  'uncommon',
-  'rare',
-  'epic',
-  'legendary',
-  'mythic',
-];
-
-const rarityRank = (r: Rarity): number => RARITY_ORDER.indexOf(r);
 
 const partialToAttributes = (p: Partial<Attributes>): Attributes => ({
   ...ZERO_ATTRIBUTES,

@@ -17,6 +17,7 @@ export type ItemDefId = Brand<string, 'ItemDefId'>;
 export type AffixDefId = Brand<string, 'AffixDefId'>;
 export type ZoneDefId = Brand<string, 'ZoneDefId'>;
 export type SkillDefId = Brand<string, 'SkillDefId'>;
+export type MountDefId = Brand<string, 'MountDefId'>;
 
 export const asMonsterDefId = (value: string): MonsterDefId =>
   value as MonsterDefId;
@@ -24,4 +25,5 @@ export const asItemDefId = (value: string): ItemDefId => value as ItemDefId;
 export const asAffixDefId = (value: string): AffixDefId => value as AffixDefId;
 export const asZoneDefId = (value: string): ZoneDefId => value as ZoneDefId;
 export const asSkillDefId = (value: string): SkillDefId => value as SkillDefId;
+export const asMountDefId = (value: string): MountDefId => value as MountDefId;
 export const asEntityId = (value: string): EntityId => value as EntityId;
