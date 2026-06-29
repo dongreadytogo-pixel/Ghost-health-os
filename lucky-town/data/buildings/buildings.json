@@ -1,0 +1,15 @@
+[
+	{"id": "house", "display_name": "House", "build_cost": 0, "daily_income": 0, "category": "residential", "max_level": 5},
+	{"id": "shop", "display_name": "Shop", "build_cost": 1200, "daily_income": 90, "category": "commercial", "max_level": 5},
+	{"id": "cafe", "display_name": "Cafe", "build_cost": 1500, "daily_income": 120, "category": "commercial", "max_level": 5},
+	{"id": "restaurant", "display_name": "Restaurant", "build_cost": 2600, "daily_income": 210, "category": "commercial", "max_level": 5},
+	{"id": "casino", "display_name": "Casino", "build_cost": 8000, "daily_income": 700, "category": "entertainment", "max_level": 5},
+	{"id": "pet_shop", "display_name": "Pet Shop", "build_cost": 2200, "daily_income": 170, "category": "commercial", "max_level": 5},
+	{"id": "farm", "display_name": "Farm", "build_cost": 1800, "daily_income": 140, "category": "production", "max_level": 5},
+	{"id": "hotel", "display_name": "Hotel", "build_cost": 6000, "daily_income": 520, "category": "commercial", "max_level": 5},
+	{"id": "mall", "display_name": "Mall", "build_cost": 12000, "daily_income": 1100, "category": "commercial", "max_level": 5},
+	{"id": "office", "display_name": "Office", "build_cost": 4000, "daily_income": 360, "category": "commercial", "max_level": 5},
+	{"id": "factory", "display_name": "Factory", "build_cost": 5500, "daily_income": 480, "category": "production", "max_level": 5},
+	{"id": "decoration_store", "display_name": "Decoration Store", "build_cost": 2000, "daily_income": 150, "category": "commercial", "max_level": 5},
+	{"id": "museum", "display_name": "Museum", "build_cost": 9000, "daily_income": 600, "category": "culture", "max_level": 5}
+]

@@ -1,0 +1,9 @@
+[
+	{"id": "food_basic", "display_name": "Groceries", "base_price": 30, "min_price": 12, "max_price": 120, "supply": 120, "demand": 120, "category": "consumable"},
+	{"id": "coffee", "display_name": "Coffee", "base_price": 25, "min_price": 10, "max_price": 90, "supply": 100, "demand": 110, "category": "consumable"},
+	{"id": "furniture", "display_name": "Furniture", "base_price": 220, "min_price": 80, "max_price": 900, "supply": 80, "demand": 90, "category": "decor"},
+	{"id": "pet_food", "display_name": "Pet Food", "base_price": 45, "min_price": 18, "max_price": 180, "supply": 100, "demand": 100, "category": "consumable"},
+	{"id": "seeds", "display_name": "Seeds", "base_price": 60, "min_price": 20, "max_price": 240, "supply": 90, "demand": 100, "category": "production"},
+	{"id": "luxury_watch", "display_name": "Luxury Watch", "base_price": 1500, "min_price": 600, "max_price": 6000, "supply": 40, "demand": 60, "category": "luxury"},
+	{"id": "art_piece", "display_name": "Art Piece", "base_price": 2200, "min_price": 800, "max_price": 9000, "supply": 30, "demand": 55, "category": "luxury"}
+]

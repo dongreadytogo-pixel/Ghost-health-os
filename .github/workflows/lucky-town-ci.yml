@@ -1,0 +1,41 @@
+name: Lucky Town CI
+
+# Runs the Godot game's headless unit tests. Scoped to the game folder so it
+# only fires when game files change, and never interferes with the TypeScript CI.
+on:
+  push:
+    branches: ['**']
+    paths: ['lucky-town/**', '.github/workflows/lucky-town-ci.yml']
+  pull_request:
+    paths: ['lucky-town/**', '.github/workflows/lucky-town-ci.yml']
+
+concurrency:
+  group: lucky-town-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Headless GDScript tests
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: 4.2.2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot ${{ env.GODOT_VERSION }} (headless)
+        run: |
+          set -euo pipefail
+          curl -sSL -o godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip
+          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          chmod +x /usr/local/bin/godot
+          godot --version
+
+      - name: Import project (builds resource + global class cache)
+        working-directory: lucky-town
+        run: godot --headless --import || true
+
+      - name: Run unit tests
+        working-directory: lucky-town
+        run: godot --headless --script res://tests/run_tests.gd

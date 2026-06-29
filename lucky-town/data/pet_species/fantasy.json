@@ -1,0 +1,40 @@
+[
+	{
+		"id": "dragon",
+		"display_name": "Dragon",
+		"category": "legendary",
+		"base_value": 2500,
+		"genes": ["power", "wingspan", "scale_shine", "rarity", "elemental"],
+		"traits": [
+			{"name": "elder_wyrm", "gene": "power", "threshold": 0.95},
+			{"name": "prismatic_scales", "gene": "scale_shine", "threshold": 0.92}
+		],
+		"mutation_chance": 0.08,
+		"mutation_pool": ["void", "celestial", "molten", "frost"]
+	},
+	{
+		"id": "ghost_pet",
+		"display_name": "Ghost Pet",
+		"category": "rare",
+		"base_value": 900,
+		"genes": ["spookiness", "glow", "drift", "rarity"],
+		"traits": [
+			{"name": "poltergeist", "gene": "spookiness", "threshold": 0.93},
+			{"name": "ethereal_glow", "gene": "glow", "threshold": 0.9}
+		],
+		"mutation_chance": 0.07,
+		"mutation_pool": ["wraith", "banshee", "phantom"]
+	},
+	{
+		"id": "phoenix",
+		"display_name": "Phoenix",
+		"category": "legendary",
+		"base_value": 3200,
+		"genes": ["flame", "rebirth", "plumage", "rarity"],
+		"traits": [
+			{"name": "eternal_flame", "gene": "flame", "threshold": 0.96}
+		],
+		"mutation_chance": 0.06,
+		"mutation_pool": ["solar", "ashen"]
+	}
+]

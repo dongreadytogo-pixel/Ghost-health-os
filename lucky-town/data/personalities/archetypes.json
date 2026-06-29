@@ -1,0 +1,82 @@
+[
+	{
+		"id": "gambler",
+		"display_name": "Gambler",
+		"risk_tolerance": 0.85,
+		"frugality": 0.2,
+		"sociability": 0.5,
+		"action_weights": {"gamble": 1.0, "eat": 0.6, "sleep": 0.6, "work": 0.4, "shop": 0.3, "socialise": 0.4}
+	},
+	{
+		"id": "investor",
+		"display_name": "Investor",
+		"risk_tolerance": 0.45,
+		"frugality": 0.8,
+		"sociability": 0.4,
+		"action_weights": {"invest": 1.0, "buy_land": 0.9, "build": 0.7, "work": 0.6, "eat": 0.6, "sleep": 0.6, "gamble": 0.1}
+	},
+	{
+		"id": "collector",
+		"display_name": "Collector",
+		"risk_tolerance": 0.4,
+		"frugality": 0.5,
+		"sociability": 0.5,
+		"action_weights": {"buy_pet": 1.0, "shop": 0.7, "decorate": 0.6, "eat": 0.6, "sleep": 0.6, "work": 0.5}
+	},
+	{
+		"id": "farmer",
+		"display_name": "Farmer",
+		"risk_tolerance": 0.3,
+		"frugality": 0.7,
+		"sociability": 0.5,
+		"action_weights": {"build": 0.9, "buy_land": 0.8, "breed_pet": 0.8, "buy_pet": 0.6, "work": 0.7, "eat": 0.6, "sleep": 0.6, "gamble": 0.05}
+	},
+	{
+		"id": "merchant",
+		"display_name": "Merchant",
+		"risk_tolerance": 0.5,
+		"frugality": 0.6,
+		"sociability": 0.7,
+		"action_weights": {"shop": 0.9, "build": 0.7, "sell_pet": 0.6, "buy_land": 0.6, "socialise": 0.6, "work": 0.6, "eat": 0.6, "sleep": 0.6}
+	},
+	{
+		"id": "builder",
+		"display_name": "Builder",
+		"risk_tolerance": 0.4,
+		"frugality": 0.65,
+		"sociability": 0.4,
+		"action_weights": {"build": 1.0, "buy_land": 0.9, "decorate": 0.7, "work": 0.7, "eat": 0.6, "sleep": 0.6}
+	},
+	{
+		"id": "pet_breeder",
+		"display_name": "Pet Breeder",
+		"risk_tolerance": 0.45,
+		"frugality": 0.55,
+		"sociability": 0.5,
+		"action_weights": {"breed_pet": 1.0, "buy_pet": 0.8, "sell_pet": 0.7, "build": 0.5, "eat": 0.6, "sleep": 0.6, "work": 0.4}
+	},
+	{
+		"id": "speculator",
+		"display_name": "Speculator",
+		"risk_tolerance": 0.7,
+		"frugality": 0.35,
+		"sociability": 0.5,
+		"action_weights": {"buy_land": 1.0, "invest": 0.9, "shop": 0.6, "gamble": 0.5, "sell_pet": 0.5, "eat": 0.6, "sleep": 0.6}
+	},
+	{
+		"id": "risk_lover",
+		"display_name": "Risk Lover",
+		"risk_tolerance": 0.95,
+		"frugality": 0.15,
+		"sociability": 0.6,
+		"action_weights": {"gamble": 1.0, "invest": 0.5, "shop": 0.5, "socialise": 0.5, "eat": 0.6, "sleep": 0.6}
+	},
+	{
+		"id": "casual",
+		"display_name": "Casual Player",
+		"risk_tolerance": 0.5,
+		"frugality": 0.5,
+		"sociability": 0.6,
+		"action_weights": {"gamble": 0.4, "shop": 0.5, "socialise": 0.6, "buy_pet": 0.4, "work": 0.5, "eat": 0.7, "sleep": 0.7, "decorate": 0.4}
+	}
+]

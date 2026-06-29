@@ -1,0 +1,53 @@
+[
+	{
+		"id": "dog",
+		"display_name": "Dog",
+		"category": "common",
+		"base_value": 120,
+		"genes": ["loyalty", "speed", "size", "coat"],
+		"traits": [
+			{"name": "show_coat", "gene": "coat", "threshold": 0.85},
+			{"name": "sprinter", "gene": "speed", "threshold": 0.9}
+		],
+		"mutation_chance": 0.03,
+		"mutation_pool": ["golden", "two_tone", "giant"]
+	},
+	{
+		"id": "cat",
+		"display_name": "Cat",
+		"category": "common",
+		"base_value": 110,
+		"genes": ["agility", "independence", "size", "coat"],
+		"traits": [
+			{"name": "sleek", "gene": "agility", "threshold": 0.88},
+			{"name": "fluffy", "gene": "coat", "threshold": 0.85}
+		],
+		"mutation_chance": 0.03,
+		"mutation_pool": ["calico", "sphinx", "maine"]
+	},
+	{
+		"id": "fox",
+		"display_name": "Fox",
+		"category": "uncommon",
+		"base_value": 260,
+		"genes": ["cunning", "speed", "fluff", "rarity"],
+		"traits": [
+			{"name": "nine_tails", "gene": "rarity", "threshold": 0.95},
+			{"name": "snow_fur", "gene": "fluff", "threshold": 0.9}
+		],
+		"mutation_chance": 0.05,
+		"mutation_pool": ["arctic", "fire", "shadow"]
+	},
+	{
+		"id": "bird",
+		"display_name": "Songbird",
+		"category": "common",
+		"base_value": 90,
+		"genes": ["song", "color", "speed"],
+		"traits": [
+			{"name": "virtuoso", "gene": "song", "threshold": 0.92}
+		],
+		"mutation_chance": 0.04,
+		"mutation_pool": ["rainbow", "albino"]
+	}
+]

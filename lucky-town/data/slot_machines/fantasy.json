@@ -1,0 +1,39 @@
+{
+	"id": "slot_fantasy",
+	"display_name": "Fantasy Fortune",
+	"theme": "fantasy",
+	"rows": 3,
+	"reels": [
+		["gem", "potion", "sword", "shield", "wizard", "gem", "potion", "rune", "sword", "dragon", "shield", "gem", "chest", "potion", "sword", "wizard", "gem", "shield", "potion", "sword"],
+		["potion", "sword", "gem", "shield", "rune", "wizard", "potion", "gem", "sword", "shield", "dragon", "potion", "gem", "chest", "sword", "shield", "wizard", "potion", "gem", "sword"],
+		["sword", "gem", "shield", "potion", "wizard", "gem", "rune", "sword", "shield", "potion", "gem", "dragon", "sword", "shield", "chest", "potion", "gem", "wizard", "sword", "shield"],
+		["shield", "potion", "gem", "sword", "wizard", "shield", "potion", "gem", "rune", "sword", "shield", "potion", "dragon", "gem", "sword", "chest", "shield", "wizard", "potion", "gem"],
+		["gem", "sword", "potion", "shield", "wizard", "gem", "sword", "potion", "shield", "rune", "gem", "sword", "potion", "dragon", "shield", "gem", "sword", "chest", "potion", "wizard"]
+	],
+	"paylines": [
+		[1, 1, 1, 1, 1],
+		[0, 0, 0, 0, 0],
+		[2, 2, 2, 2, 2],
+		[0, 1, 2, 1, 0],
+		[2, 1, 0, 1, 2]
+	],
+	"paytable": {
+		"gem": [0, 0, 1, 2, 5],
+		"potion": [0, 0, 1, 3, 8],
+		"sword": [0, 0, 2, 4, 10],
+		"shield": [0, 0, 2, 5, 12],
+		"wizard": [0, 0, 5, 15, 40],
+		"dragon": [0, 0, 10, 40, 200]
+	},
+	"scatter_pays": {
+		"chest": {"3": 5, "4": 20, "5": 100}
+	},
+	"wild_ids": ["rune"],
+	"scatter_ids": ["chest"],
+	"min_bet": 10,
+	"max_bet": 1000,
+	"bet_step": 10,
+	"jackpot_contribution": 0.01,
+	"jackpot_symbol": "dragon",
+	"jackpot_line_length": 5
+}
