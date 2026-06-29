@@ -16,8 +16,12 @@
  * snapshot, so saving and restoring a World reproduces the exact future.
  */
 
-import type { Rng } from '../shared/rng.js';
-import { asEntityId, type EntityId } from '../shared/branded.js';
+import { Rng, type RngState } from '../shared/rng.js';
+import {
+  asEntityId,
+  type EntityId,
+  type ZoneDefId,
+} from '../shared/branded.js';
 import { roundHalfUp } from '../shared/math.js';
 import type { ContentRegistry } from '../content/registry.js';
 import type {
@@ -107,6 +111,8 @@ export interface WorldConfig {
   readonly autoFuse: boolean;
   /** Hard cap on owned companions; weakest are auto-recycled beyond it. */
   readonly maxRosterSize: number;
+  /** Hard cap on stored loot; oldest items are auto-recycled beyond it. */
+  readonly maxInventorySize: number;
 }
 
 export const DEFAULT_WORLD_CONFIG: WorldConfig = {
@@ -121,6 +127,7 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   sameRaritySynergyBonus: 0.15,
   autoFuse: true,
   maxRosterSize: 24,
+  maxInventorySize: 200,
 };
 
 export interface WorldSetup {
@@ -128,6 +135,26 @@ export interface WorldSetup {
   readonly skills?: readonly SkillInstance[];
   /** Companions already owned at the start (e.g. restored from a save). */
   readonly party?: readonly Companion[];
+  /** Starting gold (used when restoring a save). */
+  readonly gold?: number;
+  /** Starting inventory (used when restoring a save). */
+  readonly inventory?: readonly ItemInstance[];
+  /** Ticks already elapsed (used when restoring a save). */
+  readonly ticksElapsed?: number;
+}
+
+/** A complete, JSON-serializable snapshot of a World for cloud/local save. */
+export interface WorldSave {
+  readonly version: 1;
+  readonly zoneId: ZoneDefId;
+  readonly rngState: RngState;
+  readonly build: PlayerBuild;
+  readonly progress: ProgressState;
+  readonly gold: number;
+  readonly inventory: readonly ItemInstance[];
+  readonly skills: readonly SkillInstance[];
+  readonly roster: readonly Companion[];
+  readonly ticksElapsed: number;
 }
 
 export type WorldEvent =
@@ -229,7 +256,34 @@ export class World {
     this.skills = setup.skills ? [...setup.skills] : [];
     this.skillCooldowns = this.skills.map(() => 0);
     this.roster = setup.party ? [...setup.party] : [];
+    this.gold = setup.gold ?? 0;
+    if (setup.inventory) this.inventory.push(...setup.inventory);
+    this.tickCount = setup.ticksElapsed ?? 0;
     this.player = this.buildPlayerCombatant(true);
+  }
+
+  /** Reconstruct a World from a saved snapshot (resumes the exact stream). */
+  static fromSave(
+    registry: ContentRegistry,
+    zone: ZoneDefinition,
+    save: WorldSave,
+    config: WorldConfig = DEFAULT_WORLD_CONFIG,
+  ): World {
+    return new World(
+      registry,
+      zone,
+      Rng.restore(save.rngState),
+      save.build,
+      config,
+      save.progress,
+      {
+        skills: save.skills,
+        party: save.roster,
+        gold: save.gold,
+        inventory: save.inventory,
+        ticksElapsed: save.ticksElapsed,
+      },
+    );
   }
 
   // --- public surface -------------------------------------------------------
@@ -335,6 +389,61 @@ export class World {
 
   get ticksElapsed(): number {
     return this.tickCount;
+  }
+
+  /** Lightweight hero vitals for rendering (no allocation of the full snapshot). */
+  get hero(): { readonly currentHp: number; readonly maxHp: number } {
+    return { currentHp: this.player.currentHp, maxHp: this.player.stats.maxHp };
+  }
+
+  /** Cheap, allocation-light vitals for a high-frequency render loop. */
+  get vitals(): {
+    readonly level: number;
+    readonly currentExp: number;
+    readonly gold: number;
+    readonly inventoryCount: number;
+    readonly party: readonly Companion[];
+    readonly roster: readonly Companion[];
+    readonly mount: PlayerBuild['mount'];
+  } {
+    return {
+      level: this.progress.level,
+      currentExp: this.progress.currentExp,
+      gold: this.gold,
+      inventoryCount: this.inventory.length,
+      party: [...this.activeParty()],
+      roster: [...this.roster],
+      mount: this.build.mount,
+    };
+  }
+
+  /** The monster currently being fought, for rendering, or undefined. */
+  get enemy():
+    | { readonly name: string; readonly currentHp: number; readonly maxHp: number }
+    | undefined {
+    return this.target
+      ? {
+          name: this.target.name,
+          currentHp: this.target.currentHp,
+          maxHp: this.target.stats.maxHp,
+        }
+      : undefined;
+  }
+
+  /** Capture a complete, JSON-serializable save (includes RNG state). */
+  serialize(): WorldSave {
+    return {
+      version: 1,
+      zoneId: this.zone.id,
+      rngState: this.rng.snapshot(),
+      build: this.build,
+      progress: this.progress,
+      gold: this.gold,
+      inventory: [...this.inventory],
+      skills: [...this.skills],
+      roster: [...this.roster],
+      ticksElapsed: this.tickCount,
+    };
   }
 
   // --- combat helpers -------------------------------------------------------
@@ -499,6 +608,9 @@ export class World {
 
     this.gold += loot.gold;
     this.inventory.push(...loot.items);
+    if (this.inventory.length > this.config.maxInventorySize) {
+      this.inventory.splice(0, this.inventory.length - this.config.maxInventorySize);
+    }
 
     events.push({
       type: 'kill',

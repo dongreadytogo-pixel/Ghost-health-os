@@ -1,0 +1,20 @@
+{
+  "name": "@titan/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Project Titan — playable 2D pixel idle-MMORPG client. Mobile-first, PC compatible. Drives @titan/engine in the browser.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "esbuild src/main.ts --bundle --format=esm --sourcemap --servedir=. --outfile=app.js",
+    "build": "esbuild src/main.ts --bundle --format=esm --minify --outfile=dist/app.js && cp index.html dist/index.html",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@titan/engine": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.3"
+  }
+}

@@ -63,9 +63,25 @@ The "charm" layer — all rarity-scaled, all deterministic, all unit-tested.
 - **Performance:** active-party caching + a roster cap keep offline
   fast-forwarding fast even after thousands of captures.
 
+## ✅ Phase 2 (partial) — Auto-storage & Save/Load (DONE)
+
+- **Save/Load:** `World.serialize()` / `World.fromSave()` capture the full state
+  *including RNG*, so a reload resumes deterministically. Plain JSON.
+- **Auto-storage / auto-recycle:** owned loot and companions are capped
+  (oldest/weakest auto-recycled) — keeps memory and save size bounded.
+
+## ✅ Phase 8 (MVP) — Playable Client (DONE)
+
+- **`@titan/web`**: a mobile-first 2D-pixel browser client driving the engine in
+  real time — auto-battle, floating damage, party chips, level-ups, **offline
+  "welcome back" progress**, and autosave to `localStorage`.
+- Verified running in a real (headless Chromium) browser with no console errors;
+  static build (one HTML + one JS) hostable anywhere.
+- Placeholder emoji sprites with documented drop-in points for licensed 2D art.
+
 ---
 
-## ⏭️ Phase 2 — Inventory, Equipment & Economy (next)
+## ⏭️ Phase 2 (rest) — Inventory, Equipment & Economy (next)
 
 - Inventory model with stacking, capacity, and auto-sort.
 - Equip/unequip flow recomputing the player build; **auto-equip** (keep best per

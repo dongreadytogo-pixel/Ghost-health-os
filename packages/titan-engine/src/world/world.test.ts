@@ -245,6 +245,67 @@ describe('World — determinism with all systems active', () => {
   });
 });
 
+describe('World — save / load', () => {
+  const config = {
+    ...DEFAULT_WORLD_CONFIG,
+    capture: { ...DEFAULT_WORLD_CONFIG.capture, baseChance: 0.3, skillPool: STARTER_SKILLS },
+  };
+  const fresh = (): World =>
+    new World(
+      registry,
+      zone,
+      Rng.fromSeed(77),
+      { allocated: strongHero, equipment: {}, mount: makeMountInstance(STARTER_MOUNTS[0]!, 'rare', false) },
+      config,
+      { level: 1, currentExp: 0 },
+      { skills: STARTER_SKILLS.map((d) => rollSkillInstance(d, Rng.fromSeed(11))) },
+    );
+
+  it('resume is deterministic: two restores from one save share a future', () => {
+    const original = fresh();
+    original.run(1200);
+    const save = original.serialize();
+
+    const a = World.fromSave(registry, zone, save, config);
+    const b = World.fromSave(registry, zone, save, config);
+    expect(a.run(800)).toEqual(b.run(800));
+  });
+
+  it('a restored world keeps progressing from the saved state', () => {
+    const original = fresh();
+    original.run(1200);
+    const save = original.serialize();
+    const restored = World.fromSave(registry, zone, save, config);
+    restored.run(1500);
+    expect(restored.snapshot().progress.level).toBeGreaterThanOrEqual(
+      save.progress.level,
+    );
+    expect(restored.snapshot().gold).toBeGreaterThanOrEqual(save.gold);
+  });
+
+  it('a save is plain JSON (round-trips through stringify)', () => {
+    const w = fresh();
+    w.run(500);
+    const save = w.serialize();
+    const round = JSON.parse(JSON.stringify(save));
+    const restored = World.fromSave(registry, zone, round, config);
+    expect(restored.snapshot().progress).toEqual(w.snapshot().progress);
+    expect(restored.snapshot().roster.length).toBe(w.snapshot().roster.length);
+  });
+
+  it('preserves gold, level and roster across reload', () => {
+    const w = fresh();
+    w.run(2000);
+    const before = w.snapshot();
+    const restored = World.fromSave(registry, zone, w.serialize(), config);
+    const after = restored.snapshot();
+    expect(after.gold).toBe(before.gold);
+    expect(after.progress.level).toBe(before.progress.level);
+    expect(after.roster.length).toBe(before.roster.length);
+    expect(restored.ticksElapsed).toBe(w.ticksElapsed);
+  });
+});
+
 describe('evenAllocation', () => {
   it('distributes points without losing any', () => {
     const a = evenAllocation(7);

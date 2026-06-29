@@ -9,6 +9,10 @@ build/
 out/
 *.tsbuildinfo
 
+# esbuild dev-server artifacts (apps/titan-web dev mode)
+apps/*/app.js
+apps/*/app.js.map
+
 # Test / coverage
 coverage/
 .vitest/
