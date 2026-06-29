@@ -36,6 +36,8 @@ export interface ItemInstance {
   readonly affixes: readonly RolledAffix[];
   /** base attributes + all affix attributes, precomputed for equip math. */
   readonly totalAttributes: Attributes;
+  /** Enchant/upgrade level applied after acquisition (0 if fresh). */
+  readonly upgradeLevel?: number;
 }
 
 export interface LootResult {

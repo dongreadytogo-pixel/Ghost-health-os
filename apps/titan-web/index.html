@@ -148,7 +148,9 @@
       }
 
       .row-title { font-size: 11px; color: var(--muted); margin-bottom: 6px; letter-spacing: 1px; }
-      #party { display: flex; flex-wrap: wrap; gap: 6px; min-height: 20px; }
+      #party, #gear { display: flex; flex-wrap: wrap; gap: 6px; min-height: 20px; }
+      .empty { color: var(--muted); font-size: 11px; }
+      .chip .up { color: var(--xp); font-size: 10px; }
       .chip {
         font-size: 11px;
         padding: 4px 7px;
@@ -241,6 +243,11 @@
           <div class="name" id="enemy-name">…</div>
           <div class="bar enemyhp"><span id="enemy-hp"></span></div>
         </div>
+      </div>
+
+      <div class="panel">
+        <div class="row-title">⚔ อุปกรณ์ (ใส่/อัปเกรดอัตโนมัติ)</div>
+        <div id="gear"></div>
       </div>
 
       <div class="panel">

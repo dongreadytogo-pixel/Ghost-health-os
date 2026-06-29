@@ -63,12 +63,22 @@ The "charm" layer — all rarity-scaled, all deterministic, all unit-tested.
 - **Performance:** active-party caching + a roster cap keep offline
   fast-forwarding fast even after thousands of captures.
 
-## ✅ Phase 2 (partial) — Auto-storage & Save/Load (DONE)
+## ✅ Phase 2 — Inventory, Equipment & Economy (DONE)
 
 - **Save/Load:** `World.serialize()` / `World.fromSave()` capture the full state
   *including RNG*, so a reload resumes deterministically. Plain JSON.
 - **Auto-storage / auto-recycle:** owned loot and companions are capped
   (oldest/weakest auto-recycled) — keeps memory and save size bounded.
+- **Auto-equip:** a dropped item is equipped automatically when it beats the
+  current piece in its slot (compared by `itemPower`), recomputing the build.
+- **Auto-sell:** anything the hero doesn't keep is melted to gold
+  (`sellValue` scales with base value, rarity and upgrade level).
+- **Item upgrade / enchant + auto-upgrade:** equipped gear gains levels that
+  scale its attributes; the world spends earned gold to upgrade the cheapest
+  eligible piece each kill — a real gold sink that turns loot into power.
+- Closes the core loop: **kill → loot → auto-equip best → sell the rest →
+  spend gold upgrading gear → hit harder.** Surfaced in the web client's gear
+  panel (rarity colours + `+level`).
 
 ## ✅ Phase 8 (MVP) — Playable Client (DONE)
 
@@ -81,7 +91,7 @@ The "charm" layer — all rarity-scaled, all deterministic, all unit-tested.
 
 ---
 
-## ⏭️ Phase 2 (rest) — Inventory, Equipment & Economy (next)
+## ⏭️ Phase 2b — Crafting & Player Market (next)
 
 - Inventory model with stacking, capacity, and auto-sort.
 - Equip/unequip flow recomputing the player build; **auto-equip** (keep best per

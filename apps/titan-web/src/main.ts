@@ -171,6 +171,31 @@ function log(msg: string, cls = ''): void {
   while (box.childElementCount > 40) box.lastElementChild?.remove();
 }
 
+const SLOT_ICON: Record<string, string> = {
+  weapon: '🗡',
+  armor: '🛡',
+  helm: '⛑',
+  accessory: '💍',
+};
+
+function renderGear(equipment: Record<string, { name: string; rarity: Rarity; upgradeLevel?: number } | undefined>): void {
+  const host = $('gear');
+  host.innerHTML = '';
+  const slots = ['weapon', 'armor', 'helm', 'accessory'];
+  let any = false;
+  for (const slot of slots) {
+    const item = equipment[slot];
+    if (!item) continue;
+    any = true;
+    const lvl = item.upgradeLevel ?? 0;
+    const chip = document.createElement('div');
+    chip.className = `chip ${rarityClass(item.rarity)}`;
+    chip.innerHTML = `<span>${SLOT_ICON[slot] ?? '▫'}</span><span>${item.name}</span>${lvl > 0 ? `<span class="up">+${lvl}</span>` : ''}`;
+    host.appendChild(chip);
+  }
+  if (!any) host.innerHTML = '<span class="empty">ยังไม่มีอุปกรณ์ — ออกล่าหาของกันเถอะ!</span>';
+}
+
 function renderParty(party: readonly Companion[], rosterCount: number): void {
   $('roster-count').textContent = String(rosterCount);
   const host = $('party');
@@ -217,6 +242,14 @@ function renderStaticFromEvents(events: WorldEvent[]): void {
       case 'levelUp':
         log(`⬆ เลเวลอัป! ตอนนี้ Lv ${e.level}`, 'log-level');
         break;
+      case 'equip':
+        if (e.rarity === 'rare' || e.rarity === 'epic' || e.rarity === 'legendary' || e.rarity === 'mythic') {
+          log(`⚔ ใส่ ${e.item} (${e.rarity})`, 'log-join');
+        }
+        break;
+      case 'upgrade':
+        if (e.level % 5 === 0) log(`✨ อัปเกรด ${e.item} เป็น +${e.level}`, 'log-level');
+        break;
       case 'companionJoined':
         log(`${e.shiny ? '✦ ' : ''}🪄 จับ ${e.companion} เข้าทีม!`,
           e.shiny ? 'log-shiny' : 'log-join');
@@ -257,6 +290,7 @@ function renderVitals(): void {
   $('items').textContent = v.inventoryCount.toLocaleString();
   $('shinies').textContent = String(v.roster.filter((c) => c.shiny).length);
 
+  renderGear(v.equipment as Record<string, { name: string; rarity: Rarity; upgradeLevel?: number } | undefined>);
   renderParty(v.party, v.roster.length);
 }
 

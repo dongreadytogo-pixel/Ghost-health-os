@@ -11,6 +11,7 @@
 import type { ItemSlot } from '../content/definitions.js';
 import type { ItemInstance } from '../loot/loot.js';
 import type { MountInstance } from '../mounts/mount.js';
+import { effectiveItemAttributes } from '../items/upgrade.js';
 import { roundHalfUp } from '../shared/math.js';
 import {
   addAttributes,
@@ -35,7 +36,7 @@ export interface PlayerBuild {
 export function effectiveAttributes(build: PlayerBuild): Attributes {
   let total = build.allocated;
   for (const item of Object.values(build.equipment)) {
-    if (item) total = addAttributes(total, item.totalAttributes);
+    if (item) total = addAttributes(total, effectiveItemAttributes(item));
   }
   if (build.mount) total = addAttributes(total, build.mount.bonusAttributes);
   return total;

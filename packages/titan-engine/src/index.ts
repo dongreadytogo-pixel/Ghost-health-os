@@ -27,6 +27,8 @@ export * from './content/starter-content.js';
 // Systems
 export * from './combat/combat.js';
 export * from './loot/loot.js';
+export * from './items/upgrade.js';
+export * from './items/equip.js';
 export * from './skills/skill.js';
 export * from './mounts/mount.js';
 export * from './companions/companion.js';

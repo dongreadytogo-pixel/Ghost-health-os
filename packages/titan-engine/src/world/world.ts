@@ -25,10 +25,20 @@ import {
 import { roundHalfUp } from '../shared/math.js';
 import type { ContentRegistry } from '../content/registry.js';
 import type {
+  ItemSlot,
   MonsterDefinition,
   Rarity,
   ZoneDefinition,
 } from '../content/definitions.js';
+import { isEquippable, isUpgradeOver, sellValue } from '../items/equip.js';
+import {
+  canUpgrade,
+  upgradeCost,
+  upgradeItem,
+  upgradeLevelOf,
+  DEFAULT_UPGRADE,
+  type UpgradeConfig,
+} from '../items/upgrade.js';
 import {
   resolveAttack,
   DEFAULT_COMBAT,
@@ -113,6 +123,13 @@ export interface WorldConfig {
   readonly maxRosterSize: number;
   /** Hard cap on stored loot; oldest items are auto-recycled beyond it. */
   readonly maxInventorySize: number;
+  /** Auto-equip a dropped item when it beats the current piece in its slot. */
+  readonly autoEquip: boolean;
+  /** Auto-sell items the hero doesn't keep, converting them to gold. */
+  readonly autoSell: boolean;
+  /** Spend gold to auto-upgrade equipped gear (one upgrade per kill). */
+  readonly autoUpgrade: boolean;
+  readonly upgrade: UpgradeConfig;
 }
 
 export const DEFAULT_WORLD_CONFIG: WorldConfig = {
@@ -128,6 +145,10 @@ export const DEFAULT_WORLD_CONFIG: WorldConfig = {
   autoFuse: true,
   maxRosterSize: 24,
   maxInventorySize: 200,
+  autoEquip: true,
+  autoSell: true,
+  autoUpgrade: true,
+  upgrade: DEFAULT_UPGRADE,
 };
 
 export interface WorldSetup {
@@ -185,6 +206,20 @@ export type WorldEvent =
       readonly gold: number;
     }
   | { readonly type: 'loot'; readonly items: readonly ItemInstance[] }
+  | {
+      readonly type: 'equip';
+      readonly item: string;
+      readonly slot: ItemSlot;
+      readonly rarity: Rarity;
+    }
+  | { readonly type: 'autoSell'; readonly count: number; readonly gold: number }
+  | {
+      readonly type: 'upgrade';
+      readonly slot: ItemSlot;
+      readonly item: string;
+      readonly level: number;
+      readonly cost: number;
+    }
   | {
       readonly type: 'levelUp';
       readonly level: number;
@@ -405,6 +440,7 @@ export class World {
     readonly party: readonly Companion[];
     readonly roster: readonly Companion[];
     readonly mount: PlayerBuild['mount'];
+    readonly equipment: PlayerBuild['equipment'];
   } {
     return {
       level: this.progress.level,
@@ -414,6 +450,7 @@ export class World {
       party: [...this.activeParty()],
       roster: [...this.roster],
       mount: this.build.mount,
+      equipment: this.build.equipment,
     };
   }
 
@@ -607,10 +644,6 @@ export class World {
       : { gold: 0, items: [] as ItemInstance[] };
 
     this.gold += loot.gold;
-    this.inventory.push(...loot.items);
-    if (this.inventory.length > this.config.maxInventorySize) {
-      this.inventory.splice(0, this.inventory.length - this.config.maxInventorySize);
-    }
 
     events.push({
       type: 'kill',
@@ -618,19 +651,121 @@ export class World {
       experience: exp,
       gold: loot.gold,
     });
-    if (loot.items.length > 0) events.push({ type: 'loot', items: loot.items });
 
-    this.grantExperience(exp, events);
+    let equipChanged = this.processLoot(loot.items, events);
+    if (this.attemptAutoUpgrade(events)) equipChanged = true;
+
+    const leveled = this.grantExperience(exp, events);
+    // grantExperience already rebuilds (and heals) on level-up; otherwise rebuild
+    // here so new gear / upgrades take effect without a free heal.
+    if (equipChanged && !leveled) {
+      this.player = this.buildPlayerCombatant(false);
+    }
+
     this.deepenBonds();
     if (monsterDef) this.attemptCapture(monsterDef, events);
 
     this.target = undefined;
   }
 
-  private grantExperience(exp: number, events: WorldEvent[]): void {
+  /**
+   * Auto-equip upgrades, auto-sell what's not worth keeping, and stash the rest
+   * (materials/consumables). Returns whether equipment changed.
+   */
+  private processLoot(items: readonly ItemInstance[], events: WorldEvent[]): boolean {
+    let equipChanged = false;
+    const kept: ItemInstance[] = [];
+    let sellGold = 0;
+    let sellCount = 0;
+
+    const sellOrKeep = (item: ItemInstance, baseValue: number): void => {
+      if (this.config.autoSell) {
+        sellGold += sellValue(item, baseValue);
+        sellCount += item.quantity;
+      } else {
+        kept.push(item);
+      }
+    };
+
+    for (const item of items) {
+      const itemDef = this.registry.item(item.defId);
+      const baseValue = itemDef.ok ? itemDef.value.value : 1;
+      const slot = itemDef.ok ? itemDef.value.slot : 'material';
+
+      if (!isEquippable(slot)) {
+        kept.push(item);
+        continue;
+      }
+      const current = this.build.equipment[slot];
+      if (this.config.autoEquip && isUpgradeOver(item, current)) {
+        this.build = {
+          ...this.build,
+          equipment: { ...this.build.equipment, [slot]: item },
+        };
+        equipChanged = true;
+        events.push({
+          type: 'equip',
+          item: item.name,
+          slot,
+          rarity: item.rarity,
+        });
+        if (current) sellOrKeep(current, baseValue); // melt down the old piece
+      } else {
+        sellOrKeep(item, baseValue);
+      }
+    }
+
+    if (sellGold > 0) {
+      this.gold += sellGold;
+      events.push({ type: 'autoSell', count: sellCount, gold: sellGold });
+    }
+    if (kept.length > 0) {
+      this.inventory.push(...kept);
+      if (this.inventory.length > this.config.maxInventorySize) {
+        this.inventory.splice(0, this.inventory.length - this.config.maxInventorySize);
+      }
+      events.push({ type: 'loot', items: kept });
+    }
+    return equipChanged;
+  }
+
+  /** Spend gold to upgrade the cheapest eligible equipped item (one per kill). */
+  private attemptAutoUpgrade(events: WorldEvent[]): boolean {
+    if (!this.config.autoUpgrade) return false;
+    let bestSlot: ItemSlot | undefined;
+    let bestItem: ItemInstance | undefined;
+    let bestCost = Infinity;
+    for (const [slot, item] of Object.entries(this.build.equipment)) {
+      if (!item || !canUpgrade(item, this.config.upgrade)) continue;
+      const cost = upgradeCost(item, this.config.upgrade);
+      if (cost < bestCost) {
+        bestCost = cost;
+        bestItem = item;
+        bestSlot = slot as ItemSlot;
+      }
+    }
+    if (!bestItem || !bestSlot || this.gold < bestCost) return false;
+
+    this.gold -= bestCost;
+    const upgraded = upgradeItem(bestItem);
+    this.build = {
+      ...this.build,
+      equipment: { ...this.build.equipment, [bestSlot]: upgraded },
+    };
+    events.push({
+      type: 'upgrade',
+      slot: bestSlot,
+      item: upgraded.name,
+      level: upgradeLevelOf(upgraded),
+      cost: bestCost,
+    });
+    return true;
+  }
+
+  private grantExperience(exp: number, events: WorldEvent[]): boolean {
     const result = applyExperience(this.progress, exp, this.config.leveling);
     this.progress = result.state;
-    if (result.levelsGained <= 0) return;
+    if (result.levelsGained <= 0) return false;
     this.build = {
       ...this.build,
       allocated: addAttributes(
@@ -645,6 +780,7 @@ export class World {
       level: this.progress.level,
       levelsGained: result.levelsGained,
     });
+    return true;
   }
 
   private deepenBonds(): void {

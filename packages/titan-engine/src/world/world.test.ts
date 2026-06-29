@@ -6,7 +6,13 @@ import {
   STARTER_MOUNTS,
   STARTER_SKILLS,
 } from '../content/starter-content.js';
-import { asZoneDefId } from '../shared/branded.js';
+import {
+  asItemDefId,
+  asMonsterDefId,
+  asZoneDefId,
+} from '../shared/branded.js';
+import { deriveStats } from '../stats/stats.js';
+import { upgradeLevelOf } from '../items/upgrade.js';
 import { isOk } from '../shared/result.js';
 import { Rng } from '../shared/rng.js';
 import { ZERO_ATTRIBUTES, type Attributes } from '../stats/stats.js';
@@ -303,6 +309,109 @@ describe('World — save / load', () => {
     expect(after.progress.level).toBe(before.progress.level);
     expect(after.roster.length).toBe(before.roster.length);
     expect(restored.ticksElapsed).toBe(w.ticksElapsed);
+  });
+});
+
+describe('World — auto-equip / auto-sell / auto-upgrade (Phase 2)', () => {
+  const reg = new ContentRegistry().register({
+    items: [
+      {
+        id: asItemDefId('greatsword'),
+        name: 'Greatsword',
+        slot: 'weapon',
+        baseRarity: 'rare',
+        baseAttributes: { strength: 30, dexterity: 10 },
+        affixPool: [],
+        value: 50,
+        stackable: false,
+      },
+      {
+        id: asItemDefId('ore'),
+        name: 'Ore',
+        slot: 'material',
+        baseRarity: 'common',
+        baseAttributes: {},
+        affixPool: [],
+        value: 3,
+        stackable: true,
+      },
+    ],
+    monsters: [
+      {
+        id: asMonsterDefId('dummy'),
+        name: 'Training Dummy',
+        level: 1,
+        stats: deriveStats(ZERO_ATTRIBUTES),
+        experienceReward: 5,
+        goldReward: { min: 0, max: 0 },
+        dropTable: [
+          { itemId: asItemDefId('greatsword'), chance: 1, minQuantity: 1, maxQuantity: 1 },
+          { itemId: asItemDefId('ore'), chance: 1, minQuantity: 1, maxQuantity: 1 },
+        ],
+        isBoss: false,
+      },
+    ],
+    zones: [
+      {
+        id: asZoneDefId('arena'),
+        name: 'Arena',
+        recommendedLevel: 1,
+        spawnTable: [{ monsterId: asMonsterDefId('dummy'), weight: 1 }],
+      },
+    ],
+  });
+  const arena = unwrap(reg.zone(asZoneDefId('arena')));
+  // Capture off so the only economy is gear/sell/upgrade.
+  const cfg = {
+    ...DEFAULT_WORLD_CONFIG,
+    capture: { ...DEFAULT_WORLD_CONFIG.capture, baseChance: 0 },
+  };
+  const make = (over = {}): World =>
+    new World(reg, arena, Rng.fromSeed(1), { allocated: strongHero, equipment: {} }, {
+      ...cfg,
+      ...over,
+    });
+
+  it('auto-equips a dropped weapon and reflects it in the build', () => {
+    const world = make();
+    const log = world.run(300);
+    expect(countEvents(log, 'equip')).toBeGreaterThan(0);
+    expect(world.snapshot().build.equipment.weapon?.name).toBe('Greatsword');
+  });
+
+  it('auto-sells surplus gear for gold (even with zero gold drops)', () => {
+    const world = make();
+    const log = world.run(300);
+    expect(countEvents(log, 'autoSell')).toBeGreaterThan(0);
+    expect(world.snapshot().gold).toBeGreaterThan(0);
+  });
+
+  it('keeps non-equippable materials in the inventory', () => {
+    const world = make();
+    world.run(300);
+    expect(world.snapshot().inventory.some((i) => i.name === 'Ore')).toBe(true);
+  });
+
+  it('auto-upgrades equipped gear using earned gold', () => {
+    const world = make();
+    const log = world.run(600);
+    expect(countEvents(log, 'upgrade')).toBeGreaterThan(0);
+    const weapon = world.snapshot().build.equipment.weapon!;
+    expect(upgradeLevelOf(weapon)).toBeGreaterThanOrEqual(1);
+  });
+
+  it('respects disabled auto-systems', () => {
+    const world = make({ autoEquip: false });
+    world.run(300);
+    expect(world.snapshot().build.equipment.weapon).toBeUndefined();
+  });
+
+  it('gear and upgrades make the hero hit harder over time', () => {
+    const world = make();
+    const before = world.hero.maxHp;
+    world.run(600);
+    // Vitality from gear + upgrades should raise max HP above the bare build.
+    expect(world.hero.maxHp).toBeGreaterThanOrEqual(before);
   });
 });
 

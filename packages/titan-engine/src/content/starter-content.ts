@@ -82,6 +82,26 @@ const items: ItemDefinition[] = [
     stackable: false,
   },
   {
+    id: asItemDefId('leather_cap'),
+    name: 'Leather Cap',
+    slot: 'helm',
+    baseRarity: 'common',
+    baseAttributes: { vitality: 2, dexterity: 1 },
+    affixPool: [asAffixDefId('of_the_bear'), asAffixDefId('swift')],
+    value: 14,
+    stackable: false,
+  },
+  {
+    id: asItemDefId('charm_ring'),
+    name: 'Charm Ring',
+    slot: 'accessory',
+    baseRarity: 'uncommon',
+    baseAttributes: { luck: 2, agility: 1 },
+    affixPool: [asAffixDefId('of_fortune'), asAffixDefId('swift')],
+    value: 22,
+    stackable: false,
+  },
+  {
     id: asItemDefId('slime_residue'),
     name: 'Slime Residue',
     slot: 'material',
@@ -117,7 +137,13 @@ const monsters: MonsterDefinition[] = [
       },
       {
         itemId: asItemDefId('worn_blade'),
-        chance: 0.05,
+        chance: 0.18,
+        minQuantity: 1,
+        maxQuantity: 1,
+      },
+      {
+        itemId: asItemDefId('leather_cap'),
+        chance: 0.15,
         minQuantity: 1,
         maxQuantity: 1,
       },
@@ -141,7 +167,13 @@ const monsters: MonsterDefinition[] = [
     dropTable: [
       {
         itemId: asItemDefId('travelers_vest'),
-        chance: 0.08,
+        chance: 0.2,
+        minQuantity: 1,
+        maxQuantity: 1,
+      },
+      {
+        itemId: asItemDefId('charm_ring'),
+        chance: 0.12,
         minQuantity: 1,
         maxQuantity: 1,
       },
