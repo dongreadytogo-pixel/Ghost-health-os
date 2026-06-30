@@ -43,6 +43,16 @@ const FRAMES: Record<string, Frame> = {
   big_demon: { x: 16, y: 364, w: 32, h: 36, n: 4 }, // boss
 };
 
+/** Static tiles (1 frame) for the dungeon backdrop and the hero's weapon. */
+const TILES = {
+  floor1: { x: 16, y: 64, w: 16, h: 16 },
+  floor2: { x: 32, y: 64, w: 16, h: 16 },
+  wallMid: { x: 32, y: 16, w: 16, h: 16 },
+  wallTop: { x: 32, y: 0, w: 16, h: 16 },
+  banner: { x: 16, y: 32, w: 16, h: 16 }, // red banner
+  sword: { x: 339, y: 120, w: 10, h: 23 }, // weapon_knight_sword
+};
+
 const FIGHTER_SCALE = 3;
 
 let atlas: HTMLImageElement | undefined;
@@ -102,6 +112,41 @@ export function drawFighter(
   const ctx = target.getContext('2d');
   if (!ctx) return;
   blit(ctx, art, frameIndex, FIGHTER_SCALE, target.width, target.height);
+
+  // Give the hero a sword in hand.
+  if (art === 'knight' && atlas) {
+    const f = FRAMES.knight!;
+    const dw = f.w * FIGHTER_SCALE;
+    const dh = f.h * FIGHTER_SCALE;
+    const hx = Math.round((target.width - dw) / 2);
+    const hy = target.height - dh;
+    const s = TILES.sword;
+    const bob = (frameIndex % f.n) === 1 || (frameIndex % f.n) === 2 ? 1 : 0;
+    ctx.drawImage(
+      atlas,
+      s.x, s.y, s.w, s.h,
+      hx + dw - s.w * 2, hy + dh - s.h * 2 - bob, s.w * 2, s.h * 2,
+    );
+  }
+}
+
+/** Paint the tiled dungeon backdrop (floor + wall row) into a target canvas. */
+export function drawBackground(target: HTMLCanvasElement): void {
+  if (!atlas) return;
+  const ctx = target.getContext('2d');
+  if (!ctx) return;
+  ctx.imageSmoothingEnabled = false;
+  const S = 32; // 16px tile at 2x
+  const cols = Math.ceil(target.width / S);
+  const rows = Math.ceil(target.height / S);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      let t = (c + r) % 2 ? TILES.floor2 : TILES.floor1;
+      if (r === 0) t = TILES.wallTop;
+      else if (r === 1) t = c % 5 === 2 ? TILES.banner : TILES.wallMid;
+      ctx.drawImage(atlas, t.x, t.y, t.w, t.h, c * S, r * S, S, S);
+    }
+  }
 }
 
 /** A small static chip sprite (frame 0) for party/roster lists. */

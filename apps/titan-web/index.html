@@ -105,11 +105,21 @@
           linear-gradient(#1d1838, #14112a 70%, #0e0b1f);
         overflow: hidden;
       }
+      #bg-canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        image-rendering: pixelated;
+        opacity: 0.92;
+      }
       .ground {
         position: absolute;
         left: 0; right: 0; bottom: 36px;
         height: 2px;
         background: #ffffff12;
+        z-index: 1;
       }
       .fighter { text-align: center; z-index: 2; }
       .sprite {
@@ -230,6 +240,7 @@
       </div>
 
       <div class="panel scene">
+        <canvas id="bg-canvas"></canvas>
         <div class="ground"></div>
         <div class="fighter">
           <canvas class="sprite hero" id="hero-canvas" width="64" height="80"></canvas>

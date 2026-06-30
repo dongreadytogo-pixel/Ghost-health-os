@@ -28,7 +28,7 @@ import {
   type Companion,
   type Rarity,
 } from '@titan/engine';
-import { loadAtlas, drawFighter, drawChip, artForName } from './sprites.js';
+import { loadAtlas, drawFighter, drawChip, drawBackground, artForName } from './sprites.js';
 import { sfx, setMuted, isMuted, unlockAudio } from './audio.js';
 
 // ---------------------------------------------------------------------------
@@ -337,6 +337,15 @@ function drawSprites(): void {
   if (enemyArt) drawFighter($('enemy-canvas') as HTMLCanvasElement, enemyArt, frame);
 }
 
+function paintBackground(): void {
+  const scene = document.querySelector('.scene');
+  const bg = document.getElementById('bg-canvas');
+  if (!(scene instanceof HTMLElement) || !(bg instanceof HTMLCanvasElement)) return;
+  bg.width = scene.clientWidth;
+  bg.height = scene.clientHeight;
+  drawBackground(bg);
+}
+
 function step(): void {
   if (paused) return;
   const events = world.tick();
@@ -405,6 +414,10 @@ document.addEventListener('visibilitychange', () => {
 showWelcomeBack();
 renderVitals();
 log('ออกผจญภัย! ฮีโร่เดินและสู้เองอัตโนมัติ ⚔');
-void loadAtlas().then(drawSprites);
+void loadAtlas().then(() => {
+  paintBackground();
+  drawSprites();
+});
+window.addEventListener('resize', paintBackground);
 setInterval(step, TICK_MS);
 setInterval(() => save(world), AUTOSAVE_MS);
