@@ -1,0 +1,31 @@
+{
+	"id": "slot_magic",
+	"display_name": "Arcane Spins",
+	"theme": "magic",
+	"rows": 3,
+	"reels": [
+		["spark", "scroll", "wand", "orb", "witch", "spark", "scroll", "star", "wand", "grimoire", "orb", "spark", "portal", "scroll", "wand", "witch", "spark", "orb", "scroll", "wand"],
+		["scroll", "wand", "spark", "orb", "star", "witch", "scroll", "spark", "wand", "orb", "grimoire", "scroll", "spark", "portal", "wand", "orb", "witch", "scroll", "spark", "wand"],
+		["wand", "spark", "orb", "scroll", "witch", "spark", "star", "wand", "orb", "scroll", "spark", "grimoire", "wand", "orb", "portal", "scroll", "spark", "witch", "wand", "orb"],
+		["orb", "scroll", "spark", "wand", "witch", "orb", "scroll", "spark", "star", "wand", "orb", "scroll", "grimoire", "spark", "wand", "portal", "orb", "witch", "scroll", "spark"],
+		["spark", "wand", "scroll", "orb", "witch", "spark", "wand", "scroll", "orb", "star", "spark", "wand", "scroll", "grimoire", "orb", "spark", "wand", "portal", "scroll", "witch"]
+	],
+	"paylines": [[1,1,1,1,1],[0,0,0,0,0],[2,2,2,2,2],[0,1,2,1,0],[2,1,0,1,2]],
+	"paytable": {
+		"spark": [0, 0, 1, 2, 5],
+		"scroll": [0, 0, 1, 3, 8],
+		"wand": [0, 0, 2, 4, 10],
+		"orb": [0, 0, 3, 6, 15],
+		"witch": [0, 0, 6, 18, 50],
+		"grimoire": [0, 0, 12, 50, 250]
+	},
+	"scatter_pays": {"portal": {"3": 6, "4": 25, "5": 120}},
+	"wild_ids": ["star"],
+	"scatter_ids": ["portal"],
+	"min_bet": 10,
+	"max_bet": 2500,
+	"bet_step": 10,
+	"jackpot_contribution": 0.015,
+	"jackpot_symbol": "grimoire",
+	"jackpot_line_length": 5
+}

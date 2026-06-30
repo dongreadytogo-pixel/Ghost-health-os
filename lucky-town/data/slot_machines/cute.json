@@ -1,0 +1,31 @@
+{
+	"id": "slot_cute",
+	"display_name": "Sweet Paws",
+	"theme": "cute",
+	"rows": 3,
+	"reels": [
+		["candy", "heart", "kitten", "puppy", "bunny", "candy", "heart", "rainbow", "kitten", "unicorn", "puppy", "candy", "giftbox", "heart", "kitten", "bunny", "candy", "puppy", "heart", "kitten"],
+		["heart", "kitten", "candy", "puppy", "rainbow", "bunny", "heart", "candy", "kitten", "puppy", "unicorn", "heart", "candy", "giftbox", "kitten", "puppy", "bunny", "heart", "candy", "kitten"],
+		["kitten", "candy", "puppy", "heart", "bunny", "candy", "rainbow", "kitten", "puppy", "heart", "candy", "unicorn", "kitten", "puppy", "giftbox", "heart", "candy", "bunny", "kitten", "puppy"],
+		["puppy", "heart", "candy", "kitten", "bunny", "puppy", "heart", "candy", "rainbow", "kitten", "puppy", "heart", "unicorn", "candy", "kitten", "giftbox", "puppy", "bunny", "heart", "candy"],
+		["candy", "kitten", "heart", "puppy", "bunny", "candy", "kitten", "heart", "puppy", "rainbow", "candy", "kitten", "heart", "unicorn", "puppy", "candy", "kitten", "giftbox", "heart", "bunny"]
+	],
+	"paylines": [[1,1,1,1,1],[0,0,0,0,0],[2,2,2,2,2],[0,1,2,1,0],[2,1,0,1,2]],
+	"paytable": {
+		"candy": [0, 0, 1, 2, 5],
+		"heart": [0, 0, 1, 3, 8],
+		"kitten": [0, 0, 2, 4, 10],
+		"puppy": [0, 0, 2, 5, 12],
+		"bunny": [0, 0, 6, 18, 50],
+		"unicorn": [0, 0, 12, 50, 250]
+	},
+	"scatter_pays": {"giftbox": {"3": 5, "4": 20, "5": 100}},
+	"wild_ids": ["rainbow"],
+	"scatter_ids": ["giftbox"],
+	"min_bet": 10,
+	"max_bet": 1000,
+	"bet_step": 10,
+	"jackpot_contribution": 0.01,
+	"jackpot_symbol": "unicorn",
+	"jackpot_line_length": 5
+}

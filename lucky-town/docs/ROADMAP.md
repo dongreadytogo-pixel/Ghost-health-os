@@ -93,7 +93,7 @@ system must change its public shape to finish online play.
 ## Cross-cutting, ongoing
 
 - ⬜ Player customization (clothing, hair, accessories, emotes, titles)
-- ⬜ Achievements & statistics screens
+- ✅ Achievements & statistics screen (data-driven, 10 achievements; key G)
 - ⬜ Audio (music + SFX) from free/open sources
 - ⬜ Localization (UI strings already isolated from ids)
 - ⬜ Platform packaging: Windows → Steam → Android → iOS

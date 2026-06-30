@@ -1,0 +1,12 @@
+[
+	{"id": "first_steps", "title": "First Steps", "description": "Reach a net worth of 1,000.", "metric": "net_worth", "threshold": 1000},
+	{"id": "well_off", "title": "Well Off", "description": "Reach a net worth of 25,000.", "metric": "net_worth", "threshold": 25000},
+	{"id": "tycoon", "title": "Tycoon", "description": "Reach a net worth of 250,000.", "metric": "net_worth", "threshold": 250000},
+	{"id": "hard_worker", "title": "Hard Worker", "description": "Earn 5,000 coins in total.", "metric": "total_earned", "threshold": 5000},
+	{"id": "lucky_streak", "title": "Lucky Streak", "description": "Win 25 slot spins.", "metric": "slot_wins", "threshold": 25},
+	{"id": "jackpot", "title": "Jackpot!", "description": "Hit a progressive jackpot.", "metric": "jackpots", "threshold": 1},
+	{"id": "landlord", "title": "Landlord", "description": "Own 3 plots of land.", "metric": "plots_owned", "threshold": 3},
+	{"id": "developer", "title": "Developer", "description": "Construct 3 buildings.", "metric": "buildings_built", "threshold": 3},
+	{"id": "pet_lover", "title": "Pet Lover", "description": "Own 5 pets at once.", "metric": "pets_owned", "threshold": 5},
+	{"id": "breeder", "title": "Master Breeder", "description": "Breed 5 pets.", "metric": "pets_bred", "threshold": 5}
+]

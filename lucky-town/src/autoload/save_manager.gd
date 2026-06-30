@@ -84,6 +84,7 @@ func _collect_snapshot() -> Dictionary:
 		"world": GameState.to_save(),
 		"quests": QuestSystem.to_save(),
 		"auction": AuctionHouse.to_save(),
+		"achievements": AchievementSystem.to_save(),
 	}
 
 
@@ -94,6 +95,7 @@ func _apply_snapshot(snapshot: Dictionary) -> void:
 	GameState.from_save(snapshot.get("world", {}))
 	QuestSystem.from_save(snapshot.get("quests", {}))
 	AuctionHouse.from_save(snapshot.get("auction", {}))
+	AchievementSystem.from_save(snapshot.get("achievements", {}))
 
 
 ## Headline info for the load-game menu — kept tiny and cheap to read.

@@ -54,6 +54,9 @@ signal quest_progressed(quest_id: String, progress: int, target: int)
 signal quest_completed(quest_id: String)
 signal quest_claimed(quest_id: String, reward: int)
 
+# --- Achievements ------------------------------------------------------------
+signal achievement_unlocked(achievement_id: String, title: String)
+
 # --- UI requests -------------------------------------------------------------
 ## A world object asks the UI layer to open a screen. The player is always the
 ## actor, so only the data id travels here (no node references on the bus).

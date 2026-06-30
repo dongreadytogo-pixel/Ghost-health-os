@@ -1,0 +1,31 @@
+{
+	"id": "slot_scifi",
+	"display_name": "Galaxy Spin",
+	"theme": "scifi",
+	"rows": 3,
+	"reels": [
+		["bolt", "star", "rocket", "planet", "alien", "bolt", "star", "warp", "rocket", "ufo", "planet", "bolt", "blackhole", "star", "rocket", "alien", "bolt", "planet", "star", "rocket"],
+		["star", "rocket", "bolt", "planet", "warp", "alien", "star", "bolt", "rocket", "planet", "ufo", "star", "bolt", "blackhole", "rocket", "planet", "alien", "star", "bolt", "rocket"],
+		["rocket", "bolt", "planet", "star", "alien", "bolt", "warp", "rocket", "planet", "star", "bolt", "ufo", "rocket", "planet", "blackhole", "star", "bolt", "alien", "rocket", "planet"],
+		["planet", "star", "bolt", "rocket", "alien", "planet", "star", "bolt", "warp", "rocket", "planet", "star", "ufo", "bolt", "rocket", "blackhole", "planet", "alien", "star", "bolt"],
+		["bolt", "rocket", "star", "planet", "alien", "bolt", "rocket", "star", "planet", "warp", "bolt", "rocket", "star", "ufo", "planet", "bolt", "rocket", "blackhole", "star", "alien"]
+	],
+	"paylines": [[1,1,1,1,1],[0,0,0,0,0],[2,2,2,2,2],[0,1,2,1,0],[2,1,0,1,2]],
+	"paytable": {
+		"bolt": [0, 0, 1, 2, 5],
+		"star": [0, 0, 1, 3, 8],
+		"rocket": [0, 0, 2, 4, 10],
+		"planet": [0, 0, 3, 6, 15],
+		"alien": [0, 0, 6, 18, 50],
+		"ufo": [0, 0, 12, 50, 250]
+	},
+	"scatter_pays": {"blackhole": {"3": 6, "4": 25, "5": 120}},
+	"wild_ids": ["warp"],
+	"scatter_ids": ["blackhole"],
+	"min_bet": 20,
+	"max_bet": 4000,
+	"bet_step": 20,
+	"jackpot_contribution": 0.018,
+	"jackpot_symbol": "ufo",
+	"jackpot_line_length": 5
+}

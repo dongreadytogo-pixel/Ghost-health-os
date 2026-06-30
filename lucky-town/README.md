@@ -31,6 +31,8 @@ without rewriting the core.
 | Building upgrades (levels → more income) + pet-farm auto-breeding | ✅ implemented |
 | Living world: day/night lighting, season-biased weather (rain/fog), HUD readout | ✅ implemented |
 | Networking seam: `NetSync` + transport + remote-control citizens (dormant offline) | ✅ scaffolded |
+| 7 slot themes (fantasy/ghost/cyberpunk/ancient/sci-fi/cute/magic) | ✅ data-driven |
+| Achievements + Statistics screen (10 achievements, lifetime stats) | ✅ implemented |
 | Unit tests for pure logic (money, slots, genetics, quests, auctions, net) | ✅ headless runner |
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for Phases 2–5.
@@ -52,6 +54,7 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md) for Phases 2–5.
 | Interact (e.g. play a slot machine) | `E` |
 | Open the Town Board (quests, rankings, shop, odd jobs, build/upgrade) | `B` |
 | Open the Auction House (bid on / list pets & land) | `V` |
+| Open Statistics & Achievements | `G` |
 | Quick save (slot 1) | `F5` |
 | Back to menu | `Esc` |
 
