@@ -8,7 +8,17 @@
  * changes. Content stays data-driven; archetype names map view → engine.
  */
 
-const ATLAS_URL = './assets/0x72_dungeon.png';
+declare global {
+  interface Window {
+    /** Optional inlined atlas (data URI) for self-contained single-file builds. */
+    __ATLAS__?: string;
+  }
+}
+
+const ATLAS_URL =
+  typeof window !== 'undefined' && window.__ATLAS__
+    ? window.__ATLAS__
+    : './assets/0x72_dungeon.png';
 
 interface Frame {
   readonly x: number;

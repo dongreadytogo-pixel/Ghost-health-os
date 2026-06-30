@@ -103,13 +103,14 @@ function freshWorld(): World {
 }
 
 function loadWorld(): { world: World; offlineMs: number } {
-  const raw = localStorage.getItem(SAVE_KEY);
-  if (!raw) return { world: freshWorld(), offlineMs: 0 };
   try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return { world: freshWorld(), offlineMs: 0 };
     const stored = JSON.parse(raw) as StoredSave;
     const world = World.fromSave(registry, ZONE, stored.save, CONFIG);
     return { world, offlineMs: Math.max(0, Date.now() - stored.savedAt) };
   } catch {
+    // localStorage may be unavailable (e.g. sandboxed iframe) — start fresh.
     return { world: freshWorld(), offlineMs: 0 };
   }
 }
