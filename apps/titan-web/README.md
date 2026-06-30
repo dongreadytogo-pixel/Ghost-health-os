@@ -25,6 +25,21 @@ pnpm --filter @titan/web dev       # esbuild serve on http://localhost:8000
 The build output in `dist/` is fully static (HTML + one JS file) — host it on any
 static host (GitHub Pages, Cloudflare Pages, itch.io, …).
 
+## Deploy to Cloudflare Pages
+
+```bash
+# one-time: log in (opens a browser) or set CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID
+npx wrangler login
+
+# build + deploy the static dist/ to a Pages project
+pnpm --filter @titan/web deploy
+```
+
+`deploy` runs the build then `wrangler pages deploy dist --project-name=project-titan`.
+The first run creates the project; later runs publish new versions. No server,
+no secrets baked into the bundle — it's pure static files. (Any static host works
+the same way: just upload `dist/`.)
+
 ## What you'll see
 
 - The hero **auto-walks, auto-attacks, and auto-casts skills** — no input needed.
@@ -36,14 +51,18 @@ static host (GitHub Pages, Cloudflare Pages, itch.io, …).
   shows what your party did while you were away.
 - **Autosave** every few seconds and on leaving the page.
 
-## Swapping in real art
+## Art & audio
 
-Sprites are placeholder emoji today. To use the licensed 2D pixel art from
-[`../../packages/titan-engine/ASSETS.md`](../../packages/titan-engine/ASSETS.md):
-
-- Replace the entries in `MONSTER_SPRITES` (and the hero/mount glyphs) in
-  `src/main.ts` with `<img>` / CSS-sprite lookups keyed by the content name.
-- Because content is data-driven, no engine code changes — just the view.
-
-Background music: the project owner supplies their own licensed BGM; drop it in
-and wire an `<audio>` element (kept out of the engine by design).
+- **Sprites** use the **CC0** "DungeonTileset II" by **0x72**
+  (`assets/0x72_dungeon.png`, https://0x72.itch.io/dungeontileset-ii) — a
+  professional free pixel-art pack. `src/sprites.ts` blits the documented idle
+  frames to `<canvas>` and cycles them for animation. To restyle, swap the PNG +
+  the `FRAMES` table; archetype names map view → engine, so nothing else
+  changes. License recorded in
+  [`ATTRIBUTIONS.md`](../../packages/titan-engine/ATTRIBUTIONS.md).
+- **SFX** are synthesized with the Web Audio API (`src/audio.ts`) — also
+  original. A 🔊/🔇 button toggles sound; audio unlocks on first tap (browser
+  autoplay policy).
+- **Background music** is left as a slot for the project owner's own licensed
+  tracks: drop a file in and call `setMusic('/music/theme.ogg')`. Kept out of
+  the engine by design.

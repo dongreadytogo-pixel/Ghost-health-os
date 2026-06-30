@@ -7,7 +7,9 @@
   "type": "module",
   "scripts": {
     "dev": "esbuild src/main.ts --bundle --format=esm --sourcemap --servedir=. --outfile=app.js",
-    "build": "esbuild src/main.ts --bundle --format=esm --minify --outfile=dist/app.js && cp index.html dist/index.html",
+    "build": "esbuild src/main.ts --bundle --format=esm --minify --outfile=dist/app.js && cp index.html dist/index.html && cp -r assets dist/assets",
+    "preview": "python3 -m http.server 8099 --directory dist",
+    "deploy": "pnpm build && npx -y wrangler pages deploy dist --project-name=project-titan",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

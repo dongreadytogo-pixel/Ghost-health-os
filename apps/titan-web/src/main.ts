@@ -28,6 +28,8 @@ import {
   type Companion,
   type Rarity,
 } from '@titan/engine';
+import { loadAtlas, drawFighter, drawChip, artForName } from './sprites.js';
+import { sfx, setMuted, isMuted, unlockAudio } from './audio.js';
 
 // ---------------------------------------------------------------------------
 // Content & configuration
@@ -44,18 +46,6 @@ const CONFIG = {
 const SAVE_KEY = 'titan-save-v1';
 const TICK_MS = 90; // ~11 ticks/sec while watching
 const AUTOSAVE_MS = 5000;
-
-/** Placeholder sprites — replace the emoji with <img> spritesheets later. */
-const MONSTER_SPRITES: Record<string, string> = {
-  'Meadow Crawler': '🐛',
-  'Thicket Stalker': '🐺',
-};
-const spriteFor = (name: string): string => {
-  for (const key of Object.keys(MONSTER_SPRITES)) {
-    if (name.includes(key)) return MONSTER_SPRITES[key]!;
-  }
-  return '👾';
-};
 
 // ---------------------------------------------------------------------------
 // DOM helpers
@@ -140,6 +130,7 @@ function save(world: World): void {
 let { world, offlineMs } = loadWorld();
 let totalKills = 0;
 let paused = false;
+let enemyArt = '';
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -178,10 +169,20 @@ const SLOT_ICON: Record<string, string> = {
   accessory: '💍',
 };
 
+let lastGearSig = '';
 function renderGear(equipment: Record<string, { name: string; rarity: Rarity; upgradeLevel?: number } | undefined>): void {
+  const slots = ['weapon', 'armor', 'helm', 'accessory'];
+  const sig = slots
+    .map((s) => {
+      const it = equipment[s];
+      return it ? `${s}:${it.name}:${it.rarity}:${it.upgradeLevel ?? 0}` : `${s}:-`;
+    })
+    .join('|');
+  if (sig === lastGearSig) return;
+  lastGearSig = sig;
+
   const host = $('gear');
   host.innerHTML = '';
-  const slots = ['weapon', 'armor', 'helm', 'accessory'];
   let any = false;
   for (const slot of slots) {
     const item = equipment[slot];
@@ -196,39 +197,65 @@ function renderGear(equipment: Record<string, { name: string; rarity: Rarity; up
   if (!any) host.innerHTML = '<span class="empty">ยังไม่มีอุปกรณ์ — ออกล่าหาของกันเถอะ!</span>';
 }
 
+let lastPartySig = '';
 function renderParty(party: readonly Companion[], rosterCount: number): void {
   $('roster-count').textContent = String(rosterCount);
+  const sig = party.map((c) => `${c.id}:${c.rarity}:${c.bond}:${c.shiny}`).join('|');
+  if (sig === lastPartySig) return;
+  lastPartySig = sig;
+
   const host = $('party');
   host.innerHTML = '';
+  if (party.length === 0) {
+    host.innerHTML = '<span class="empty">ยังไม่มีเพื่อน — สู้ไปเรื่อยๆ เดี๋ยวจับได้!</span>';
+    return;
+  }
   for (const c of party) {
     const chip = document.createElement('div');
     chip.className = `chip ${rarityClass(c.rarity)}`;
-    chip.innerHTML = `<span>${c.shiny ? '✦' : ''}${spriteFor(c.baseName)}</span><span>${c.baseName}</span><span class="bond">♥${c.bond}</span>`;
+    const cv = drawChip(artForName(c.baseName));
+    chip.appendChild(cv);
+    const label = document.createElement('span');
+    label.textContent = `${c.shiny ? '✦' : ''}${c.baseName}`;
+    const bond = document.createElement('span');
+    bond.className = 'bond';
+    bond.textContent = `♥${c.bond}`;
+    chip.append(label, bond);
     host.appendChild(chip);
   }
+}
+
+let lastTickSfx = 0;
+function tickSfx(fn: () => void): void {
+  const now = performance.now();
+  if (now - lastTickSfx < 120) return;
+  lastTickSfx = now;
+  fn();
 }
 
 function renderStaticFromEvents(events: WorldEvent[]): void {
   for (const e of events) {
     switch (e.type) {
       case 'spawn':
-        $('enemy-sprite').textContent = spriteFor(e.monster);
+        enemyArt = artForName(e.monster);
         $('enemy-name').textContent = e.monster;
         break;
       case 'attack':
         if (e.attacker === 'player') {
-          flash('hero-sprite', 'attacking');
-          flash('enemy-sprite', 'hit');
+          flash('hero-canvas', 'attacking');
+          flash('enemy-canvas', 'hit');
           spawnDamage('enemy', e.outcome.hit ? String(e.outcome.damage) : 'MISS',
             e.outcome.critical ? 'crit' : e.outcome.hit ? '' : 'miss');
+          if (e.outcome.critical) tickSfx(sfx.crit);
+          else if (e.outcome.hit) tickSfx(sfx.hit);
         } else {
-          flash('enemy-sprite', 'attacking');
-          flash('hero-sprite', 'hit');
+          flash('enemy-canvas', 'attacking');
+          flash('hero-canvas', 'hit');
           if (e.outcome.hit) spawnDamage('hero', String(e.outcome.damage), '');
         }
         break;
       case 'companionAttack':
-        flash('enemy-sprite', 'hit');
+        flash('enemy-canvas', 'hit');
         if (e.outcome.damage > 0) spawnDamage('enemy', String(e.outcome.damage), '');
         break;
       case 'skill':
@@ -240,10 +267,12 @@ function renderStaticFromEvents(events: WorldEvent[]): void {
         log(`☠ ปราบ ${e.monster}  (+${e.experience} EXP, +${e.gold}💰)`, 'log-kill');
         break;
       case 'levelUp':
+        sfx.levelUp();
         log(`⬆ เลเวลอัป! ตอนนี้ Lv ${e.level}`, 'log-level');
         break;
       case 'equip':
         if (e.rarity === 'rare' || e.rarity === 'epic' || e.rarity === 'legendary' || e.rarity === 'mythic') {
+          sfx.equip();
           log(`⚔ ใส่ ${e.item} (${e.rarity})`, 'log-join');
         }
         break;
@@ -251,13 +280,16 @@ function renderStaticFromEvents(events: WorldEvent[]): void {
         if (e.level % 5 === 0) log(`✨ อัปเกรด ${e.item} เป็น +${e.level}`, 'log-level');
         break;
       case 'companionJoined':
+        sfx.capture();
         log(`${e.shiny ? '✦ ' : ''}🪄 จับ ${e.companion} เข้าทีม!`,
           e.shiny ? 'log-shiny' : 'log-join');
         break;
       case 'fusion':
+        sfx.fusion();
         log(`🧬 รวมร่างเป็น ${e.result}!`, 'log-fuse');
         break;
       case 'playerDefeated':
+        sfx.defeat();
         log(`💀 พ่ายแพ้ต่อ ${e.byMonster} — ถอยกลับมารักษาตัว`, 'log-defeat');
         break;
       default:
@@ -298,11 +330,18 @@ function renderVitals(): void {
 // Main loop
 // ---------------------------------------------------------------------------
 
+function drawSprites(): void {
+  const frame = Math.floor(performance.now() / 180);
+  drawFighter($('hero-canvas') as HTMLCanvasElement, 'knight', frame);
+  if (enemyArt) drawFighter($('enemy-canvas') as HTMLCanvasElement, enemyArt, frame);
+}
+
 function step(): void {
   if (paused) return;
   const events = world.tick();
   renderStaticFromEvents(events);
   renderVitals();
+  drawSprites();
 }
 
 // ---------------------------------------------------------------------------
@@ -335,6 +374,18 @@ $('pause').addEventListener('click', () => {
   $('pause').textContent = paused ? '▶ เล่นต่อ' : '⏸ หยุด';
 });
 
+$('mute').addEventListener('click', () => {
+  setMuted(!isMuted());
+  $('mute').textContent = isMuted() ? '🔇 ปิดเสียง' : '🔊 เสียง';
+});
+
+// Browsers block audio until a user gesture — unlock on the first interaction.
+const unlock = (): void => {
+  unlockAudio();
+  window.removeEventListener('pointerdown', unlock);
+};
+window.addEventListener('pointerdown', unlock);
+
 $('reset').addEventListener('click', () => {
   if (!confirm('เริ่มเกมใหม่ทั้งหมด? เซฟปัจจุบันจะถูกลบ')) return;
   localStorage.removeItem(SAVE_KEY);
@@ -353,5 +404,6 @@ document.addEventListener('visibilitychange', () => {
 showWelcomeBack();
 renderVitals();
 log('ออกผจญภัย! ฮีโร่เดินและสู้เองอัตโนมัติ ⚔');
+void loadAtlas().then(drawSprites);
 setInterval(step, TICK_MS);
 setInterval(() => save(world), AUTOSAVE_MS);

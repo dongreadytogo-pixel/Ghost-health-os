@@ -80,14 +80,19 @@ The "charm" layer — all rarity-scaled, all deterministic, all unit-tested.
   spend gold upgrading gear → hit harder.** Surfaced in the web client's gear
   panel (rarity colours + `+level`).
 
-## ✅ Phase 8 (MVP) — Playable Client (DONE)
+## ✅ Phase 8 — Playable Pixel Client (DONE)
 
 - **`@titan/web`**: a mobile-first 2D-pixel browser client driving the engine in
-  real time — auto-battle, floating damage, party chips, level-ups, **offline
-  "welcome back" progress**, and autosave to `localStorage`.
-- Verified running in a real (headless Chromium) browser with no console errors;
-  static build (one HTML + one JS) hostable anywhere.
-- Placeholder emoji sprites with documented drop-in points for licensed 2D art.
+  real time — auto-battle, floating damage, party chips, gear panel, level-ups,
+  **offline "welcome back" progress**, and autosave to `localStorage`.
+- **Original pixel-art sprites drawn in code** (hero, mount, monsters,
+  companions) on `<canvas>` — no asset files, no licensing concerns, with
+  documented drop-in points for licensed spritesheets.
+- **Web Audio SFX** (hit/crit/level-up/capture/fusion) + a mute toggle, and a
+  slot (`setMusic`) for the owner's own licensed background music.
+- **Deploy-ready:** `pnpm --filter @titan/web deploy` publishes the static
+  `dist/` to Cloudflare Pages (or any static host).
+- Verified running in headless Chromium with no console errors.
 
 ---
 

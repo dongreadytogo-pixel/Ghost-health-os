@@ -232,14 +232,14 @@
       <div class="panel scene">
         <div class="ground"></div>
         <div class="fighter">
-          <div class="sprite hero" id="hero-sprite">🧙</div>
+          <canvas class="sprite hero" id="hero-canvas" width="64" height="80"></canvas>
           <div class="name">ฮีโร่</div>
           <div class="bar hp"><span id="hero-hp"></span></div>
           <div class="mount" id="hero-mount"></div>
         </div>
         <div class="vs">VS</div>
         <div class="fighter">
-          <div class="sprite enemy" id="enemy-sprite">👾</div>
+          <canvas class="sprite enemy" id="enemy-canvas" width="64" height="80"></canvas>
           <div class="name" id="enemy-name">…</div>
           <div class="bar enemyhp"><span id="enemy-hp"></span></div>
         </div>
@@ -267,6 +267,7 @@
       </div>
 
       <div class="controls">
+        <button id="mute">🔊 เสียง</button>
         <button id="pause">⏸ หยุด</button>
         <button id="reset">🗑 เริ่มใหม่</button>
       </div>
