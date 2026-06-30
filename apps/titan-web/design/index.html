@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <title>Project Titan — Design System</title>
+    <style>
+      :root {
+        --bg: #0d0b1a; --panel: #1a1730; --panel2: #242042; --ink: #e8e6f2;
+        --muted: #9b96c4; --accent: #ffd166; --hp: #ef476f; --xp: #06d6a0; --enemy: #f78c6b;
+        --common: #b8b8c8; --uncommon: #5fd35f; --rare: #4aa3ff;
+        --epic: #b06bff; --legendary: #ffa630; --mythic: #ff4d6d;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--ink);
+        font-family: ui-monospace, "Courier New", monospace; padding: 18px;
+        max-width: 460px; }
+      h1 { color: var(--accent); font-size: 16px; letter-spacing: 1px; }
+      h2 { color: var(--accent); font-size: 12px; letter-spacing: 1px; margin: 20px 0 8px; }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; }
+      .sw { width: 76px; }
+      .sw .c { height: 40px; border-radius: 8px; border: 1px solid #ffffff14; }
+      .sw .lbl { font-size: 10px; color: var(--muted); margin-top: 4px; }
+      .panel { background: var(--panel); border: 2px solid #36315e; border-radius: 10px;
+        padding: 10px; margin-top: 8px; }
+      header { display: flex; align-items: center; gap: 8px; }
+      header b { font-size: 14px; color: var(--accent); flex: 1; }
+      .pill { background: var(--panel2); border-radius: 999px; padding: 3px 9px; font-size: 12px; }
+      .bar { position: relative; height: 14px; background: #00000055; border-radius: 7px;
+        overflow: hidden; border: 1px solid #ffffff14; margin: 6px 0; }
+      .bar > span { position: absolute; inset: 0; transform-origin: left; }
+      .bar > b { position: absolute; inset: 0; text-align: center; font-size: 10px; line-height: 14px; color: #fff; }
+      .hp > span { background: linear-gradient(var(--hp), #c1304e); }
+      .xp > span { background: linear-gradient(var(--xp), #04a47a); }
+      .en > span { background: linear-gradient(var(--enemy), #d96a4a); }
+      button { font-family: inherit; font-size: 12px; padding: 9px; border-radius: 8px;
+        border: 2px solid #36315e; background: var(--panel2); color: var(--ink); }
+      button.on { border-color: var(--accent); }
+      .chip { font-size: 11px; padding: 4px 7px; border-radius: 7px; background: var(--panel2);
+        border-left: 4px solid var(--common); display: inline-flex; gap: 5px; align-items: center; }
+      .bond { color: var(--accent); font-size: 10px; } .up { color: var(--xp); font-size: 10px; }
+      .r-common{border-color:var(--common)} .r-uncommon{border-color:var(--uncommon)}
+      .r-rare{border-color:var(--rare)} .r-epic{border-color:var(--epic)}
+      .r-legendary{border-color:var(--legendary)} .r-mythic{border-color:var(--mythic);box-shadow:0 0 8px #ff4d6d55}
+    </style>
+  </head>
+  <body>
+    <h1>⚔ PROJECT TITAN — Design System</h1>
+
+    <h2>1 · สีหลัก (BRAND)</h2>
+    <div class="row" id="brand"></div>
+    <h2>2 · สีความหายาก (RARITY)</h2>
+    <div class="row" id="rarity"></div>
+
+    <h2>3 · PANEL + แถบสถานะ</h2>
+    <div class="panel">
+      <header><b>⚔ PROJECT TITAN</b><span class="pill">Lv 12</span><span class="pill">💰 4,210</span></header>
+      <div class="bar xp" style="margin-top:8px"><span style="transform:scaleX(.3)"></span><b>EXP 30%</b></div>
+      <div class="bar hp"><span style="transform:scaleX(.7)"></span><b>HP 70%</b></div>
+      <div class="bar en"><span style="transform:scaleX(1)"></span><b>ศัตรู 100%</b></div>
+    </div>
+
+    <h2>4 · ปุ่ม</h2>
+    <div class="row">
+      <button>🔊 เสียง</button><button class="on">⏸ หยุด</button><button>🗑 เริ่มใหม่</button>
+    </div>
+
+    <h2>5 · CHIP เพื่อน (rarity + bond)</h2>
+    <div class="row">
+      <span class="chip r-common">🟢 Crawler <span class="bond">♥3</span></span>
+      <span class="chip r-rare">🐺 Stalker <span class="bond">♥7</span></span>
+      <span class="chip r-epic">👹 Imp <span class="bond">♥9</span></span>
+      <span class="chip r-mythic">✦ Demon <span class="bond">♥10</span></span>
+    </div>
+
+    <h2>6 · CHIP อุปกรณ์ (+ระดับอัปเกรด)</h2>
+    <div class="row">
+      <span class="chip r-common">🗡 Worn Blade <span class="up">+1</span></span>
+      <span class="chip r-rare">🛡 Plate <span class="up">+4</span></span>
+      <span class="chip r-legendary">💍 Ring <span class="up">+10</span></span>
+    </div>
+
+    <script>
+      const brand={bg:'#0d0b1a',panel:'#1a1730',accent:'#ffd166',ink:'#e8e6f2',muted:'#9b96c4',hp:'#ef476f',xp:'#06d6a0',enemy:'#f78c6b'};
+      const rarity={common:'#b8b8c8',uncommon:'#5fd35f',rare:'#4aa3ff',epic:'#b06bff',legendary:'#ffa630',mythic:'#ff4d6d'};
+      const r=(h,o)=>document.getElementById(h).innerHTML=Object.entries(o).map(([k,v])=>`<div class="sw"><div class="c" style="background:${v}"></div><div class="lbl">${k}</div></div>`).join('');
+      r('brand',brand); r('rarity',rarity);
+    </script>
+  </body>
+</html>
