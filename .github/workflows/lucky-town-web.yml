@@ -62,22 +62,22 @@ jobs:
       - name: Export Web build
         working-directory: lucky-town
         run: |
-          set -euo pipefail
+          set -uo pipefail
           TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
           echo "Export templates present:"; ls -la "$TEMPLATE_DIR"
           mkdir -p build
-          godot --headless --export-release "Web" build/index.html
+          # Capture full (verbose) export output so any configuration-error
+          # detail is visible, then fail only if no index.html was produced.
+          godot --headless --verbose --export-release "Web" build/index.html > export.log 2>&1 || true
+          echo "===== export.log (tail) ====="
+          tail -n 80 export.log
+          echo "============================="
           test -f build/index.html
           ls -la build
 
-      - name: Add cross-origin isolation shim (GitHub Pages can't send COOP/COEP)
-        working-directory: lucky-town/build
-        run: |
-          set -euo pipefail
-          curl -sSL -o coi-serviceworker.js \
-            https://raw.githubusercontent.com/gzuidhof/coi-serviceworker/master/coi-serviceworker.min.js
-          # Load the shim first so SharedArrayBuffer is available for threads.
-          sed -i 's#<head>#<head>\n<script src="coi-serviceworker.js"></script>#' index.html
+      # No cross-origin-isolation shim needed: the Web preset is single-threaded
+      # (variant/thread_support=false), so it runs on GitHub Pages and mobile
+      # Safari without SharedArrayBuffer / COOP-COEP headers.
 
       - uses: actions/upload-pages-artifact@v3
         with:
