@@ -1,0 +1,48 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Titan — Rarity & Gear Chips</title>
+    <style>
+      :root {
+        --bg: #0d0b1a; --panel: #1a1730; --panel2: #242042; --ink: #e8e6f2;
+        --muted: #9b96c4; --accent: #ffd166; --xp: #06d6a0;
+        --common: #b8b8c8; --uncommon: #5fd35f; --rare: #4aa3ff;
+        --epic: #b06bff; --legendary: #ffa630; --mythic: #ff4d6d;
+      }
+      body { margin: 0; background: var(--bg); color: var(--ink);
+        font-family: ui-monospace, "Courier New", monospace; padding: 20px; }
+      h2 { color: var(--accent); font-size: 13px; letter-spacing: 1px; margin: 14px 0 8px; }
+      .row { display: flex; flex-wrap: wrap; gap: 6px; max-width: 460px; }
+      .chip { font-size: 11px; padding: 4px 7px; border-radius: 7px; background: var(--panel2);
+        border-left: 4px solid var(--common); display: flex; gap: 5px; align-items: center; }
+      .bond { color: var(--accent); font-size: 10px; }
+      .up { color: var(--xp); font-size: 10px; }
+      .r-common { border-color: var(--common); }
+      .r-uncommon { border-color: var(--uncommon); }
+      .r-rare { border-color: var(--rare); }
+      .r-epic { border-color: var(--epic); }
+      .r-legendary { border-color: var(--legendary); }
+      .r-mythic { border-color: var(--mythic); box-shadow: 0 0 8px #ff4d6d55; }
+    </style>
+  </head>
+  <body>
+    <h2>COMPANION CHIPS — rarity scale + shiny</h2>
+    <div class="row">
+      <div class="chip r-common"><span>🟢 Crawler</span><span class="bond">♥3</span></div>
+      <div class="chip r-uncommon"><span>🟢 Crawler</span><span class="bond">♥5</span></div>
+      <div class="chip r-rare"><span>🐺 Stalker</span><span class="bond">♥7</span></div>
+      <div class="chip r-epic"><span>👹 Imp</span><span class="bond">♥9</span></div>
+      <div class="chip r-legendary"><span>💀 Skelet</span><span class="bond">♥10</span></div>
+      <div class="chip r-mythic"><span>✦ Demon</span><span class="bond">♥10</span></div>
+    </div>
+    <h2>GEAR CHIPS — equipped + upgrade level</h2>
+    <div class="row">
+      <div class="chip r-common"><span>🗡 Worn Blade</span><span class="up">+1</span></div>
+      <div class="chip r-rare"><span>🛡 Plate Armor</span><span class="up">+4</span></div>
+      <div class="chip r-epic"><span>⛑ Crown</span><span class="up">+7</span></div>
+      <div class="chip r-legendary"><span>💍 Sigil Ring</span><span class="up">+10</span></div>
+    </div>
+  </body>
+</html>

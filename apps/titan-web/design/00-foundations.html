@@ -1,0 +1,53 @@
+<!-- @dsCard group="Foundations" -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Titan — Foundations</title>
+    <style>
+      :root {
+        --bg: #0d0b1a; --panel: #1a1730; --panel2: #242042;
+        --ink: #e8e6f2; --muted: #9b96c4; --accent: #ffd166;
+        --hp: #ef476f; --xp: #06d6a0; --enemy: #f78c6b;
+        --common: #b8b8c8; --uncommon: #5fd35f; --rare: #4aa3ff;
+        --epic: #b06bff; --legendary: #ffa630; --mythic: #ff4d6d;
+      }
+      body { margin: 0; background: var(--bg); color: var(--ink);
+        font-family: ui-monospace, "Courier New", monospace; padding: 20px; }
+      h2 { color: var(--accent); font-size: 14px; letter-spacing: 1px; margin: 18px 0 8px; }
+      .row { display: flex; flex-wrap: wrap; gap: 10px; }
+      .sw { width: 84px; }
+      .chip-c { height: 44px; border-radius: 8px; border: 1px solid #ffffff14; }
+      .lbl { font-size: 10px; color: var(--muted); margin-top: 4px; }
+      .val { font-size: 10px; color: var(--ink); }
+      .type span { display: block; }
+      .t-title { font-size: 18px; color: var(--accent); letter-spacing: 1px; }
+      .t-body { font-size: 13px; }
+      .t-mut { font-size: 11px; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <h2>BRAND PALETTE</h2>
+    <div class="row" id="brand"></div>
+    <h2>RARITY SCALE</h2>
+    <div class="row" id="rarity"></div>
+    <h2>TYPE</h2>
+    <div class="type">
+      <span class="t-title">PROJECT TITAN — Idle MMORPG</span>
+      <span class="t-body">Body / monospace pixel UI · 13px</span>
+      <span class="t-mut">Muted caption · 11px</span>
+    </div>
+    <script>
+      const brand = { bg:'#0d0b1a', panel:'#1a1730', panel2:'#242042', ink:'#e8e6f2',
+        muted:'#9b96c4', accent:'#ffd166', hp:'#ef476f', xp:'#06d6a0', enemy:'#f78c6b' };
+      const rarity = { common:'#b8b8c8', uncommon:'#5fd35f', rare:'#4aa3ff',
+        epic:'#b06bff', legendary:'#ffa630', mythic:'#ff4d6d' };
+      const render = (host, obj) => {
+        document.getElementById(host).innerHTML = Object.entries(obj).map(
+          ([k,v]) => `<div class="sw"><div class="chip-c" style="background:${v}"></div>
+            <div class="lbl">${k}</div><div class="val">${v}</div></div>`).join('');
+      };
+      render('brand', brand); render('rarity', rarity);
+    </script>
+  </body>
+</html>

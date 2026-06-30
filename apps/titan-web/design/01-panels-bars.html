@@ -1,0 +1,43 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Titan — Panels & Bars</title>
+    <style>
+      :root {
+        --bg: #0d0b1a; --panel: #1a1730; --panel2: #242042; --ink: #e8e6f2;
+        --muted: #9b96c4; --accent: #ffd166; --hp: #ef476f; --xp: #06d6a0; --enemy: #f78c6b;
+      }
+      body { margin: 0; background: var(--bg); color: var(--ink);
+        font-family: ui-monospace, "Courier New", monospace; padding: 20px;
+        display: flex; flex-direction: column; gap: 12px; max-width: 460px; }
+      .panel { background: var(--panel); border: 2px solid #36315e; border-radius: 10px; padding: 10px; }
+      header { display: flex; align-items: center; gap: 8px; }
+      header h1 { font-size: 14px; margin: 0; color: var(--accent); flex: 1; letter-spacing: 1px; }
+      .pill { background: var(--panel2); border-radius: 999px; padding: 3px 9px; font-size: 12px; }
+      .row-title { font-size: 11px; color: var(--muted); margin-bottom: 6px; letter-spacing: 1px; }
+      .bar { position: relative; height: 14px; background: #00000055; border-radius: 7px;
+        overflow: hidden; border: 1px solid #ffffff14; margin-bottom: 8px; }
+      .bar > span { position: absolute; inset: 0; transform-origin: left; }
+      .bar > b { position: absolute; inset: 0; text-align: center; font-size: 10px;
+        line-height: 14px; color: #fff; text-shadow: 0 1px 0 #0008; }
+      .hp > span { background: linear-gradient(var(--hp), #c1304e); }
+      .xp > span { background: linear-gradient(var(--xp), #04a47a); }
+      .enemyhp > span { background: linear-gradient(var(--enemy), #d96a4a); }
+    </style>
+  </head>
+  <body>
+    <header class="panel">
+      <h1>⚔ PROJECT TITAN</h1>
+      <span class="pill">Lv <b>12</b></span>
+      <span class="pill">💰 <b>4,210</b></span>
+    </header>
+    <div class="panel">
+      <div class="row-title">BARS — fill states</div>
+      <div class="bar xp"><span style="transform:scaleX(0.3)"></span><b>EXP 30%</b></div>
+      <div class="bar hp"><span style="transform:scaleX(0.7)"></span><b>HP 70%</b></div>
+      <div class="bar enemyhp"><span style="transform:scaleX(1)"></span><b>Enemy 100%</b></div>
+    </div>
+  </body>
+</html>

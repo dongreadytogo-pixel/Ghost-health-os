@@ -1,0 +1,30 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Titan — Buttons</title>
+    <style>
+      :root { --bg: #0d0b1a; --panel2: #242042; --ink: #e8e6f2; --accent: #ffd166; }
+      body { margin: 0; background: var(--bg); color: var(--ink);
+        font-family: ui-monospace, "Courier New", monospace; padding: 20px; }
+      .controls { display: flex; gap: 8px; max-width: 460px; }
+      button { flex: 1; font-family: inherit; font-size: 12px; padding: 9px;
+        border-radius: 8px; border: 2px solid #36315e; background: var(--panel2); color: var(--ink); }
+      button.pressed { transform: translateY(1px); border-color: var(--accent); }
+      .note { font-size: 11px; color: #9b96c4; margin-top: 10px; }
+    </style>
+  </head>
+  <body>
+    <div class="controls">
+      <button>🔊 เสียง</button>
+      <button>⏸ หยุด</button>
+      <button>🗑 เริ่มใหม่</button>
+    </div>
+    <div class="controls" style="margin-top:10px">
+      <button class="pressed">🔇 ปิดเสียง</button>
+      <button class="pressed">▶ เล่นต่อ</button>
+    </div>
+    <div class="note">default · pressed/active (border = accent, 1px nudge)</div>
+  </body>
+</html>
