@@ -80,6 +80,44 @@ static func buy_pet(species_id: String) -> Dictionary:
 	return _result(true, "Adopted a %s (quality %d%%)." % [def.get("display_name", species_id), int(pet.quality() * 100.0)])
 
 
+static func upgrade_building(plot_id: String) -> Dictionary:
+	var plot := GameState.get_plot(plot_id)
+	if plot == null or plot.owner_id != GameState.player_id:
+		return _result(false, "You don't own that plot.")
+	if not plot.can_upgrade():
+		return _result(false, "Nothing to upgrade here (max level or empty).")
+	var cost := plot.upgrade_cost()
+	if not Economy.debit(GameState.player_id, cost, "upgrade:%s" % plot_id):
+		return _result(false, "Not enough coins (need %d)." % cost)
+	plot.building_level += 1
+	var player := GameState.player()
+	if player:
+		player.stats["total_spent"] += cost
+	EventBus.building_constructed.emit(plot_id, plot.building_id)
+	return _result(true, "Upgraded to level %d (+income)." % plot.building_level)
+
+
+## List one of the player's pets at the auction house.
+static func list_pet_auction(pet_id: String, min_bid: int = -1) -> Dictionary:
+	var lot_id := AuctionHouse.list_pet(GameState.player_id, pet_id, min_bid)
+	if lot_id == "":
+		return _result(false, "Could not list that pet.")
+	return _result(true, "Pet listed at auction.")
+
+
+static func list_plot_auction(plot_id: String, min_bid: int = -1) -> Dictionary:
+	var lot_id := AuctionHouse.list_plot(GameState.player_id, plot_id, min_bid)
+	if lot_id == "":
+		return _result(false, "Could not list that plot.")
+	return _result(true, "Plot listed at auction.")
+
+
+static func bid(lot_id: String, amount: int) -> Dictionary:
+	if AuctionHouse.place_bid(lot_id, GameState.player_id, amount):
+		return _result(true, "Bid placed: %d coins." % amount)
+	return _result(false, "Bid rejected (too low or not enough coins).")
+
+
 static func sell_pet(pet_id: String) -> Dictionary:
 	var pet := GameState.get_pet(pet_id)
 	if pet == null or pet.owner_id != GameState.player_id:

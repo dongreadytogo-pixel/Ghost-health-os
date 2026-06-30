@@ -45,9 +45,10 @@ Architecture already present: building income, market repricing, plot ownership.
 
 ## Phase 3 — Pet depth, auction, dynamic economy
 
-- ⬜ Auction house (bid/buy/sell) for pets, property, rare items
-- ⬜ Pet farms: free-roaming animals, automatic breeding, offspring sales
-- ⬜ Genetics UI: inspect alleles, plan pairings, track bloodlines
+- ✅ Auction house (escrowed bid/buy/sell) for pets & property, with AI rivals
+- ✅ Pet farms: automatic breeding from farm/pet-shop buildings (idle offspring)
+- ✅ Building upgrades: levels raise daily income (player + via PlayerActions)
+- 🟡 Genetics UI: inspect alleles, plan pairings, track bloodlines (next)
 - ⬜ Item rarity + crafting feeding the market
 - ⬜ Economy events with longer arcs (booms, busts, shortages)
 

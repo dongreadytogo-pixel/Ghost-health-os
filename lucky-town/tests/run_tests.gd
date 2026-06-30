@@ -26,6 +26,8 @@ func _initialize() -> void:
 	_run(test_quest_advance)
 	_run(test_quest_roll_dailies)
 	_run(test_quest_recovery)
+	_run(test_auction_min_bid)
+	_run(test_auction_willingness)
 
 	print("=== %d passed, %d failed ===" % [_passed, _failed])
 	quit(1 if _failed > 0 else 0)
@@ -139,6 +141,31 @@ func test_quest_recovery() -> void:
 	_eq(q.metric, "work", "recovery is earned by working")
 	_true(q.reward_coins > 0, "recovery pays out")
 	_eq(q.expires_day, 0, "recovery never expires (always available)")
+
+
+func test_auction_min_bid() -> void:
+	var lot := AuctionLot.new()
+	lot.min_bid = 100
+	_eq(lot.next_min_bid(), 100, "no bids => min bid")
+	lot.current_bid = 100
+	lot.current_bidder = "x"
+	# +5% of 100 = 5, but floor step is 10.
+	_eq(lot.next_min_bid(), 110, "increment respects floor step")
+	lot.current_bid = 1000
+	_eq(lot.next_min_bid(), 1050, "increment is 5% when above the floor")
+
+
+func test_auction_willingness() -> void:
+	# No value or no money => no bid.
+	_eq(AuctionValuation.willingness_to_pay(0, 1000, 1.0, 1.0, 0.0), 0, "zero value => 0")
+	_eq(AuctionValuation.willingness_to_pay(500, 0, 1.0, 1.0, 0.0), 0, "no cash => 0")
+	# A risk-taking, interested bidder pays more than a frugal, uninterested one.
+	var eager := AuctionValuation.willingness_to_pay(500, 5000, 1.0, 0.9, 0.1)
+	var meek := AuctionValuation.willingness_to_pay(500, 5000, 0.1, 0.1, 0.9)
+	_true(eager > meek, "eagerness raises willingness (%d > %d)" % [eager, meek])
+	# Willingness never exceeds what's spendable after the cushion.
+	var capped := AuctionValuation.willingness_to_pay(100000, 1000, 1.0, 1.0, 0.0)
+	_true(capped <= 1000, "never bids more than balance")
 
 
 # --- Fixtures & helpers ------------------------------------------------------

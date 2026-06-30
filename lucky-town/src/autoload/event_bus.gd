@@ -42,6 +42,12 @@ signal weather_changed(weather: int)
 signal world_event_started(event_id: String, payload: Dictionary)
 signal world_event_ended(event_id: String)
 
+# --- Auction -----------------------------------------------------------------
+signal auction_listed(lot: Dictionary)
+signal auction_bid(lot_id: String, bidder_id: String, amount: int)
+signal auction_sold(lot_id: String, winner_id: String, amount: int)
+signal auction_expired(lot_id: String)
+
 # --- Quests ------------------------------------------------------------------
 signal quest_issued(quest: Dictionary)
 signal quest_progressed(quest_id: String, progress: int, target: int)

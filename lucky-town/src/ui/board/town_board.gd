@@ -16,12 +16,14 @@ extends CanvasLayer
 @onready var _work_button: Button = $Root/Panel/Margin/VBox/Columns/Left/WorkButton
 @onready var _land_button: Button = $Root/Panel/Margin/VBox/Columns/Left/LandButton
 @onready var _build_button: Button = $Root/Panel/Margin/VBox/Columns/Left/BuildButton
+@onready var _upgrade_button: Button = $Root/Panel/Margin/VBox/Columns/Left/UpgradeButton
 
 func _ready() -> void:
 	_root.hide()
 	_work_button.pressed.connect(_on_work)
 	_land_button.pressed.connect(_on_buy_land)
 	_build_button.pressed.connect(_on_build)
+	_upgrade_button.pressed.connect(_on_upgrade)
 	# Refresh whenever the world changes, but only while we're on screen. Each
 	# signal is forwarded through a matching-arity stub (GDScript lambdas don't
 	# support default-valued params, so we can't use one generic handler).
@@ -154,6 +156,14 @@ func _update_land_buttons() -> void:
 	var shop_cost := int(DataRegistry.get_def("buildings", "shop").get("build_cost", 1200))
 	_build_button.text = "Build a Shop ($%d)" % shop_cost
 	_build_button.disabled = empty == null or not Economy.can_afford(GameState.player_id, shop_cost)
+	var upgradable := _first_upgradable_plot()
+	if upgradable == null:
+		_upgrade_button.text = "Upgrade a building"
+		_upgrade_button.disabled = true
+	else:
+		var cost := upgradable.upgrade_cost()
+		_upgrade_button.text = "Upgrade %s ($%d)" % [upgradable.building_id, cost]
+		_upgrade_button.disabled = not Economy.can_afford(GameState.player_id, cost)
 
 
 # --- Actions -----------------------------------------------------------------
@@ -172,6 +182,12 @@ func _on_build() -> void:
 	var plot := _first_empty_owned_plot()
 	if plot:
 		_do(PlayerActions.build(plot.id, "shop"))
+
+
+func _on_upgrade() -> void:
+	var plot := _first_upgradable_plot()
+	if plot:
+		_do(PlayerActions.upgrade_building(plot.id))
 
 
 func _on_claim(quest_id: String) -> void:
@@ -201,6 +217,17 @@ func _first_empty_owned_plot() -> PropertyPlot:
 	for plot_id in player.plot_ids:
 		var plot := GameState.get_plot(plot_id)
 		if plot and plot.is_empty():
+			return plot
+	return null
+
+
+func _first_upgradable_plot() -> PropertyPlot:
+	var player := GameState.player()
+	if player == null:
+		return null
+	for plot_id in player.plot_ids:
+		var plot := GameState.get_plot(plot_id)
+		if plot and plot.can_upgrade():
 			return plot
 	return null
 

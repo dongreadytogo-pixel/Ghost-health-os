@@ -68,6 +68,8 @@ func _on_day(day: int) -> void:
 	if not GameState.initialised:
 		return
 	_pay_passive_income()
+	_pet_farm_production()
+	_seed_auctions()
 	_age_population()
 	_expire_events()
 	_roll_world_events(day)
@@ -89,6 +91,72 @@ func _pay_passive_income() -> void:
 func _age_population() -> void:
 	for c in GameState.citizens.values():
 		c.stats["days_lived"] += 1
+
+
+## Pet farms work passively: an owner of a farm/pet-shop with two same-species
+## pets has a daily chance to breed an offspring automatically — idle production
+## that rewards building the right infrastructure.
+func _pet_farm_production() -> void:
+	var rng := RngService.stream("pet_farm")
+	for plot in GameState.plots.values():
+		if plot.building_id != "farm" and plot.building_id != "pet_shop":
+			continue
+		var owner := GameState.get_citizen(plot.owner_id)
+		if owner == null or owner.pet_ids.size() < 2:
+			continue
+		# Yield improves with building level.
+		if rng.randf() >= 0.25 + 0.1 * float(plot.building_level):
+			continue
+		_auto_breed_for(owner, rng)
+
+
+func _auto_breed_for(owner: Citizen, rng: RandomNumberGenerator) -> void:
+	# Find a species the owner has at least two of.
+	var by_species: Dictionary = {}
+	for pet_id in owner.pet_ids:
+		var pet := GameState.get_pet(pet_id)
+		if pet == null:
+			continue
+		if not by_species.has(pet.species_id):
+			by_species[pet.species_id] = []
+		by_species[pet.species_id].append(pet)
+	for species_id in by_species:
+		var group: Array = by_species[species_id]
+		if group.size() >= 2:
+			var child := PetBreeder.breed(group[0], group[1], rng, owner.id, GameClock.day)
+			if child:
+				GameState.add_pet(child)
+				owner.stats["pets_bred"] += 1
+				EventBus.pet_bred.emit(group[0].id, group[1].id, child.id)
+			return
+
+
+## Keep the auction house stocked: each day a few well-stocked AI citizens list
+## their best spare pet, giving the player something to compete for.
+func _seed_auctions() -> void:
+	if AuctionHouse.open_lots().size() >= 6:
+		return
+	var rng := RngService.stream("auction_seed")
+	var sellers := GameState.ai_citizens()
+	for c in sellers:
+		if c.pet_ids.size() < 3:
+			continue
+		if rng.randf() >= 0.15:
+			continue
+		var best := _best_pet_of(c)
+		if best:
+			AuctionHouse.list_pet(c.id, best.id)
+		if AuctionHouse.open_lots().size() >= 6:
+			return
+
+
+func _best_pet_of(c: Citizen) -> Pet:
+	var best: Pet = null
+	for pet_id in c.pet_ids:
+		var pet := GameState.get_pet(pet_id)
+		if pet and (best == null or pet.market_value() > best.market_value()):
+			best = pet
+	return best
 
 
 # --- World events ------------------------------------------------------------

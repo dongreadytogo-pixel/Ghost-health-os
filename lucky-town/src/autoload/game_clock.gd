@@ -85,6 +85,12 @@ func _maybe_change_season() -> void:
 
 
 ## Normalised time of day in [0,1), handy for sun/lighting interpolation.
+## Total whole in-game hours elapsed since the start of time. Used as a stable
+## monotonic stamp for scheduling (e.g. auction close times).
+func total_hours() -> int:
+	return total_minutes / 60
+
+
 func day_fraction() -> float:
 	return float(total_minutes % MINUTES_PER_DAY) / float(MINUTES_PER_DAY)
 

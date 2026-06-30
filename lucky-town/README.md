@@ -26,8 +26,10 @@ without rewriting the core.
 | 3D world: player walking, interactables, HUD, slot UI | ✅ playable vertical slice |
 | Quests: daily missions + auto recovery mission (anti-bankruptcy safety net) | ✅ implemented |
 | Player actions: work, buy land, build, adopt/sell/breed pets (same rules as AI) | ✅ implemented |
-| Town Board UI: net worth, city rankings, quests, odd jobs, pet shop | ✅ implemented |
-| Unit tests for pure logic (money, slots, genetics, quests) | ✅ headless runner |
+| Town Board UI: net worth, city rankings, quests, odd jobs, pet shop, build/upgrade | ✅ implemented |
+| Auction house: escrowed bidding, AI rivals, pet/land lots, settlement | ✅ implemented |
+| Building upgrades (levels → more income) + pet-farm auto-breeding | ✅ implemented |
+| Unit tests for pure logic (money, slots, genetics, quests, auctions) | ✅ headless runner |
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for Phases 2–5.
 
@@ -46,7 +48,8 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md) for Phases 2–5.
 | --- | --- |
 | Move | `W` `A` `S` `D` |
 | Interact (e.g. play a slot machine) | `E` |
-| Open the Town Board (quests, rankings, shop, odd jobs) | `B` |
+| Open the Town Board (quests, rankings, shop, odd jobs, build/upgrade) | `B` |
+| Open the Auction House (bid on / list pets & land) | `V` |
 | Quick save (slot 1) | `F5` |
 | Back to menu | `Esc` |
 

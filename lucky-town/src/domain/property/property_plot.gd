@@ -51,6 +51,26 @@ func appraised_value() -> int:
 	return value + building_premium
 
 
+## Maximum level the current building can reach (1 if empty).
+func max_level() -> int:
+	if is_empty():
+		return 1
+	return int(DataRegistry.get_def("buildings", building_id).get("max_level", 5))
+
+
+func can_upgrade() -> bool:
+	return not is_empty() and building_level < max_level()
+
+
+## Cost to upgrade to the next level, scaling with the current level.
+func upgrade_cost() -> int:
+	if not can_upgrade():
+		return 0
+	var def := DataRegistry.get_def("buildings", building_id)
+	var base := int(def.get("build_cost", 0))
+	return int(round(float(base) * 0.6 * float(building_level)))
+
+
 ## Passive income per day from the building on this plot (0 if empty).
 func daily_income() -> int:
 	if is_empty():
