@@ -88,7 +88,9 @@ func _pay_passive_income() -> void:
 	for plot in GameState.plots.values():
 		if not plot.is_owned():
 			continue
-		var income := plot.daily_income()
+		# `plot` comes from an untyped Dictionary.values(), so it is statically
+		# Variant; annotate the result type explicitly (`:=` can't infer it).
+		var income: int = plot.daily_income()
 		if income > 0:
 			Economy.credit(plot.owner_id, income, "rent:%s" % plot.id)
 			var owner := GameState.get_citizen(plot.owner_id)
