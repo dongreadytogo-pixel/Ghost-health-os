@@ -1,0 +1,47 @@
+[
+	{
+		"id": "story_1_first_spin",
+		"title": "Story: A Lucky Start",
+		"description": "Try your luck — spin a slot machine once.",
+		"kind": 0,
+		"metric": "spin_slot",
+		"target": 1,
+		"reward_coins": 150
+	},
+	{
+		"id": "story_2_first_land",
+		"title": "Story: Stake Your Claim",
+		"description": "Buy your first extra plot of land.",
+		"kind": 0,
+		"metric": "buy_land",
+		"target": 1,
+		"reward_coins": 400
+	},
+	{
+		"id": "story_3_first_business",
+		"title": "Story: Open for Business",
+		"description": "Construct your first income-producing building.",
+		"kind": 0,
+		"metric": "build",
+		"target": 1,
+		"reward_coins": 600
+	},
+	{
+		"id": "story_4_companion",
+		"title": "Story: A Loyal Companion",
+		"description": "Adopt your first pet.",
+		"kind": 0,
+		"metric": "buy_pet",
+		"target": 1,
+		"reward_coins": 300
+	},
+	{
+		"id": "story_5_empire",
+		"title": "Story: Building an Empire",
+		"description": "Construct five buildings across the city.",
+		"kind": 0,
+		"metric": "build",
+		"target": 5,
+		"reward_coins": 2500
+	}
+]

@@ -64,7 +64,7 @@ Architecture already present: `PetBreeder`, `quality()/market_value()`, market s
 - ✅ Festivals/events surfaced via HUD toasts; weather + season on the HUD
 - 🟡 Advanced AI: long-term goals, rivalries, reputation (memory groundwork done)
 - ⬜ Traffic & pathfinding (NavigationServer) for avatars
-- 🟡 Quests — daily + recovery done; main story & weekly/achievements next
+- ✅ Quests — daily, recovery and a 5-step main-story chain; weekly next
 
 Architecture already present: `WorldDirector` events, seasons, rankings, AI memory.
 

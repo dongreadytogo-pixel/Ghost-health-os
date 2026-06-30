@@ -57,6 +57,7 @@ func claim(quest_id: String) -> int:
 func bootstrap() -> void:
 	active.clear()
 	_claimed_ids.clear()
+	_issue_story()
 	_issue_dailies(GameClock.day)
 	_check_recovery()
 
@@ -157,10 +158,25 @@ func _add(q: Quest) -> void:
 	EventBus.quest_issued.emit(q.to_dict())
 
 
+## Issue the one-time main-story chain (kind STORY). Called only at new-game
+## bootstrap; on load these come back via `from_save`.
+func _issue_story() -> void:
+	for def in _pool_of_kind(Quest.Kind.STORY):
+		_add(Quest.from_def(def, GameClock.day))
+
+
 func _daily_pool() -> Array:
+	return _pool_of_kind(Quest.Kind.DAILY)
+
+
+## All quest defs of a given kind (the `quests` data folder mixes daily, weekly
+## and story templates; callers select by kind).
+func _pool_of_kind(kind: int) -> Array:
 	var pool: Array = []
 	for id in DataRegistry.ids("quests"):
-		pool.append(DataRegistry.get_def("quests", id))
+		var def := DataRegistry.get_def("quests", id)
+		if int(def.get("kind", Quest.Kind.DAILY)) == kind:
+			pool.append(def)
 	return pool
 
 
