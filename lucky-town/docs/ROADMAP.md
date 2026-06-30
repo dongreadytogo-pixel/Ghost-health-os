@@ -58,12 +58,12 @@ Architecture already present: `PetBreeder`, `quality()/market_value()`, market s
 
 ## Phase 4 — Living city
 
-- ⬜ Advanced AI: long-term goals, rivalries, reputation, opportunistic trading
-- ⬜ Day/night visuals driven by `GameClock.day_fraction()`
-- ⬜ Weather (rain, fog, wind) + seasons with gameplay effects
+- ✅ Day/night visuals driven by `GameClock.day_fraction()` (`WorldAtmosphere`)
+- ✅ Weather (clear/cloudy/rain/fog), season-biased, with a light economic nudge
+- ✅ City rankings UI — richest, most land, most pets, luckiest (Town Board)
+- ✅ Festivals/events surfaced via HUD toasts; weather + season on the HUD
+- 🟡 Advanced AI: long-term goals, rivalries, reputation (memory groundwork done)
 - ⬜ Traffic & pathfinding (NavigationServer) for avatars
-- ⬜ Festivals & limited-time events surfaced in-world
-- 🟡 City rankings UI — richest done (Town Board); landowner/farm/luckiest next
 - 🟡 Quests — daily + recovery done; main story & weekly/achievements next
 
 Architecture already present: `WorldDirector` events, seasons, rankings, AI memory.

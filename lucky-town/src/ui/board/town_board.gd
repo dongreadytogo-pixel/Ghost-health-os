@@ -115,14 +115,19 @@ func _render_quests() -> void:
 
 func _render_rankings() -> void:
 	_clear(_ranking_list)
-	_ranking_list.add_child(_heading("Richest Citizens"))
-	var rows: Array = WorldDirector.ranking_richest()
-	for i in mini(5, rows.size()):
+	_render_ranking_block("Richest", WorldDirector.ranking_richest(), true, 3)
+	_render_ranking_block("Most Land", WorldDirector.ranking_landowners(), false, 3)
+	_render_ranking_block("Most Pets", WorldDirector.ranking_most_pets(), false, 3)
+	_render_ranking_block("Luckiest", WorldDirector.ranking_luckiest(), true, 3)
+
+
+func _render_ranking_block(title: String, rows: Array, money: bool, count: int) -> void:
+	_ranking_list.add_child(_heading(title))
+	for i in mini(count, rows.size()):
 		var r: Dictionary = rows[i]
 		var marker := "  (you)" if r["id"] == GameState.player_id else ""
-		_ranking_list.add_child(_label("%d. %s — $%s%s" % [
-			i + 1, r["name"], Money.of(int(r["value"])).format_short(), marker,
-		]))
+		var value_text := "$%s" % Money.of(int(r["value"])).format_short() if money else str(int(r["value"]))
+		_ranking_list.add_child(_label("%d. %s — %s%s" % [i + 1, r["name"], value_text, marker]))
 
 
 func _render_pet_shop() -> void:

@@ -29,6 +29,7 @@ without rewriting the core.
 | Town Board UI: net worth, city rankings, quests, odd jobs, pet shop, build/upgrade | ✅ implemented |
 | Auction house: escrowed bidding, AI rivals, pet/land lots, settlement | ✅ implemented |
 | Building upgrades (levels → more income) + pet-farm auto-breeding | ✅ implemented |
+| Living world: day/night lighting, season-biased weather (rain/fog), HUD readout | ✅ implemented |
 | Unit tests for pure logic (money, slots, genetics, quests, auctions) | ✅ headless runner |
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for Phases 2–5.

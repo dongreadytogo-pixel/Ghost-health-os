@@ -18,8 +18,11 @@ extends Node
 @export var market_shock_chance: float = 0.10
 @export var rare_pet_chance: float = 0.08
 
+enum Weather { CLEAR, CLOUDY, RAIN, FOG }
+
 var _decision_cursor := 0
 var _active_events: Dictionary = {}   # event_id -> remaining days
+var current_weather: int = Weather.CLEAR
 
 
 func _ready() -> void:
@@ -67,6 +70,7 @@ func _world_context(c: Citizen) -> Dictionary:
 func _on_day(day: int) -> void:
 	if not GameState.initialised:
 		return
+	_roll_weather()
 	_pay_passive_income()
 	_pet_farm_production()
 	_seed_auctions()
@@ -207,6 +211,41 @@ func active_events() -> Array:
 	return _active_events.keys()
 
 
+# --- Weather -----------------------------------------------------------------
+
+## Pick the day's weather, biased by the current season (summers are clearer,
+## winters foggier). Weather is cosmetic-plus: the `WorldAtmosphere` node reacts
+## visually and a light economic nudge is applied (rainy days dampen shopping).
+func _roll_weather() -> void:
+	var weights := _season_weather_weights(GameClock.season)
+	var picked = RngService.weighted_pick("weather", weights)
+	var new_weather: int = picked if picked != null else Weather.CLEAR
+	if new_weather != current_weather:
+		current_weather = new_weather
+		EventBus.weather_changed.emit(current_weather)
+		EventBus.notification_posted.emit("Weather: %s" % weather_name(), 0)
+	if current_weather == Weather.RAIN:
+		# A rainy day softens demand for non-essentials across the market.
+		for item_id in DataRegistry.ids("market_items"):
+			Economy.register_sale(item_id, 5)
+
+
+func _season_weather_weights(season: int) -> Dictionary:
+	match season:
+		GameClock.Season.SUMMER:
+			return {Weather.CLEAR: 6.0, Weather.CLOUDY: 2.0, Weather.RAIN: 1.0, Weather.FOG: 0.3}
+		GameClock.Season.WINTER:
+			return {Weather.CLEAR: 2.0, Weather.CLOUDY: 3.0, Weather.RAIN: 1.5, Weather.FOG: 3.0}
+		GameClock.Season.AUTUMN:
+			return {Weather.CLEAR: 3.0, Weather.CLOUDY: 3.0, Weather.RAIN: 2.5, Weather.FOG: 1.5}
+		_:  # spring
+			return {Weather.CLEAR: 4.0, Weather.CLOUDY: 3.0, Weather.RAIN: 2.0, Weather.FOG: 1.0}
+
+
+func weather_name() -> String:
+	return ["Clear", "Cloudy", "Rain", "Fog"][current_weather]
+
+
 # --- Rankings ----------------------------------------------------------------
 
 ## Returns an array of {id, name, value} sorted descending by net worth.
@@ -222,6 +261,23 @@ func ranking_landowners() -> Array:
 	var rows: Array = []
 	for c in GameState.citizens.values():
 		rows.append({"id": c.id, "name": c.citizen_name, "value": c.plot_ids.size()})
+	rows.sort_custom(func(a, b): return a["value"] > b["value"])
+	return rows
+
+
+func ranking_most_pets() -> Array:
+	var rows: Array = []
+	for c in GameState.citizens.values():
+		rows.append({"id": c.id, "name": c.citizen_name, "value": c.pet_ids.size()})
+	rows.sort_custom(func(a, b): return a["value"] > b["value"])
+	return rows
+
+
+## "Luckiest" = best net gambling result to date.
+func ranking_luckiest() -> Array:
+	var rows: Array = []
+	for c in GameState.citizens.values():
+		rows.append({"id": c.id, "name": c.citizen_name, "value": int(c.memory.get("net_gambling", 0))})
 	rows.sort_custom(func(a, b): return a["value"] > b["value"])
 	return rows
 

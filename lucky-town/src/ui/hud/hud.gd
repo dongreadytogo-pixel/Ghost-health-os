@@ -17,6 +17,7 @@ var _toast_timer := 0.0
 func _ready() -> void:
 	EventBus.money_changed.connect(_on_money_changed)
 	EventBus.hour_ticked.connect(_on_time_changed)
+	EventBus.weather_changed.connect(_on_weather_changed)
 	EventBus.notification_posted.connect(_on_notification)
 	_refresh_money()
 	_refresh_time()
@@ -38,6 +39,10 @@ func _on_time_changed(_day: int, _hour: int) -> void:
 	_refresh_time()
 
 
+func _on_weather_changed(_weather: int) -> void:
+	_refresh_time()
+
+
 func _on_notification(text: String, severity: int) -> void:
 	# Low-severity messages (prompts) sit in the prompt slot; others toast.
 	if severity <= 0 and text.begins_with("Press"):
@@ -52,4 +57,6 @@ func _refresh_money() -> void:
 
 
 func _refresh_time() -> void:
-	_time_label.text = "Day %d  %s  %s" % [GameClock.day, GameClock.time_string(), GameClock.season_name()]
+	_time_label.text = "Day %d  %s  %s  %s" % [
+		GameClock.day, GameClock.time_string(), GameClock.season_name(), WorldDirector.weather_name(),
+	]
