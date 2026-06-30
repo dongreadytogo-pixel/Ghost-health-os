@@ -75,14 +75,18 @@ Architecture already present: `WorldDirector` events, seasons, rankings, AI memo
 The whole point of the model/view + event-bus design. Target: add online play
 **without rewriting the core**.
 
-- ⬜ `NetSync` autoload mirroring `EventBus` signals to/from a server
-- ⬜ Authoritative-server mode: domain/core layers run server-side unchanged
-- ⬜ Replace a citizen's `AiBrain` with remote player input (citizens *become* players)
-- ⬜ Save → server persistence (swap `SaveBackend` for a network backend)
-- ⬜ Deterministic RNG → server-seeded for fair shared slots/jackpots
-- ⬜ Cloud saves
+- ✅ `NetSync` autoload mirroring `EventBus` facts ⇄ a `NetTransport` (dormant
+  until enabled; offline play byte-for-byte unaffected)
+- ✅ Transport abstraction + in-process `LoopbackTransport` (host-and-play/tests)
+- ✅ `NetMessage` envelope + JSON codec; round-trip & delivery unit-tested
+- ✅ `Citizen.control_mode` (AI/LOCAL/REMOTE); `WorldDirector` yields REMOTE
+  citizens to network input — a player can *inhabit* an AI citizen
+- ⬜ Apply-handlers: inbound facts mutate `Economy`/`GameState` (authoritative sync)
+- ⬜ Real transport (ENet/WebSocket) implementing `NetTransport`
+- ⬜ Server-seeded RNG for fair shared slots/jackpots; cloud saves
 
-No Phase 1–4 system needs to change its public shape for this to land.
+The relay seam exists and is exercised; see **docs/NETWORKING.md**. No Phase 1–4
+system must change its public shape to finish online play.
 
 ---
 

@@ -61,6 +61,7 @@ func _create_player() -> void:
 	player.id = player_id
 	player.citizen_name = "You"
 	player.is_player = true
+	player.control_mode = Citizen.ControlMode.LOCAL
 	player.personality_id = "casual"
 	citizens[player_id] = player
 	Economy.open_account(player_id, STARTING_CASH)

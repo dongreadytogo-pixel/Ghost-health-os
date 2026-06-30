@@ -30,7 +30,8 @@ without rewriting the core.
 | Auction house: escrowed bidding, AI rivals, pet/land lots, settlement | ✅ implemented |
 | Building upgrades (levels → more income) + pet-farm auto-breeding | ✅ implemented |
 | Living world: day/night lighting, season-biased weather (rain/fog), HUD readout | ✅ implemented |
-| Unit tests for pure logic (money, slots, genetics, quests, auctions) | ✅ headless runner |
+| Networking seam: `NetSync` + transport + remote-control citizens (dormant offline) | ✅ scaffolded |
+| Unit tests for pure logic (money, slots, genetics, quests, auctions, net) | ✅ headless runner |
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for Phases 2–5.
 

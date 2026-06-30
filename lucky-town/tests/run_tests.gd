@@ -28,6 +28,8 @@ func _initialize() -> void:
 	_run(test_quest_recovery)
 	_run(test_auction_min_bid)
 	_run(test_auction_willingness)
+	_run(test_net_message_roundtrip)
+	_run(test_loopback_transport)
 
 	print("=== %d passed, %d failed ===" % [_passed, _failed])
 	quit(1 if _failed > 0 else 0)
@@ -166,6 +168,30 @@ func test_auction_willingness() -> void:
 	# Willingness never exceeds what's spendable after the cushion.
 	var capped := AuctionValuation.willingness_to_pay(100000, 1000, 1.0, 1.0, 0.0)
 	_true(capped <= 1000, "never bids more than balance")
+
+
+func test_net_message_roundtrip() -> void:
+	var msg := NetMessage.new("money_changed", {"args": ["player"]}, "peerA", 7)
+	var decoded := NetMessage.decode(msg.encode())
+	_true(decoded != null, "decodes")
+	_eq(decoded.type, "money_changed", "type preserved")
+	_eq(decoded.origin, "peerA", "origin preserved")
+	_eq(decoded.seq, 7, "seq preserved")
+	_eq(str(decoded.payload.get("args")), str(["player"]), "payload preserved")
+
+
+func test_loopback_transport() -> void:
+	var t := LoopbackTransport.new()
+	var got: Array = []
+	t.message_received.connect(func(m): got.append(m))
+	t.send(NetMessage.new("ping", {}, "me", 1))  # not echoed by default
+	t.poll()
+	_eq(got.size(), 0, "own sends are not looped back by default")
+	t.inject(NetMessage.new("hello", {"args": ["x"]}, "peer", 2))
+	_eq(got.size(), 0, "queued until poll")
+	t.poll()
+	_eq(got.size(), 1, "delivered on poll")
+	_eq(got[0].type, "hello", "message type intact")
 
 
 # --- Fixtures & helpers ------------------------------------------------------

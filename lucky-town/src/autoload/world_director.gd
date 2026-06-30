@@ -48,6 +48,10 @@ func _on_hour(_day: int, _hour: int) -> void:
 
 
 func _tick_citizen(c: Citizen) -> void:
+	# Remote-controlled citizens receive their decisions over the network, not
+	# from the local AI — this is the line that lets a player "inhabit" a citizen.
+	if c.control_mode == Citizen.ControlMode.REMOTE:
+		return
 	var personality := Personality.from_def(DataRegistry.get_def("personalities", c.personality_id))
 	var world := _world_context(c)
 	var decision := AiBrain.decide(c, personality, world, RngService.stream("ai:%s" % c.id))

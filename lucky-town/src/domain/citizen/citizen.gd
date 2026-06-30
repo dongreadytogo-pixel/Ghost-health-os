@@ -9,12 +9,19 @@ extends RefCounted
 ## is exactly what lets a networked player later "inhabit" a citizen: swap the
 ## brain for remote input and nothing else changes.
 
+## Who drives this citizen's decisions. The entire point of the model/view split
+## is that this can change at runtime: an AI citizen can be handed to a remote
+## player (REMOTE) with no other code change — the actuator, economy, save and
+## rendering are identical regardless of the source of decisions.
+enum ControlMode { AI, LOCAL, REMOTE }
+
 # --- Identity ----------------------------------------------------------------
 var id: String = ""
 var citizen_name: String = ""
 var age: int = 25
 var personality_id: String = ""
 var is_player: bool = false
+var control_mode: int = ControlMode.AI
 
 # --- Needs (0..1, 1 == fully satisfied) --------------------------------------
 var hunger: float = 1.0
@@ -104,6 +111,7 @@ func to_dict() -> Dictionary:
 		"age": age,
 		"personality_id": personality_id,
 		"is_player": is_player,
+		"control_mode": control_mode,
 		"hunger": hunger,
 		"energy": energy,
 		"happiness": happiness,
@@ -126,6 +134,7 @@ static func from_dict(data: Dictionary) -> Citizen:
 	c.age = int(data.get("age", 25))
 	c.personality_id = data.get("personality_id", "")
 	c.is_player = bool(data.get("is_player", false))
+	c.control_mode = int(data.get("control_mode", ControlMode.AI))
 	c.hunger = float(data.get("hunger", 1.0))
 	c.energy = float(data.get("energy", 1.0))
 	c.happiness = float(data.get("happiness", 0.7))
