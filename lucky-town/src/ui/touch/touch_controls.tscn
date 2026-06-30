@@ -1,0 +1,75 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/ui/touch/touch_controls.gd" id="1_touch"]
+[ext_resource type="Script" path="res://src/ui/touch/virtual_joystick.gd" id="2_joy"]
+
+[node name="TouchControls" type="CanvasLayer"]
+layer = 5
+script = ExtResource("1_touch")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Joystick" type="Control" parent="Root"]
+layout_mode = 1
+anchor_left = 0.0
+anchor_top = 1.0
+anchor_right = 0.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -284.0
+offset_right = 284.0
+offset_bottom = -24.0
+grow_vertical = 0
+script = ExtResource("2_joy")
+
+[node name="RightCluster" type="VBoxContainer" parent="Root"]
+layout_mode = 1
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -252.0
+offset_top = -228.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_constants/separation = 10
+
+[node name="InteractButton" type="Button" parent="Root/RightCluster"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+text = "Interact (E)"
+
+[node name="Grid" type="GridContainer" parent="Root/RightCluster"]
+layout_mode = 2
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+columns = 2
+
+[node name="BoardButton" type="Button" parent="Root/RightCluster/Grid"]
+custom_minimum_size = Vector2(109, 52)
+layout_mode = 2
+text = "Board"
+
+[node name="AuctionButton" type="Button" parent="Root/RightCluster/Grid"]
+custom_minimum_size = Vector2(109, 52)
+layout_mode = 2
+text = "Auction"
+
+[node name="StatsButton" type="Button" parent="Root/RightCluster/Grid"]
+custom_minimum_size = Vector2(109, 52)
+layout_mode = 2
+text = "Stats"
+
+[node name="MenuButton" type="Button" parent="Root/RightCluster/Grid"]
+custom_minimum_size = Vector2(109, 52)
+layout_mode = 2
+text = "Menu"

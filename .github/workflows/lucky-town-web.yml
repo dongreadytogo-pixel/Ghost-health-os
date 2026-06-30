@@ -1,0 +1,80 @@
+name: Lucky Town Web Build
+
+# Exports the Godot game to HTML5 and publishes it to GitHub Pages so it can be
+# played in a phone browser (e.g. iPhone Safari). Scoped to the game folder.
+#
+# ONE-TIME SETUP (do this on github.com, also works from the mobile site):
+#   Repo → Settings → Pages → "Build and deployment" → Source: "GitHub Actions".
+# After the first successful run, the play URL appears on the Pages settings
+# page and in this workflow's run summary.
+
+on:
+  push:
+    branches: ['**']
+    paths: ['lucky-town/**', '.github/workflows/lucky-town-web.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: lucky-town-pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: 4.2.2
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot ${{ env.GODOT_VERSION }} + export templates
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          curl -sSL -o godot.zip "$BASE/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip
+          sudo mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          sudo chmod +x /usr/local/bin/godot
+          curl -sSL -o templates.tpz "$BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q templates.tpz
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$TEMPLATE_DIR"
+          mv templates/* "$TEMPLATE_DIR/"
+          godot --version
+
+      - name: Import project (builds resource + class cache)
+        working-directory: lucky-town
+        run: godot --headless --import || true
+
+      - name: Export Web build
+        working-directory: lucky-town
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          godot --headless --export-release "Web" build/index.html
+          test -f build/index.html
+          ls -la build
+
+      - name: Add cross-origin isolation shim (GitHub Pages can't send COOP/COEP)
+        working-directory: lucky-town/build
+        run: |
+          set -euo pipefail
+          curl -sSL -o coi-serviceworker.js \
+            https://raw.githubusercontent.com/gzuidhof/coi-serviceworker/master/coi-serviceworker.min.js
+          # Load the shim first so SharedArrayBuffer is available for threads.
+          sed -i 's#<head>#<head>\n<script src="coi-serviceworker.js"></script>#' index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: lucky-town/build
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

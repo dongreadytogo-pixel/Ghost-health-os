@@ -17,6 +17,7 @@ extends CanvasLayer
 func _ready() -> void:
 	_root.hide()
 	_list_pet_button.pressed.connect(_on_list_pet)
+	$Root/Panel/Margin/VBox/CloseButton.pressed.connect(_close)
 	EventBus.auction_listed.connect(_refresh1)
 	EventBus.auction_bid.connect(_refresh3)
 	EventBus.auction_sold.connect(_refresh3)

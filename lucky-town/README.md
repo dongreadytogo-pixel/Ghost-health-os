@@ -38,9 +38,19 @@ navmesh traffic, full localization and authoritative netcode — see
 | Achievements + Statistics screen (10 achievements, lifetime stats) | ✅ implemented |
 | Pause menu with multi-slot save/load (+ auto-save row) | ✅ implemented |
 | Earned cosmetic titles (HUD), unlocked via achievements | ✅ implemented |
+| Mobile/web play: touch controls + web export to GitHub Pages (CI) | ✅ implemented |
 | Unit tests for pure logic (money, slots, genetics, quests, auctions, net) | ✅ headless runner |
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for Phases 2–5.
+
+---
+
+## Play on your phone (no PC needed) 📱
+
+The game exports to the web and publishes to GitHub Pages, with on-screen touch
+controls — open the link in Safari/Chrome on your phone and play. One-time
+setup (enable Pages → GitHub Actions) and full instructions are in
+[`docs/MOBILE.md`](docs/MOBILE.md).
 
 ---
 

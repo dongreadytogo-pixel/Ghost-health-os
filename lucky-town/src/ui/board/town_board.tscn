@@ -108,3 +108,7 @@ layout_mode = 2
 [node name="LogLabel" type="Label" parent="Root/Panel/Margin/VBox"]
 layout_mode = 2
 text = ""
+
+[node name="CloseButton" type="Button" parent="Root/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Close"

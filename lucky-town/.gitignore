@@ -2,7 +2,7 @@
 .godot/
 .import/
 export.cfg
-export_presets.cfg
+# NOTE: export_presets.cfg IS tracked — the web-build CI needs the "Web" preset.
 
 # Mono / C# (only if C# is ever introduced)
 .mono/

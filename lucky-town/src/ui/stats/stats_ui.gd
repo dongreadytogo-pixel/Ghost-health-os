@@ -15,6 +15,7 @@ func _ready() -> void:
 	_root.hide()
 	AchievementSystem.evaluated.connect(_refresh_if_visible)
 	EventBus.achievement_unlocked.connect(_refresh2)
+	$Root/Panel/Margin/VBox/CloseButton.pressed.connect(_close)
 
 
 func _unhandled_input(event: InputEvent) -> void:

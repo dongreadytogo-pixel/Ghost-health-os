@@ -24,6 +24,7 @@ func _ready() -> void:
 	_land_button.pressed.connect(_on_buy_land)
 	_build_button.pressed.connect(_on_build)
 	_upgrade_button.pressed.connect(_on_upgrade)
+	$Root/Panel/Margin/VBox/CloseButton.pressed.connect(_close)
 	# Refresh whenever the world changes, but only while we're on screen. Each
 	# signal is forwarded through a matching-arity stub (GDScript lambdas don't
 	# support default-valued params, so we can't use one generic handler).
