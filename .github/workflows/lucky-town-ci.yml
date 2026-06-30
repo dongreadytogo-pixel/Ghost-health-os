@@ -32,9 +32,14 @@ jobs:
           chmod +x /usr/local/bin/godot
           godot --version
 
-      - name: Import project (builds resource + global class cache)
+      - name: Import project — TWO passes (build global class cache)
         working-directory: lucky-town
-        run: godot --headless --import || true
+        # The first pass registers all `class_name` types; the second resolves
+        # scripts that reference them. Without this, a fresh checkout can't see
+        # global classes (Money, SlotEvaluator, …) and tests fail to compile.
+        run: |
+          godot --headless --import 2>&1 | tail -n 5 || true
+          godot --headless --import 2>&1 | tail -n 5 || true
 
       - name: Run unit tests
         working-directory: lucky-town

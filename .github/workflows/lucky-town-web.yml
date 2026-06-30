@@ -49,14 +49,22 @@ jobs:
           mv templates/* "$TEMPLATE_DIR/"
           godot --version
 
-      - name: Import project (builds resource + class cache)
+      - name: Import project — TWO passes
         working-directory: lucky-town
-        run: godot --headless --import || true
+        # First pass registers global `class_name` types into
+        # .godot/global_script_class_cache.cfg (scripts that reference those
+        # types as annotations fail on this pass — expected). The second pass
+        # resolves cleanly now that the cache exists.
+        run: |
+          godot --headless --import 2>&1 | tail -n 5 || true
+          godot --headless --import 2>&1 | tail -n 5 || true
 
       - name: Export Web build
         working-directory: lucky-town
         run: |
           set -euo pipefail
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          echo "Export templates present:"; ls -la "$TEMPLATE_DIR"
           mkdir -p build
           godot --headless --export-release "Web" build/index.html
           test -f build/index.html
