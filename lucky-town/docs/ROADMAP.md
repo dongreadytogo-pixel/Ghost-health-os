@@ -21,8 +21,11 @@ Goal: walk a city, gamble, earn, own land/pets, save — with real AI citizens.
 - ✅ Property: finite grid, ownership, buildings, passive income
 - ✅ Save: JSON backend, slots, auto-save, migration
 - ✅ 3D world: player walking, interactables, HUD, slot UI
-- ✅ Unit tests for pure logic
-- 🟡 Player-facing screens for shops / pets / property (slot UI done; others next)
+- ✅ Quests: data-driven daily missions + auto recovery mission (anti-bankruptcy)
+- ✅ Player actions service (work/buy land/build/adopt/sell/breed) — same rules as AI
+- ✅ Town Board UI: net worth, city rankings, quests + claim, odd jobs, pet shop
+- ✅ Unit tests for pure logic (money, slots, genetics, quests)
+- 🟡 Dedicated screens for property/pet detail (board covers the basics; detail next)
 - ⬜ Art pass replacing placeholder primitives (free/open assets)
 
 ---
@@ -59,8 +62,8 @@ Architecture already present: `PetBreeder`, `quality()/market_value()`, market s
 - ⬜ Weather (rain, fog, wind) + seasons with gameplay effects
 - ⬜ Traffic & pathfinding (NavigationServer) for avatars
 - ⬜ Festivals & limited-time events surfaced in-world
-- ⬜ City rankings UI (richest, biggest landowner, best farm, luckiest…)
-- ⬜ Quests: main story, daily/weekly missions, recovery missions (anti-bankruptcy)
+- 🟡 City rankings UI — richest done (Town Board); landowner/farm/luckiest next
+- 🟡 Quests — daily + recovery done; main story & weekly/achievements next
 
 Architecture already present: `WorldDirector` events, seasons, rankings, AI memory.
 

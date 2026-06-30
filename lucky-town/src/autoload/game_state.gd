@@ -41,6 +41,7 @@ func new_game(citizen_count: int = 12) -> void:
 	_seed_jackpots()
 
 	initialised = true
+	QuestSystem.bootstrap()
 	Log.info("GameState", "New game: %d citizens, %d plots" % [citizens.size(), plots.size()])
 	EventBus.notification_posted.emit("Welcome to Lucky Town!", 0)
 

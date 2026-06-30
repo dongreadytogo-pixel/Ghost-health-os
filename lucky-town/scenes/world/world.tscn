@@ -1,8 +1,9 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/world.gd" id="1_world"]
 [ext_resource type="PackedScene" path="res://scenes/world/player.tscn" id="2_player"]
 [ext_resource type="PackedScene" path="res://src/ui/hud/hud.tscn" id="3_hud"]
+[ext_resource type="PackedScene" path="res://src/ui/board/town_board.tscn" id="4_board"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_1"]
 size = Vector2(80, 80)
@@ -54,3 +55,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10)
 [node name="UiLayer" type="CanvasLayer" parent="."]
 
 [node name="Hud" parent="." instance=ExtResource("3_hud")]
+
+[node name="TownBoard" parent="." instance=ExtResource("4_board")]

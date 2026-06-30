@@ -24,7 +24,10 @@ without rewriting the core.
 | Property: finite land grid, ownership, buildings, passive income | ✅ implemented |
 | Save system: JSON backend, multiple slots, auto-save, schema migration | ✅ implemented |
 | 3D world: player walking, interactables, HUD, slot UI | ✅ playable vertical slice |
-| Unit tests for pure logic (money, slots, genetics) | ✅ headless runner |
+| Quests: daily missions + auto recovery mission (anti-bankruptcy safety net) | ✅ implemented |
+| Player actions: work, buy land, build, adopt/sell/breed pets (same rules as AI) | ✅ implemented |
+| Town Board UI: net worth, city rankings, quests, odd jobs, pet shop | ✅ implemented |
+| Unit tests for pure logic (money, slots, genetics, quests) | ✅ headless runner |
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for Phases 2–5.
 
@@ -43,6 +46,7 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md) for Phases 2–5.
 | --- | --- |
 | Move | `W` `A` `S` `D` |
 | Interact (e.g. play a slot machine) | `E` |
+| Open the Town Board (quests, rankings, shop, odd jobs) | `B` |
 | Quick save (slot 1) | `F5` |
 | Back to menu | `Esc` |
 

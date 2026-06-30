@@ -82,6 +82,7 @@ func _collect_snapshot() -> Dictionary:
 		"clock": GameClock.to_save(),
 		"economy": Economy.to_save(),
 		"world": GameState.to_save(),
+		"quests": QuestSystem.to_save(),
 	}
 
 
@@ -90,6 +91,7 @@ func _apply_snapshot(snapshot: Dictionary) -> void:
 	GameClock.from_save(snapshot.get("clock", {}))
 	Economy.from_save(snapshot.get("economy", {}))
 	GameState.from_save(snapshot.get("world", {}))
+	QuestSystem.from_save(snapshot.get("quests", {}))
 
 
 ## Headline info for the load-game menu — kept tiny and cheap to read.

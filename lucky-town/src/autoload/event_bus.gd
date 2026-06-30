@@ -42,10 +42,20 @@ signal weather_changed(weather: int)
 signal world_event_started(event_id: String, payload: Dictionary)
 signal world_event_ended(event_id: String)
 
+# --- Quests ------------------------------------------------------------------
+signal quest_issued(quest: Dictionary)
+signal quest_progressed(quest_id: String, progress: int, target: int)
+signal quest_completed(quest_id: String)
+signal quest_claimed(quest_id: String, reward: int)
+
 # --- UI requests -------------------------------------------------------------
 ## A world object asks the UI layer to open a screen. The player is always the
 ## actor, so only the data id travels here (no node references on the bus).
 signal slot_ui_requested(machine_id: String)
+
+## Raised when any full-screen modal opens/closes, so the player avatar can
+## freeze its input without modals needing a reference to the player.
+signal ui_modal_changed(is_open: bool)
 
 # --- Meta / lifecycle --------------------------------------------------------
 signal game_loaded(slot_index: int)

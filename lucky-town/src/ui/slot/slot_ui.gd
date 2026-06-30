@@ -17,12 +17,10 @@ signal closed
 var _machine_id: String = ""
 var _config: SlotMachineConfig
 var _bet: int = 10
-var _actor: Node = null
 
 
-func open(machine_id: String, actor: Node = null) -> void:
+func open(machine_id: String) -> void:
 	_machine_id = machine_id
-	_actor = actor
 	_config = DataRegistry.slot_config(machine_id)
 	if _config == null:
 		close()
@@ -32,6 +30,7 @@ func open(machine_id: String, actor: Node = null) -> void:
 	_setup_grid()
 	_refresh()
 	show()
+	EventBus.ui_modal_changed.emit(true)
 
 
 func _setup_grid() -> void:
@@ -90,7 +89,6 @@ func _on_close_pressed() -> void:
 
 
 func close() -> void:
-	if _actor:
-		_actor.input_locked = false
 	hide()
+	EventBus.ui_modal_changed.emit(false)
 	closed.emit()

@@ -20,6 +20,11 @@ var input_locked: bool = false
 var _nearby_interactable: Node = null
 
 
+func _ready() -> void:
+	# Any open modal (slot screen, town board) freezes movement & interaction.
+	EventBus.ui_modal_changed.connect(func(is_open: bool): input_locked = is_open)
+
+
 func _physics_process(delta: float) -> void:
 	if input_locked:
 		velocity = velocity.move_toward(Vector3.ZERO, acceleration * delta)

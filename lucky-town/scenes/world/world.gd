@@ -16,7 +16,6 @@ const SlotUiScene := preload("res://src/ui/slot/slot_ui.tscn")
 @onready var _agents_root: Node3D = $Agents
 @onready var _props_root: Node3D = $Props
 @onready var _ui_root: CanvasLayer = $UiLayer
-@onready var _player: Node = $Player
 
 var _slot_ui: Control = null
 
@@ -52,9 +51,8 @@ func _open_slot_ui(machine_id: String) -> void:
 		_slot_ui = SlotUiScene.instantiate()
 		_ui_root.add_child(_slot_ui)
 		_slot_ui.closed.connect(func(): GameClock.set_paused(false))
-	_player.input_locked = true
 	GameClock.set_paused(true)
-	_slot_ui.open(machine_id, _player)
+	_slot_ui.open(machine_id)
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -18,6 +18,7 @@ Loaded from `project.godot` in dependency order, parented to `/root`:
 ├── Economy
 ├── SaveManager
 ├── GameState
+├── QuestSystem
 ├── WorldDirector
 └── <current main scene>
 ```
@@ -166,6 +167,8 @@ Opening pauses `GameClock`; closing unpauses and unlocks player input.
     │   ├── SlotMachine (slot_fantasy)
     │   ├── SlotMachine (slot_ghost)
     │   └── SlotMachine (slot_cyberpunk)
-    └── UiLayer
-        └── SlotUi (only while a machine is open)
+    ├── UiLayer (CanvasLayer)
+    │   └── SlotUi (only while a machine is open)
+    ├── Hud (CanvasLayer)
+    └── TownBoard (CanvasLayer, hidden until toggled with B)
 ```

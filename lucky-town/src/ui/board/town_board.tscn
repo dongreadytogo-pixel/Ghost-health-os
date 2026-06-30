@@ -1,0 +1,106 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ui/board/town_board.gd" id="1_board"]
+
+[node name="TownBoard" type="CanvasLayer"]
+script = ExtResource("1_board")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dim" type="ColorRect" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.55)
+
+[node name="Panel" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -440.0
+offset_top = -280.0
+offset_right = 440.0
+offset_bottom = 280.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="Root/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 14
+
+[node name="VBox" type="VBoxContainer" parent="Root/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="HeaderLabel" type="Label" parent="Root/Panel/Margin/VBox"]
+layout_mode = 2
+text = "TOWN BOARD        [B] to close"
+
+[node name="MoneyLabel" type="Label" parent="Root/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Net worth: $0    Cash: $0"
+
+[node name="Columns" type="HBoxContainer" parent="Root/Panel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 24
+
+[node name="Left" type="VBoxContainer" parent="Root/Panel/Margin/VBox/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="QuestsHeading" type="Label" parent="Root/Panel/Margin/VBox/Columns/Left"]
+layout_mode = 2
+text = "Quests"
+
+[node name="QuestScroll" type="ScrollContainer" parent="Root/Panel/Margin/VBox/Columns/Left"]
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 220)
+
+[node name="QuestList" type="VBoxContainer" parent="Root/Panel/Margin/VBox/Columns/Left/QuestScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="WorkButton" type="Button" parent="Root/Panel/Margin/VBox/Columns/Left"]
+layout_mode = 2
+text = "Do an odd job"
+
+[node name="LandButton" type="Button" parent="Root/Panel/Margin/VBox/Columns/Left"]
+layout_mode = 2
+text = "Buy cheapest plot"
+
+[node name="BuildButton" type="Button" parent="Root/Panel/Margin/VBox/Columns/Left"]
+layout_mode = 2
+text = "Build a Shop"
+
+[node name="Right" type="VBoxContainer" parent="Root/Panel/Margin/VBox/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="RankingList" type="VBoxContainer" parent="Root/Panel/Margin/VBox/Columns/Right"]
+layout_mode = 2
+
+[node name="PetList" type="VBoxContainer" parent="Root/Panel/Margin/VBox/Columns/Right"]
+layout_mode = 2
+
+[node name="LogLabel" type="Label" parent="Root/Panel/Margin/VBox"]
+layout_mode = 2
+text = ""

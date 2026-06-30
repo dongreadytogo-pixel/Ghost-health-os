@@ -23,6 +23,9 @@ func _initialize() -> void:
 	_run(test_slot_line_win_pays)
 	_run(test_slot_rtp_in_band)
 	_run(test_pet_quality_bounds)
+	_run(test_quest_advance)
+	_run(test_quest_roll_dailies)
+	_run(test_quest_recovery)
 
 	print("=== %d passed, %d failed ===" % [_passed, _failed])
 	quit(1 if _failed > 0 else 0)
@@ -98,6 +101,44 @@ func test_pet_quality_bounds() -> void:
 	_true(pet.quality() >= 0.0 and pet.quality() <= 1.0, "quality is bounded")
 	pet.genes = {"a": 1.0, "b": 1.0}
 	_true(pet.quality() <= 1.0, "quality capped at 1.0")
+
+
+func test_quest_advance() -> void:
+	var q := Quest.from_def({
+		"id": "q1", "title": "Spin", "metric": "spin_slot", "target": 3, "reward_coins": 50,
+	})
+	_true(not q.advance("buy_pet", 1), "wrong metric does not advance")
+	_true(not q.advance("spin_slot", 1), "partial progress not complete")
+	_eq(q.progress, 1, "progress counted")
+	_true(q.advance("spin_slot", 5), "reaching target completes (and clamps)")
+	_eq(q.progress, 3, "progress clamped to target")
+	_eq(q.state, Quest.State.COMPLETED, "state is completed")
+	_true(not q.advance("spin_slot", 1), "completed quest ignores further advances")
+
+
+func test_quest_roll_dailies() -> void:
+	var pool := [
+		{"id": "a", "metric": "spin_slot", "target": 1},
+		{"id": "b", "metric": "win_slot", "target": 1},
+		{"id": "c", "metric": "work", "target": 1},
+		{"id": "d", "metric": "buy_pet", "target": 1},
+	]
+	var dailies := QuestGenerator.roll_dailies(pool, _seeded_rng(3), 5, 3)
+	_eq(dailies.size(), 3, "rolls the requested count")
+	for q in dailies:
+		_eq(q.kind, Quest.Kind.DAILY, "tagged as daily")
+		_eq(q.expires_day, 6, "expires next day")
+	# Deterministic under a fixed seed.
+	var again := QuestGenerator.roll_dailies(pool, _seeded_rng(3), 5, 3)
+	_eq(again[0].id, dailies[0].id, "same seed => same selection")
+
+
+func test_quest_recovery() -> void:
+	var q := QuestGenerator.make_recovery(4)
+	_eq(q.kind, Quest.Kind.RECOVERY, "recovery kind")
+	_eq(q.metric, "work", "recovery is earned by working")
+	_true(q.reward_coins > 0, "recovery pays out")
+	_eq(q.expires_day, 0, "recovery never expires (always available)")
 
 
 # --- Fixtures & helpers ------------------------------------------------------

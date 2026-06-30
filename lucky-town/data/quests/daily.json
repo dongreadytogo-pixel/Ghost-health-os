@@ -1,0 +1,65 @@
+[
+	{
+		"id": "daily_spin",
+		"title": "Feeling Lucky",
+		"description": "Spin any slot machine 5 times.",
+		"kind": 1,
+		"metric": "spin_slot",
+		"target": 5,
+		"reward_coins": 120
+	},
+	{
+		"id": "daily_win",
+		"title": "Winner Winner",
+		"description": "Win 2 slot spins.",
+		"kind": 1,
+		"metric": "win_slot",
+		"target": 2,
+		"reward_coins": 200
+	},
+	{
+		"id": "daily_earn",
+		"title": "Honest Coin",
+		"description": "Earn 300 coins from any source.",
+		"kind": 1,
+		"metric": "coins_earned",
+		"target": 300,
+		"reward_coins": 150
+	},
+	{
+		"id": "daily_pet",
+		"title": "New Best Friend",
+		"description": "Adopt a pet.",
+		"kind": 1,
+		"metric": "buy_pet",
+		"target": 1,
+		"reward_coins": 180
+	},
+	{
+		"id": "daily_land",
+		"title": "Land Baron",
+		"description": "Buy a plot of land.",
+		"kind": 1,
+		"metric": "buy_land",
+		"target": 1,
+		"reward_coins": 250
+	},
+	{
+		"id": "daily_build",
+		"title": "Builder's Pride",
+		"description": "Construct a building on your land.",
+		"kind": 1,
+		"metric": "build",
+		"target": 1,
+		"reward_coins": 300
+	},
+	{
+		"id": "daily_work",
+		"title": "Day's Work",
+		"description": "Do 2 odd jobs at the Town Hall.",
+		"kind": 1,
+		"metric": "work",
+		"target": 2,
+		"reward_coins": 100
+	}
+]
