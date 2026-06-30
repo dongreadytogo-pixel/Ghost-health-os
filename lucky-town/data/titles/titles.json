@@ -1,0 +1,10 @@
+[
+	{"id": "newcomer", "label": "Newcomer", "tier": 0, "unlock": "default"},
+	{"id": "hustler", "label": "Hustler", "tier": 1, "unlock": "hard_worker"},
+	{"id": "high_roller", "label": "High Roller", "tier": 2, "unlock": "lucky_streak"},
+	{"id": "jackpot_king", "label": "Jackpot King", "tier": 3, "unlock": "jackpot"},
+	{"id": "landlord", "label": "Landlord", "tier": 2, "unlock": "landlord"},
+	{"id": "developer", "label": "Master Builder", "tier": 3, "unlock": "developer"},
+	{"id": "pet_baron", "label": "Pet Baron", "tier": 3, "unlock": "pet_lover"},
+	{"id": "tycoon", "label": "Town Tycoon", "tier": 5, "unlock": "tycoon"}
+]

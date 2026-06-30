@@ -23,6 +23,9 @@ var personality_id: String = ""
 var is_player: bool = false
 var control_mode: int = ControlMode.AI
 
+## Cosmetic title displayed by the HUD/rankings; earned via achievements.
+var title: String = "newcomer"
+
 # --- Needs (0..1, 1 == fully satisfied) --------------------------------------
 var hunger: float = 1.0
 var energy: float = 1.0
@@ -112,6 +115,7 @@ func to_dict() -> Dictionary:
 		"personality_id": personality_id,
 		"is_player": is_player,
 		"control_mode": control_mode,
+		"title": title,
 		"hunger": hunger,
 		"energy": energy,
 		"happiness": happiness,
@@ -135,6 +139,7 @@ static func from_dict(data: Dictionary) -> Citizen:
 	c.personality_id = data.get("personality_id", "")
 	c.is_player = bool(data.get("is_player", false))
 	c.control_mode = int(data.get("control_mode", ControlMode.AI))
+	c.title = data.get("title", "newcomer")
 	c.hunger = float(data.get("hunger", 1.0))
 	c.energy = float(data.get("energy", 1.0))
 	c.happiness = float(data.get("happiness", 0.7))

@@ -92,7 +92,8 @@ system must change its public shape to finish online play.
 
 ## Cross-cutting, ongoing
 
-- ⬜ Player customization (clothing, hair, accessories, emotes, titles)
+- 🟡 Player customization — earned **titles** done (HUD); clothing/hair/emotes
+  need character art (see ASSETS.md)
 - ✅ Achievements & statistics screen (data-driven, 10 achievements; key G)
 - ⬜ Audio (music + SFX) from free/open sources
 - ⬜ Localization (UI strings already isolated from ids)

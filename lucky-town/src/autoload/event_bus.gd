@@ -57,6 +57,9 @@ signal quest_claimed(quest_id: String, reward: int)
 # --- Achievements ------------------------------------------------------------
 signal achievement_unlocked(achievement_id: String, title: String)
 
+# --- Cosmetics / titles ------------------------------------------------------
+signal title_changed(title_label: String)
+
 # --- UI requests -------------------------------------------------------------
 ## A world object asks the UI layer to open a screen. The player is always the
 ## actor, so only the data id travels here (no node references on the bus).

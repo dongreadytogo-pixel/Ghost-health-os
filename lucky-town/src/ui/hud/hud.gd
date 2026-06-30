@@ -12,13 +12,18 @@ extends CanvasLayer
 @onready var _toast_label: Label = $Root/ToastLabel
 
 var _toast_timer := 0.0
+var _title := "Newcomer"
 
 
 func _ready() -> void:
 	EventBus.money_changed.connect(_on_money_changed)
 	EventBus.hour_ticked.connect(_on_time_changed)
 	EventBus.weather_changed.connect(_on_weather_changed)
+	EventBus.title_changed.connect(_on_title_changed)
 	EventBus.notification_posted.connect(_on_notification)
+	var player := GameState.player()
+	if player:
+		_title = TitleSystem.label_for(player.title)
 	_refresh_money()
 	_refresh_time()
 
@@ -32,7 +37,12 @@ func _process(delta: float) -> void:
 
 func _on_money_changed(owner_id: String, balance: int, _delta: int) -> void:
 	if owner_id == GameState.player_id:
-		_money_label.text = "$ %s" % Money.of(balance).format_full()
+		_set_money(balance)
+
+
+func _on_title_changed(label: String) -> void:
+	_title = label
+	_refresh_money()
 
 
 func _on_time_changed(_day: int, _hour: int) -> void:
@@ -53,7 +63,11 @@ func _on_notification(text: String, severity: int) -> void:
 
 
 func _refresh_money() -> void:
-	_money_label.text = "$ %s" % Money.of(Economy.balance(GameState.player_id)).format_full()
+	_set_money(Economy.balance(GameState.player_id))
+
+
+func _set_money(balance: int) -> void:
+	_money_label.text = "%s  •  $ %s" % [_title, Money.of(balance).format_full()]
 
 
 func _refresh_time() -> void:

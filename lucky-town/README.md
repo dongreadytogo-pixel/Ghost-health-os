@@ -12,7 +12,10 @@ without rewriting the core.
 
 ## Status
 
-**Phase 1 — Minimal playable foundation (in progress).**
+**Phases 1–5 implemented (functional foundation across every core system).**
+Remaining work is mostly art/audio assets, 3D character customization meshes,
+navmesh traffic, full localization and authoritative netcode — see
+[`docs/ROADMAP.md`](docs/ROADMAP.md). All gameplay systems below are in code now.
 
 | System | State |
 | --- | --- |
@@ -34,6 +37,7 @@ without rewriting the core.
 | 7 slot themes (fantasy/ghost/cyberpunk/ancient/sci-fi/cute/magic) | ✅ data-driven |
 | Achievements + Statistics screen (10 achievements, lifetime stats) | ✅ implemented |
 | Pause menu with multi-slot save/load (+ auto-save row) | ✅ implemented |
+| Earned cosmetic titles (HUD), unlocked via achievements | ✅ implemented |
 | Unit tests for pure logic (money, slots, genetics, quests, auctions, net) | ✅ headless runner |
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for Phases 2–5.

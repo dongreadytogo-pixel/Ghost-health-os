@@ -20,6 +20,7 @@ const _CATEGORIES := {
 	"market_items": "res://data/market_items",
 	"quests": "res://data/quests",
 	"achievements": "res://data/achievements",
+	"titles": "res://data/titles",
 }
 
 var _data: Dictionary = {}  # category -> { id -> Dictionary }

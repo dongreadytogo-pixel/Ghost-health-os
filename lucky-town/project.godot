@@ -31,6 +31,7 @@ GameState="*res://src/autoload/game_state.gd"
 QuestSystem="*res://src/autoload/quest_system.gd"
 AuctionHouse="*res://src/autoload/auction_house.gd"
 AchievementSystem="*res://src/autoload/achievement_system.gd"
+TitleSystem="*res://src/autoload/title_system.gd"
 WorldDirector="*res://src/autoload/world_director.gd"
 NetSync="*res://src/autoload/net_sync.gd"
 
