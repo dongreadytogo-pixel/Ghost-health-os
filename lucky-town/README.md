@@ -33,6 +33,7 @@ without rewriting the core.
 | Networking seam: `NetSync` + transport + remote-control citizens (dormant offline) | ✅ scaffolded |
 | 7 slot themes (fantasy/ghost/cyberpunk/ancient/sci-fi/cute/magic) | ✅ data-driven |
 | Achievements + Statistics screen (10 achievements, lifetime stats) | ✅ implemented |
+| Pause menu with multi-slot save/load (+ auto-save row) | ✅ implemented |
 | Unit tests for pure logic (money, slots, genetics, quests, auctions, net) | ✅ headless runner |
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for Phases 2–5.
@@ -55,8 +56,8 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md) for Phases 2–5.
 | Open the Town Board (quests, rankings, shop, odd jobs, build/upgrade) | `B` |
 | Open the Auction House (bid on / list pets & land) | `V` |
 | Open Statistics & Achievements | `G` |
+| Pause menu — save / load across slots, resume, quit | `Esc` |
 | Quick save (slot 1) | `F5` |
-| Back to menu | `Esc` |
 
 ### Running the tests
 

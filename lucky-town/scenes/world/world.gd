@@ -56,7 +56,7 @@ func _open_slot_ui(machine_id: String) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Esc opens the in-world pause menu (handled by PauseMenu); we only own the
+	# quick-save shortcut here.
 	if event.is_action_pressed("quick_save"):
 		SaveManager.save_to_slot(1)
-	elif event.is_action_pressed("toggle_menu"):
-		get_tree().change_scene_to_file("res://scenes/menu/main_menu.tscn")

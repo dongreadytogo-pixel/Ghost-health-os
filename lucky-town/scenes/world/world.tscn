@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/world.gd" id="1_world"]
 [ext_resource type="PackedScene" path="res://scenes/world/player.tscn" id="2_player"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://src/ui/auction/auction_ui.tscn" id="5_auction"]
 [ext_resource type="Script" path="res://src/world/world_atmosphere.gd" id="6_atmos"]
 [ext_resource type="PackedScene" path="res://src/ui/stats/stats_ui.tscn" id="7_stats"]
+[ext_resource type="PackedScene" path="res://src/ui/pause/pause_menu.tscn" id="8_pause"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_1"]
 size = Vector2(80, 80)
@@ -69,3 +70,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10)
 [node name="AuctionUi" parent="." instance=ExtResource("5_auction")]
 
 [node name="StatsUi" parent="." instance=ExtResource("7_stats")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("8_pause")]
