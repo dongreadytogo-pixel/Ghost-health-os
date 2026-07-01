@@ -7,10 +7,6 @@ name: Lucky Town Web Build
 #   Repo → Settings → Pages → "Build and deployment" → Source: "GitHub Actions".
 # After the first successful run, the play URL appears on the Pages settings
 # page and in this workflow's run summary.
-#
-# Export is delegated to the well-maintained firebelley/godot-export action,
-# which installs Godot + export templates and handles the headless import/export
-# quirks (e.g. the opaque "configuration errors") reliably.
 
 on:
   push:
@@ -30,47 +26,62 @@ concurrency:
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: 4.2.2
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          # firebelley/godot-export prefers a clean checkout; fetch full history
-          # is not needed, but the default single-commit checkout is fine.
-          fetch-depth: 1
 
-      - name: Export Godot project (Web preset)
-        id: export
-        uses: firebelley/godot-export@v6.0.0
-        with:
-          godot_executable_download_url: https://github.com/godotengine/godot/releases/download/4.2.2-stable/Godot_v4.2.2-stable_linux.x86_64.zip
-          godot_export_templates_download_url: https://github.com/godotengine/godot/releases/download/4.2.2-stable/Godot_v4.2.2-stable_export_templates.tpz
-          relative_project_path: ./lucky-town
-          archive_output: false
-          cache: false
-
-      - name: Assemble the Pages site
+      - name: Install Godot ${{ env.GODOT_VERSION }} + export templates
         run: |
           set -euo pipefail
-          BUILD_DIR="${{ steps.export.outputs.build_directory }}"
-          echo "Export build directory: $BUILD_DIR"
-          echo "----- contents -----"
-          ls -R "$BUILD_DIR"
-          echo "--------------------"
-          mkdir -p _site
-          # Find the exported index.html wherever the action placed it and copy
-          # its whole directory to the Pages root — robust to layout changes.
-          INDEX="$(find "$BUILD_DIR" -name index.html | head -n1)"
-          test -n "$INDEX"
-          echo "Found web export at: $INDEX"
-          cp -r "$(dirname "$INDEX")/." _site/
-          test -f _site/index.html
-          ls -la _site
+          BASE="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          curl -sSL -o godot.zip "$BASE/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip
+          sudo mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          sudo chmod +x /usr/local/bin/godot
+          curl -sSL -o templates.tpz "$BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q templates.tpz
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$TEMPLATE_DIR"
+          mv templates/* "$TEMPLATE_DIR/"
+          godot --version
+
+      - name: Import project — TWO passes (build the global class cache)
+        working-directory: lucky-town
+        # On a fresh checkout Godot's global_script_class_cache.cfg doesn't exist,
+        # so scripts that reference other scripts' class_name types can't resolve
+        # them on the first import (chicken-and-egg). Pass 1 registers every
+        # class_name; pass 2 resolves cleanly. Broken autoloads are exactly what
+        # makes the subsequent export report a detail-less "configuration error".
+        run: |
+          godot --headless --import 2>&1 | tail -n 5 || true
+          godot --headless --import 2>&1 | tail -n 5 || true
+
+      - name: Export Web build
+        working-directory: lucky-town
+        run: |
+          set -uo pipefail
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          echo "Export templates present:"; ls -la "$TEMPLATE_DIR"
+          mkdir -p build/web
+          godot --headless --verbose --export-release "Web" build/web/index.html > export.log 2>&1 || true
+          echo "===== export.log: error lines ====="
+          grep -iE "error|cannot|fail|missing" export.log | tail -n 40 || true
+          echo "===== export.log: tail ====="
+          tail -n 30 export.log
+          echo "============================"
+          test -f build/web/index.html
+          ls -la build/web
+
+      # Single-threaded Web preset (variant/thread_support=false) → runs on
+      # GitHub Pages and mobile Safari without SharedArrayBuffer / COOP-COEP.
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: lucky-town/build/web
 
       - name: Deploy to GitHub Pages
         id: deploy
