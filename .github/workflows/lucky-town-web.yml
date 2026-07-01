@@ -58,6 +58,10 @@ jobs:
         run: |
           godot --headless --import 2>&1 | tail -n 5 || true
           godot --headless --import 2>&1 | tail -n 5 || true
+          # A full headless editor pass forces every resource to import and all
+          # caches to build — headless --export sometimes reports empty
+          # "configuration errors" when this hasn't happened.
+          timeout 120 godot --headless --editor --quit-after 400 2>&1 | tail -n 5 || true
 
       - name: Export Web build
         working-directory: lucky-town
@@ -66,8 +70,10 @@ jobs:
           TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
           echo "Export templates present:"; ls -la "$TEMPLATE_DIR"
           mkdir -p build
-          # Capture full (verbose) export output so any configuration-error
-          # detail is visible, then fail only if no index.html was produced.
+          # First export attempt often triggers the final resource scan and may
+          # fail; the second then succeeds. Capture verbose output for the last
+          # attempt so any real error is visible.
+          godot --headless --export-release "Web" build/index.html 2>&1 | tail -n 5 || true
           godot --headless --verbose --export-release "Web" build/index.html > export.log 2>&1 || true
           echo "===== export.log (tail) ====="
           tail -n 80 export.log
