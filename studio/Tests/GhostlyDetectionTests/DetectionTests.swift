@@ -163,7 +163,7 @@ final class DetectionTests: XCTestCase {
                                      duration: RationalTime(seconds: 9))
         XCTAssertEqual(scenes.count, 3)
         XCTAssertEqual(scenes[0].duration.seconds, 2)
-        XCTAssertEqual(scenes[2].range.start.seconds, 5)
+        XCTAssertEqual(scenes[2].start.seconds, 5)
         XCTAssertEqual(scenes[2].end.seconds, 9)
     }
 
