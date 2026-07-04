@@ -36,6 +36,9 @@ final class DirectorTests: XCTestCase {
         XCTAssertEqual(EditIntentParser().parse("add YouTube captions please"),
                        [.generateCaptions(styleName: "YouTube")])
         XCTAssertEqual(EditIntentParser().parse("remove silence from the vlog"),
+                       [.removeSilence],
+                       "mentioning 'vlog' as the subject must not restyle the edit")
+        XCTAssertEqual(EditIntentParser().parse("give it vlog style, remove silence"),
                        [.applyStyle(.vlog), .removeSilence])
         XCTAssertTrue(EditIntentParser().parse("cut it to the beat").contains(.cutToBeat))
     }

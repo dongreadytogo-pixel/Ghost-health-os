@@ -101,7 +101,7 @@ public struct FCPXMLWriter {
         }
 
         func element() -> XML {
-            XML("resources").children(ordered)
+            XML("resources").appendingChildren(ordered)
         }
 
         private func colorSpaceCode(_ space: VideoFormat.ColorSpace) -> String {

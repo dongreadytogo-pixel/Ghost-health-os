@@ -33,7 +33,7 @@ public final class XML {
     }
 
     @discardableResult
-    public func children(_ elements: [XML]) -> XML {
+    public func appendingChildren(_ elements: [XML]) -> XML {
         children.append(contentsOf: elements)
         return self
     }

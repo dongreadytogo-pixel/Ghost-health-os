@@ -36,7 +36,8 @@ let package = Package(
         ]),
         // MARK: Presentation (compiles to an empty module off-macOS)
         .target(name: "GhostlyApp", dependencies: [
-            "GhostlyCore", "GhostlyDomain", "GhostlyDirector", "GhostlyMCP", "GhostlyLearning", "GhostlyAI",
+            "GhostlyCore", "GhostlyDomain", "GhostlyDirector", "GhostlySubtitles",
+            "GhostlyMCP", "GhostlyLearning", "GhostlyAI",
         ]),
         // MARK: Executables
         .executableTarget(name: "GhostlyCLI", dependencies: [
@@ -46,13 +47,15 @@ let package = Package(
         .executableTarget(name: "GhostlyMCPServer", dependencies: ["GhostlyMCP"]),
         // MARK: Tests
         .testTarget(name: "GhostlyCoreTests", dependencies: ["GhostlyCore"]),
-        .testTarget(name: "GhostlyDomainTests", dependencies: ["GhostlyDomain"]),
-        .testTarget(name: "GhostlyFCPXMLTests", dependencies: ["GhostlyFCPXML"]),
-        .testTarget(name: "GhostlySubtitlesTests", dependencies: ["GhostlySubtitles"]),
-        .testTarget(name: "GhostlyDetectionTests", dependencies: ["GhostlyDetection"]),
-        .testTarget(name: "GhostlyDirectorTests", dependencies: ["GhostlyDirector"]),
-        .testTarget(name: "GhostlyAITests", dependencies: ["GhostlyAI"]),
-        .testTarget(name: "GhostlyLearningTests", dependencies: ["GhostlyLearning"]),
-        .testTarget(name: "GhostlyMCPTests", dependencies: ["GhostlyMCP"]),
+        .testTarget(name: "GhostlyDomainTests", dependencies: ["GhostlyDomain", "GhostlyCore"]),
+        .testTarget(name: "GhostlyFCPXMLTests", dependencies: ["GhostlyFCPXML", "GhostlyDomain", "GhostlyCore"]),
+        .testTarget(name: "GhostlySubtitlesTests", dependencies: ["GhostlySubtitles", "GhostlyDomain", "GhostlyCore"]),
+        .testTarget(name: "GhostlyDetectionTests", dependencies: ["GhostlyDetection", "GhostlyDomain", "GhostlyCore"]),
+        .testTarget(name: "GhostlyDirectorTests", dependencies: [
+            "GhostlyDirector", "GhostlyDetection", "GhostlySubtitles", "GhostlyDomain", "GhostlyCore",
+        ]),
+        .testTarget(name: "GhostlyAITests", dependencies: ["GhostlyAI", "GhostlyCore"]),
+        .testTarget(name: "GhostlyLearningTests", dependencies: ["GhostlyLearning", "GhostlyCore"]),
+        .testTarget(name: "GhostlyMCPTests", dependencies: ["GhostlyMCP", "GhostlyCore"]),
     ]
 )

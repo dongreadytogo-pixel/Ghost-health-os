@@ -44,14 +44,27 @@ public struct EditIntentParser: Sendable {
         let lowered = command.lowercased()
         var intents: [EditIntent] = []
 
-        for style in PacingProfile.Style.allCases
-        where lowered.contains(style.rawValue.lowercased()) {
-            intents.append(.applyStyle(style))
+        // A style applies when the user compares to it ("like marvel",
+        // "marvel style"), not on any bare mention ("add tiktok captions"
+        // must not restyle the whole edit).
+        for style in PacingProfile.Style.allCases {
+            let name = style.rawValue.lowercased()
+            let patterns = ["like \(name)", "like a \(name)", "like the \(name)",
+                            "\(name) style", "as a \(name)", "in \(name) fashion"]
+            if patterns.contains(where: lowered.contains) {
+                intents.append(.applyStyle(style))
+            }
         }
 
-        for deliverable in EditIntent.Deliverable.allCases
-        where lowered.contains(deliverable.rawValue) {
-            intents.append(.createDeliverable(deliverable))
+        // Deliverables require a creation verb so "upload to youtube" or
+        // "youtube captions" don't spawn a new deliverable.
+        let creationVerbs = ["create", "make a", "make me", "make this into",
+                             "turn this into", "turn it into", "produce", "generate", "cut a"]
+        if creationVerbs.contains(where: lowered.contains) {
+            for deliverable in EditIntent.Deliverable.allCases
+            where lowered.contains(deliverable.rawValue) {
+                intents.append(.createDeliverable(deliverable))
+            }
         }
 
         if containsAny(lowered, ["faster", "quicker", "speed up", "snappier", "tighter"]),
@@ -78,8 +91,8 @@ public struct EditIntentParser: Sendable {
             intents.append(.cutToBeat)
         }
 
-        if containsAny(lowered, ["replace background music", "replace music", "new music",
-                                 "change the music", "swap the music", "different music"]) {
+        if containsAny(lowered, ["replace background music", "replace music", "replace the music",
+                                 "new music", "change the music", "swap the music", "different music"]) {
             intents.append(.replaceMusic(query: musicQuery(in: lowered)))
         }
 

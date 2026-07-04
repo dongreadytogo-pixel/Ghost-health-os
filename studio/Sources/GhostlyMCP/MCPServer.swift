@@ -1,4 +1,9 @@
 import Foundation
+#if canImport(Glibc)
+import Glibc
+#elseif canImport(Darwin)
+import Darwin
+#endif
 import GhostlyCore
 
 /// A tool exposed over MCP: JSON schema in, structured content out.
@@ -146,7 +151,7 @@ public struct StdioTransport {
                let data = try? response.encoded(),
                let text = String(data: data, encoding: .utf8) {
                 print(text)
-                FileHandle.standardOutput.synchronizeFile()
+                fflush(stdout) // stdout may be pipe-buffered; the client is waiting
             }
         }
     }

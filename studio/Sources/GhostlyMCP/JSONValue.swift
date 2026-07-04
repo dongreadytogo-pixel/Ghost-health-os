@@ -58,8 +58,10 @@ public enum JSONValue: Sendable, Equatable {
         switch any {
         case is NSNull: self = .null
         case let number as NSNumber:
-            // Distinguish booleans from numbers (both are NSNumber).
-            if CFGetTypeID(number) == CFBooleanGetTypeID() {
+            // Distinguish booleans from numbers (both bridge to NSNumber).
+            // objCType is "c" for booleans on Darwin and corelibs alike;
+            // CFGetTypeID is not public API on Linux.
+            if String(cString: number.objCType) == "c" {
                 self = .bool(number.boolValue)
             } else {
                 self = .number(number.doubleValue)

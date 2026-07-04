@@ -106,6 +106,7 @@ public struct AVAudioSampleProvider: AudioSampleProviding {
         while let buffer = output.copyNextSampleBuffer() {
             guard let block = CMSampleBufferGetDataBuffer(buffer) else { continue }
             let length = CMBlockBufferGetDataLength(block)
+            guard length >= MemoryLayout<Float>.size else { continue }
             var data = [Float](repeating: 0, count: length / MemoryLayout<Float>.size)
             _ = data.withUnsafeMutableBytes { ptr in
                 CMBlockBufferCopyDataBytes(block, atOffset: 0, dataLength: length,
