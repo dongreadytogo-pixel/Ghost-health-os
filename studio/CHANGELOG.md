@@ -1,0 +1,42 @@
+# Changelog
+
+## 1.0.0 — 2026-07-04
+
+Initial release of the engine core (milestone M0).
+
+### Added
+- `GhostlyCore`: exact rational time (`RationalTime`, `TimeRange`,
+  `FrameRate` incl. NTSC rates), `StudioError`, pluggable structured logging.
+- `GhostlyDomain`: full timeline domain model — assets, clips, lanes,
+  transitions, captions, markers, keywords, roles, projects/events/libraries —
+  with structural validation.
+- `GhostlyFCPXML`: deterministic FCPXML writer (resources dedup, gaps,
+  transitions, connected clips, captions, markers, keywords, volume, effects),
+  reader (inverse mapping incl. source-time conversion), and validator
+  (references, time syntax, spine continuity, versions 1.9–1.13).
+- `GhostlySubtitles`: SRT and WebVTT parse/serialize, speaker detection,
+  word-level timings, wrapping, shifting, and caption style presets
+  (TikTok, YouTube, Instagram, Broadcast).
+- `GhostlyDetection`: silence detection (RMS + hysteresis + minimum-duration
+  absorption), beat detection (energy-flux onsets, refractory period, BPM
+  estimation), scene-change detection (histogram distance), provider
+  protocols, AVFoundation audio provider on Apple platforms.
+- `GhostlyDirector`: natural-language edit-intent parser, six pacing
+  profiles, intent resolution, and the deterministic auto-edit planner
+  (silence removal, shot chopping, beat alignment, music bed, transitions,
+  styled captions).
+- `GhostlyAI`: provider adapters for Anthropic, OpenAI-compatible engines
+  (OpenAI, LM Studio, Qwen, Mistral, DeepSeek, vLLM), Google Gemini, and
+  Ollama; capability-based `ModelRouter` with priorities, local-first policy,
+  and automatic fallback; injectable HTTP transport.
+- `GhostlyLearning`: atomic local preference store with corrupt-file
+  quarantine, bounded prompt history, and recency-decayed recommendations.
+- `GhostlyMCP`: JSON-RPC 2.0 + MCP server core and seven tools
+  (`auto_edit`, `parse_edit_command`, `generate_captions`, `validate_fcpxml`,
+  `analyze_timeline`, `list_caption_styles`, `recommend`).
+- Executables: `ghostly` CLI (intent/captions/validate/analyze/styles) and
+  `ghostly-mcp-server` (stdio).
+- `GhostlyApp`: SwiftUI studio shell (macOS) — prompt panel, latest-plan
+  inspector, caption style browser, task queue, session logs.
+- CI: Linux (`swift:6.0` container) and macOS jobs; ~90 tests; release-build
+  smoke tests for both executables including a live MCP handshake.

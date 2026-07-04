@@ -1,0 +1,77 @@
+name: Studio CI (Swift)
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'studio/**'
+      - '.github/workflows/studio-ci.yml'
+  pull_request:
+    paths:
+      - 'studio/**'
+      - '.github/workflows/studio-ci.yml'
+
+concurrency:
+  group: studio-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-test:
+    name: Linux build & test (engines, MCP, CLI)
+    runs-on: ubuntu-latest
+    container: swift:6.0
+    defaults:
+      run:
+        working-directory: studio
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Build (debug)
+        run: swift build --build-tests
+
+      - name: Test
+        run: swift test --parallel
+
+      - name: Build executables (release)
+        run: |
+          swift build -c release --product ghostly
+          swift build -c release --product ghostly-mcp-server
+
+      - name: Smoke-test CLI
+        run: |
+          BIN=$(swift build -c release --show-bin-path)
+          "$BIN/ghostly" version
+          "$BIN/ghostly" intent "edit this like marvel and add tiktok captions"
+          "$BIN/ghostly" styles
+
+      - name: Smoke-test MCP server handshake
+        run: |
+          BIN=$(swift build -c release --show-bin-path)
+          OUT=$(printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            | GHOSTLY_HOME=/tmp/ghostly "$BIN/ghostly-mcp-server")
+          echo "$OUT"
+          echo "$OUT" | grep -q '"protocolVersion"'
+          echo "$OUT" | grep -q '"auto_edit"'
+
+  macos-build:
+    name: macOS build & test (full platform incl. SwiftUI)
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: studio
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Build all targets
+        run: swift build --build-tests
+
+      - name: Test
+        run: swift test --parallel

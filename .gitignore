@@ -37,3 +37,7 @@ pnpm-debug.log*
 # Misc
 .turbo/
 .cache/
+
+# Swift (studio/)
+.build/
+.swiftpm/
