@@ -97,13 +97,15 @@ public struct AssetQuery: Sendable, Equatable {
         return true
     }
 
-    /// A relevance score in 0…1 for ranking (more matched terms + favorite bias).
+    /// A relevance score in 0…1 for ranking (more matched terms + favorite
+    /// bias). Term relevance is scaled into [0, 0.85] so the favorite bonus
+    /// (+0.15) always breaks a tie between otherwise equally-relevant assets.
     public func score(_ asset: Asset) -> Double {
         guard matches(asset) else { return 0 }
         let haystack = ([asset.name.lowercased()] + asset.tags.map { $0.lowercased() })
         let hits = freeTextTerms.filter { term in haystack.contains { $0.contains(term) } }.count
-        let termScore = freeTextTerms.isEmpty ? 0.5 : Double(hits) / Double(freeTextTerms.count)
-        return min(1, termScore + (asset.favorite ? 0.15 : 0))
+        let relevance = freeTextTerms.isEmpty ? 0.5 : Double(hits) / Double(freeTextTerms.count)
+        return relevance * 0.85 + (asset.favorite ? 0.15 : 0)
     }
 
     private static func durationBound(in words: [String]) -> (seconds: Double, isUpper: Bool)? {
