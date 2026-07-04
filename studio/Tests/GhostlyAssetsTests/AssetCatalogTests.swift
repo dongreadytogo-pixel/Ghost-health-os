@@ -17,7 +17,7 @@ final class AssetCatalogTests: XCTestCase {
     // MARK: Auto-tagging
 
     func testAutoTaggerDerivesResolutionAspectDurationAndTokens() {
-        let a = asset("Sunset_Drone_Flyover", width: 3840, height: 2160, seconds: 8)
+        let a = asset("Sunset_Drone_Flyover", seconds: 8, width: 3840, height: 2160)
         let tags = AutoTagger().tags(for: a)
         XCTAssertTrue(tags.contains("4k"))
         XCTAssertTrue(tags.contains("horizontal"))
@@ -40,7 +40,7 @@ final class AssetCatalogTests: XCTestCase {
     }
 
     func testAutoTaggerDropsStopWordsAndShortTokens() {
-        let tags = AutoTagger().tags(for: asset("the_final_edit_v2", width: nil, height: nil, seconds: 0))
+        let tags = AutoTagger().tags(for: asset("the_final_edit_v2", seconds: 0, width: nil, height: nil))
         XCTAssertFalse(tags.contains("the"))
         XCTAssertFalse(tags.contains("final"))
         XCTAssertFalse(tags.contains("edit"))
@@ -89,8 +89,8 @@ final class AssetCatalogTests: XCTestCase {
 
     func testNaturalLanguageSearchByKindAspectDuration() {
         var catalog = AssetCatalog()
-        catalog.add(asset("drone_reel", width: 1080, height: 1920, seconds: 10))   // vertical, short
-        catalog.add(asset("interview", width: 1920, height: 1080, seconds: 600))    // horizontal, long
+        catalog.add(asset("drone_reel", seconds: 10, width: 1080, height: 1920))   // vertical, short
+        catalog.add(asset("interview", seconds: 600, width: 1920, height: 1080))    // horizontal, long
         catalog.add(asset("bg_music", kind: .audio, seconds: 180, width: nil, height: nil))
 
         let vertical = catalog.search("vertical clips under 30 seconds")
