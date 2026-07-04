@@ -177,6 +177,24 @@ public struct Timeline: Sendable, Codable {
         self.titles = titles
     }
 
+    private enum CodingKeys: String, CodingKey {
+        case name, format, clips, transitions, captions, markers, titles
+    }
+
+    /// Custom decoder so every collection section is optional: timelines
+    /// serialized before a field existed (e.g. `titles`) still decode, and
+    /// minimal payloads need only supply `name` and `format`.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        format = try c.decode(VideoFormat.self, forKey: .format)
+        clips = try c.decodeIfPresent([Clip].self, forKey: .clips) ?? []
+        transitions = try c.decodeIfPresent([Transition].self, forKey: .transitions) ?? []
+        captions = try c.decodeIfPresent([Caption].self, forKey: .captions) ?? []
+        markers = try c.decodeIfPresent([Marker].self, forKey: .markers) ?? []
+        titles = try c.decodeIfPresent([MotionTitle].self, forKey: .titles) ?? []
+    }
+
     /// Clips on the primary storyline (lane 0), in timeline order.
     public var storyline: [Clip] {
         clips.filter { $0.lane == 0 }.sorted { $0.offset < $1.offset }
