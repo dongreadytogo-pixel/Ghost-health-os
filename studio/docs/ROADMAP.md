@@ -36,6 +36,9 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
   `MotionGraphicsLibrary` (lower thirds, title cards, callouts, subscribe,
   progress bars) (Phase 8)
 - ✅ Subtitle auto-punctuation for raw ASR transcripts (Phase 6)
+- ✅ Asset manager: `GhostlyAssets` — auto-tagging, collections/folders/
+  favorites, natural-language search, duplicate/unused finders, `search_assets`
+  MCP tool (Phase 9)
 
 ## M1 — Real media I/O 🔜
 

@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- `GhostlyAssets`: new module — `AutoTagger` (resolution/aspect/duration/
+  filename tags), `AssetQuery` (natural-language → structured filter with
+  kind, favorite, vertical/horizontal, and duration bounds), and `AssetCatalog`
+  (collections, folders, favorites, ranked search, tag frequencies, duplicate
+  and unused-asset finders). Exposed via the `search_assets` MCP tool.
 - `GhostlyDomain` + `GhostlyFCPXML`: `MotionTitle` overlay model and FCPXML
   `<title>` emission (nested in source time, backed by Motion title effect
   resources) — lower thirds, title cards, callouts, subscribe, progress bars.

@@ -58,7 +58,7 @@ final class MCPTests: XCTestCase {
         let names = tools.compactMap { $0["name"]?.stringValue }
         XCTAssertEqual(Set(names), ["auto_edit", "parse_edit_command", "generate_captions",
                                     "validate_fcpxml", "analyze_timeline", "find_highlights",
-                                    "list_caption_styles", "recommend"])
+                                    "search_assets", "list_caption_styles", "recommend"])
         for tool in tools {
             XCTAssertNotNil(tool["description"]?.stringValue)
             XCTAssertNotNil(tool["inputSchema"]?["type"])
@@ -187,6 +187,22 @@ final class MCPTests: XCTestCase {
         XCTAssertTrue(text.contains("\"highlights\""))
         XCTAssertTrue(text.contains("\"chapters\""))
         XCTAssertTrue(text.contains("hook") || text.contains("highlight"))
+    }
+
+    func testSearchAssetsTool() async throws {
+        let server = try await makeServer()
+        let call = """
+        {"jsonrpc":"2.0","id":21,"method":"tools/call","params":{"name":"search_assets",
+         "arguments":{"query":"vertical drone clips","assets":[
+           {"name":"drone_flyover","url":"file:///d.mov","durationSeconds":12,"kind":"video","width":1080,"height":1920},
+           {"name":"interview","url":"file:///i.mov","durationSeconds":300,"kind":"video","width":1920,"height":1080}
+         ]}}}
+        """
+        let (text, isError) = try toolText(await send(server, call))
+        XCTAssertFalse(isError, text)
+        XCTAssertTrue(text.contains("drone_flyover"))
+        XCTAssertFalse(text.contains("interview"), "horizontal interview must not match a vertical query")
+        XCTAssertTrue(text.contains("vertical"), "auto-tagging should add a vertical tag")
     }
 
     func testListStylesAndRecommendTools() async throws {

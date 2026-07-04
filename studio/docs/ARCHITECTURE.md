@@ -13,6 +13,7 @@ its own test suite, and all cross-module contracts are value types + protocols.
 | Infrastructure | `GhostlyFCPXML` | FCPXML writer/reader/validator + deterministic XML DOM | Core, Domain |
 | Infrastructure | `GhostlySubtitles` | SRT/WebVTT codecs, word-timed cues, `CaptionStyle` presets | Core, Domain, FCPXML |
 | AI Engine | `GhostlyDetection` | Silence/beat/scene detection (pure DSP) + provider protocols + AVFoundation adapter (Apple only) | Core, Domain |
+| Application | `GhostlyAssets` | Auto-tagging, collections/folders/favorites, natural-language search, duplicate/unused finders | Core, Domain |
 | Application | `GhostlyDirector` | `EditIntentParser`, `PacingProfile`, `Director`, `AutoEditPlanner` | Core, Domain, Detection, FCPXML, Subtitles |
 | AI Engine | `GhostlyAI` | `LLMProvider` protocol, Anthropic/OpenAI-compatible/Gemini/Ollama adapters, `ModelRouter` | Core, Domain |
 | Application | `GhostlyLearning` | `PreferenceStore` (local JSON, atomic writes), usage stats, recommendations | Core, Domain |

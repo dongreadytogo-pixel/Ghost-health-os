@@ -82,6 +82,14 @@ problems found.
 transcript-derived titles when available). Deterministic — ideal for
 short-form repurposing and auto-chaptering.
 
+### `search_assets`
+`{ "query": "vertical 4k drone clips under 30 seconds", "assets": [ { "name":
+"...", "url": "...", "durationSeconds": 12, "kind": "video", "width": 1080,
+"height": 1920, "favorite": false } ] }` → auto-tags each asset (resolution,
+aspect, duration band, filename tokens) then returns ranked matches with their
+derived tags. Understands kinds, favorite/vertical/horizontal, and
+"under/over N seconds|minutes" bounds.
+
 ### `list_caption_styles`
 No arguments → the built-in caption presets with fonts, sizes, positions and
 animations.

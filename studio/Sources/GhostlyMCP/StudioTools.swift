@@ -6,6 +6,7 @@ import GhostlySubtitles
 import GhostlyDirector
 import GhostlyDetection
 import GhostlyLearning
+import GhostlyAssets
 
 /// The wire schema for auto-edit jobs submitted by AI agents. Times are in
 /// seconds (JSON-friendly); conversion to rational time happens at the edge.
@@ -291,6 +292,101 @@ public struct AnalyzeTimelineTool: MCPTool {
     }
 }
 
+/// Wire schema for an asset submitted to the asset-search tool.
+public struct AssetItem: Codable, Sendable {
+    public var name: String
+    public var url: String
+    public var durationSeconds: Double?
+    public var kind: String?
+    public var tags: [String]?
+    public var favorite: Bool?
+    public var width: Int?
+    public var height: Int?
+    public var fps: Double?
+
+    public func asset() throws -> Asset {
+        guard let parsed = URL(string: url) ?? URL(string: "file://\(url)") else {
+            throw StudioError.invalidInput(field: "url", reason: "unparseable: '\(url)'")
+        }
+        let assetKind = Asset.Kind(rawValue: kind ?? "video") ?? .video
+        var format: VideoFormat?
+        if let width, let height {
+            format = VideoFormat(width: width, height: height,
+                                 frameRate: FrameRate(frames: Int32((fps ?? 30).rounded()),
+                                                      secondsPerBatch: 1))
+        }
+        return Asset(name: name, url: parsed,
+                     duration: RationalTime(seconds: durationSeconds ?? 0, preferredTimescale: 48_000),
+                     kind: assetKind, format: format,
+                     tags: Set(tags ?? []), favorite: favorite ?? false)
+    }
+}
+
+/// `search_assets`: natural-language search + auto-tagging over a set of assets.
+public struct SearchAssetsTool: MCPTool {
+    public let name = "search_assets"
+    public let description = """
+    Auto-tag a set of media assets and search them with a natural-language \
+    query (e.g. "vertical 4k drone clips under 30 seconds", "favorite \
+    interview audio"). Returns ranked matches with their derived tags.
+    """
+    public let inputSchema: JSONValue = .object([
+        "type": "object",
+        "properties": .object([
+            "query": .object(["type": "string"]),
+            "assets": .object([
+                "type": "array",
+                "items": .object([
+                    "type": "object",
+                    "properties": .object([
+                        "name": .object(["type": "string"]),
+                        "url": .object(["type": "string"]),
+                        "durationSeconds": .object(["type": "number"]),
+                        "kind": .object(["type": "string", "enum": ["video", "audio", "image"]]),
+                        "tags": .object(["type": "array"]),
+                        "favorite": .object(["type": "boolean"]),
+                        "width": .object(["type": "number"]),
+                        "height": .object(["type": "number"]),
+                        "fps": .object(["type": "number"]),
+                    ]),
+                    "required": .array(["name", "url"]),
+                ]),
+            ]),
+        ]),
+        "required": .array(["query", "assets"]),
+    ])
+
+    public init() {}
+
+    public func call(arguments: JSONValue) async throws -> JSONValue {
+        guard let query = arguments["query"]?.stringValue, !query.isEmpty else {
+            throw StudioError.invalidInput(field: "query", reason: "required")
+        }
+        guard let itemsJSON = arguments["assets"] else {
+            throw StudioError.invalidInput(field: "assets", reason: "required")
+        }
+        let items = try ToolArguments.decode([AssetItem].self, from: itemsJSON)
+        var catalog = AssetCatalog()
+        for item in items { catalog.add(try item.asset()) }
+
+        let matches = catalog.search(query)
+        return .object([
+            "query": .string(query),
+            "matchCount": .number(Double(matches.count)),
+            "results": .array(matches.map { asset in
+                .object([
+                    "name": .string(asset.name),
+                    "url": .string(asset.url.absoluteString),
+                    "kind": .string(asset.kind.rawValue),
+                    "durationSeconds": .number((asset.duration.seconds * 100).rounded() / 100),
+                    "favorite": .bool(asset.favorite),
+                    "tags": .array(asset.tags.sorted().map(JSONValue.string)),
+                ])
+            }),
+        ])
+    }
+}
+
 /// `find_highlights`: analyzed footage → hooks, highlights, and chapters.
 public struct FindHighlightsTool: MCPTool {
     public let name = "find_highlights"
@@ -426,6 +522,7 @@ public enum GhostlyMCPFactory {
         await server.register(ValidateFCPXMLTool())
         await server.register(AnalyzeTimelineTool())
         await server.register(FindHighlightsTool())
+        await server.register(SearchAssetsTool())
         await server.register(ListCaptionStylesTool())
         await server.register(RecommendTool(store: store))
         return server

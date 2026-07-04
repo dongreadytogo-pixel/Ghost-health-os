@@ -23,6 +23,7 @@ layer activates on macOS.
 | Highlight / hook / CTA / chapter detection | `GhostlyDirector` | ✅ tested |
 | Motion graphics (lower thirds, titles, callouts…) → FCPXML `<title>` | `GhostlyDirector` + `GhostlyFCPXML` | ✅ tested |
 | Subtitle auto-punctuation for raw ASR | `GhostlySubtitles` | ✅ tested |
+| Asset manager (auto-tagging, collections, NL search) | `GhostlyAssets` | ✅ tested |
 | Undo/redo command system + domain events | `GhostlyDomain` | ✅ tested |
 | MCP server with 8 studio tools | `GhostlyMCP` | ✅ tested |
 | Multi-AI router (Claude, OpenAI-compatible, Gemini, Ollama, LM Studio) | `GhostlyAI` | ✅ tested |
@@ -72,7 +73,7 @@ Add to your MCP client config (Claude Code shown):
 ```
 
 Exposed tools: `auto_edit`, `parse_edit_command`, `generate_captions`,
-`validate_fcpxml`, `analyze_timeline`, `find_highlights`,
+`validate_fcpxml`, `analyze_timeline`, `find_highlights`, `search_assets`,
 `list_caption_styles`, `recommend`.
 See [docs/MCP.md](docs/MCP.md) for schemas and examples.
 
