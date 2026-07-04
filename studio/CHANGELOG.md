@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- `GhostlyDomain`: reversible `EditCommand` system (append/insert/remove/move/
+  trim/rename clip, add caption/marker) and `TimelineDocument` aggregate root
+  with bounded undo/redo history and `DomainEvent` change notifications.
+- `GhostlyDirector`: `HighlightPlanner` — deterministic hook, highlight, CTA,
+  and chapter detection from media analysis + optional transcript, with
+  timeline annotation.
+- `GhostlyMCP`: `find_highlights` tool (8 tools total).
+
 ## 1.0.0 — 2026-07-04
 
 Initial release of the engine core (milestone M0).

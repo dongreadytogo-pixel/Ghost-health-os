@@ -291,6 +291,73 @@ public struct AnalyzeTimelineTool: MCPTool {
     }
 }
 
+/// `find_highlights`: analyzed footage → hooks, highlights, and chapters.
+public struct FindHighlightsTool: MCPTool {
+    public let name = "find_highlights"
+    public let description = """
+    Find the most engaging moments in analyzed footage — a hook, ranked \
+    highlights, a call-to-action beat, and chapter boundaries. Feed in speech \
+    ranges, scene cuts, and beats (seconds) plus an optional SRT transcript for \
+    labeled moments. Ideal for short-form repurposing and auto-chaptering.
+    """
+    public let inputSchema: JSONValue = .object([
+        "type": "object",
+        "properties": .object([
+            "footage": .object([
+                "type": "object",
+                "description": "single asset with detection data (seconds)",
+                "properties": .object([
+                    "name": .object(["type": "string"]),
+                    "url": .object(["type": "string"]),
+                    "durationSeconds": .object(["type": "number"]),
+                    "speechRanges": .object(["type": "array"]),
+                    "sceneCuts": .object(["type": "array"]),
+                    "beats": .object(["type": "array"]),
+                ]),
+                "required": .array(["name", "url", "durationSeconds"]),
+            ]),
+            "transcriptSRT": .object(["type": "string"]),
+            "limit": .object(["type": "number", "description": "max highlights (default 5)"]),
+        ]),
+        "required": .array(["footage"]),
+    ])
+
+    public init() {}
+
+    public func call(arguments: JSONValue) async throws -> JSONValue {
+        guard let footageJSON = arguments["footage"] else {
+            throw StudioError.invalidInput(field: "footage", reason: "required")
+        }
+        let item = try ToolArguments.decode(EditJob.FootageItem.self, from: footageJSON)
+        let asset = try item.asset()
+        let analysis = item.analysis(for: asset)
+        let transcript = try (arguments["transcriptSRT"]?.stringValue).map { try SRT.parse($0) }
+        let limit = arguments["limit"]?.intValue ?? 5
+
+        let planner = HighlightPlanner()
+        let highlights = planner.highlights(from: analysis, transcript: transcript, limit: limit)
+        let chapters = planner.chapters(from: analysis, transcript: transcript)
+
+        return .object([
+            "highlights": .array(highlights.map { h in
+                .object([
+                    "kind": .string(h.kind.rawValue),
+                    "startSeconds": .number((h.range.start.seconds * 100).rounded() / 100),
+                    "endSeconds": .number((h.range.end.seconds * 100).rounded() / 100),
+                    "score": .number((h.score * 100).rounded() / 100),
+                    "label": .string(h.label),
+                ])
+            }),
+            "chapters": .array(chapters.map { c in
+                .object([
+                    "startSeconds": .number((c.start.seconds * 100).rounded() / 100),
+                    "title": .string(c.text),
+                ])
+            }),
+        ])
+    }
+}
+
 /// `list_caption_styles`: enumerate built-in caption styles.
 public struct ListCaptionStylesTool: MCPTool {
     public let name = "list_caption_styles"
@@ -358,6 +425,7 @@ public enum GhostlyMCPFactory {
         await server.register(GenerateCaptionsTool())
         await server.register(ValidateFCPXMLTool())
         await server.register(AnalyzeTimelineTool())
+        await server.register(FindHighlightsTool())
         await server.register(ListCaptionStylesTool())
         await server.register(RecommendTool(store: store))
         return server

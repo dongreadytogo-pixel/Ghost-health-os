@@ -74,6 +74,14 @@ syntax, and spine continuity.
 counts, average shot length, captions/markers/transitions, and any domain
 problems found.
 
+### `find_highlights`
+`{ "footage": { "name": "...", "url": "...", "durationSeconds": 300,
+"speechRanges": [[5,35]], "sceneCuts": [15,30], "beats": [...] },
+"transcriptSRT": "...", "limit": 5 }` → the strongest opening `hook`, ranked
+`highlight` moments, a synthesized `cta` beat, and `chapters` (with
+transcript-derived titles when available). Deterministic — ideal for
+short-form repurposing and auto-chaptering.
+
 ### `list_caption_styles`
 No arguments → the built-in caption presets with fonts, sizes, positions and
 animations.

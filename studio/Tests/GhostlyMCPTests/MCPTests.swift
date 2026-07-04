@@ -57,8 +57,8 @@ final class MCPTests: XCTestCase {
         let tools = try XCTUnwrap(response?["result"]?["tools"]?.arrayValue)
         let names = tools.compactMap { $0["name"]?.stringValue }
         XCTAssertEqual(Set(names), ["auto_edit", "parse_edit_command", "generate_captions",
-                                    "validate_fcpxml", "analyze_timeline", "list_caption_styles",
-                                    "recommend"])
+                                    "validate_fcpxml", "analyze_timeline", "find_highlights",
+                                    "list_caption_styles", "recommend"])
         for tool in tools {
             XCTAssertNotNil(tool["description"]?.stringValue)
             XCTAssertNotNil(tool["inputSchema"]?["type"])
@@ -173,6 +173,20 @@ final class MCPTests: XCTestCase {
         XCTAssertFalse(analyzeError)
         XCTAssertTrue(report.contains("\"problems\":[]"), report)
         XCTAssertTrue(report.contains("storylineClips"))
+    }
+
+    func testFindHighlightsTool() async throws {
+        let server = try await makeServer()
+        let call = """
+        {"jsonrpc":"2.0","id":20,"method":"tools/call","params":{"name":"find_highlights",
+         "arguments":{"footage":{"name":"talk","url":"file:///t.mov","durationSeconds":40,
+         "speechRanges":[[5,35]],"sceneCuts":[15,30]},"limit":3}}}
+        """
+        let (text, isError) = try toolText(await send(server, call))
+        XCTAssertFalse(isError, text)
+        XCTAssertTrue(text.contains("\"highlights\""))
+        XCTAssertTrue(text.contains("\"chapters\""))
+        XCTAssertTrue(text.contains("hook") || text.contains("highlight"))
     }
 
     func testListStylesAndRecommendTools() async throws {

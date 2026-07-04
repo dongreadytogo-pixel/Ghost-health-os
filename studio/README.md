@@ -20,9 +20,11 @@ layer activates on macOS.
 | Silence, beat, and scene-change detection | `GhostlyDetection` | ✅ tested (pure DSP) |
 | Natural-language edit commands → edit plans | `GhostlyDirector` | ✅ tested |
 | AI auto-editor (silence removal, beat cuts, music bed, captions) | `GhostlyDirector` | ✅ tested |
+| Highlight / hook / CTA / chapter detection | `GhostlyDirector` | ✅ tested |
+| Undo/redo command system + domain events | `GhostlyDomain` | ✅ tested |
+| MCP server with 8 studio tools | `GhostlyMCP` | ✅ tested |
 | Multi-AI router (Claude, OpenAI-compatible, Gemini, Ollama, LM Studio) | `GhostlyAI` | ✅ tested |
 | Local learning system (preferences, usage, recommendations) | `GhostlyLearning` | ✅ tested |
-| MCP server with 7 studio tools | `GhostlyMCP` | ✅ tested |
 | `ghostly` CLI | `GhostlyCLI` | ✅ CI smoke-tested |
 | SwiftUI studio shell (prompt panel, task queue, styles, logs) | `GhostlyApp` | ✅ builds on macOS |
 
@@ -68,7 +70,8 @@ Add to your MCP client config (Claude Code shown):
 ```
 
 Exposed tools: `auto_edit`, `parse_edit_command`, `generate_captions`,
-`validate_fcpxml`, `analyze_timeline`, `list_caption_styles`, `recommend`.
+`validate_fcpxml`, `analyze_timeline`, `find_highlights`,
+`list_caption_styles`, `recommend`.
 See [docs/MCP.md](docs/MCP.md) for schemas and examples.
 
 ### As a library

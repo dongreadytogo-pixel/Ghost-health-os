@@ -27,6 +27,12 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 - ✅ SwiftUI shell: prompt panel, plan view, caption styles, task queue, logs
 - ✅ CI: Linux (swift:6.0) + macOS build/test + executable smoke tests
 
+## M0.5 — Editing core deepening ✅
+
+- ✅ Undo/redo command system + `TimelineDocument` + domain events (Phase 1)
+- ✅ Highlight / hook / CTA / chapter detection (`HighlightPlanner`, Phase 7)
+- ✅ `find_highlights` MCP tool
+
 ## M1 — Real media I/O 🔜
 
 - 🔜 AVFoundation frame-histogram provider (scene detection on real video)
