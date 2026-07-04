@@ -112,8 +112,49 @@ public struct Caption: Hashable, Sendable, Codable {
     }
 }
 
+/// A motion-graphics overlay backed by a Motion title template — lower
+/// thirds, title cards, callouts, subscribe animations, and progress bars.
+/// Rendered as an FCPXML `<title>` connected above the storyline.
+public struct MotionTitle: Hashable, Sendable, Codable {
+    public enum Kind: String, Sendable, Codable, CaseIterable {
+        case lowerThird, titleCard, callout, subscribe, progressBar
+    }
+
+    public enum Position: String, Sendable, Codable, CaseIterable {
+        case top, center, lowerThird, bottomLeft, bottomCenter
+    }
+
+    public var text: String
+    public var range: TimeRange
+    /// Connected lane (positive = above the storyline).
+    public var lane: Int
+    public var kind: Kind
+    /// Motion template display name and its FCP resource UID.
+    public var templateName: String
+    public var templateUID: String
+    public var fontName: String
+    public var fontSize: Double
+    public var position: Position
+
+    public init(text: String, range: TimeRange, lane: Int = 1, kind: Kind = .lowerThird,
+                templateName: String = "Basic Title",
+                templateUID: String = ".../Titles.localized/Build In:Build Out.localized/Basic Title.localized/Basic Title.moti",
+                fontName: String = "Helvetica Neue", fontSize: Double = 63,
+                position: Position = .lowerThird) {
+        self.text = text
+        self.range = range
+        self.lane = lane
+        self.kind = kind
+        self.templateName = templateName
+        self.templateUID = templateUID
+        self.fontName = fontName
+        self.fontSize = fontSize
+        self.position = position
+    }
+}
+
 /// An editable sequence: ordered storyline clips plus connected lanes,
-/// transitions, captions and markers.
+/// transitions, captions, titles and markers.
 public struct Timeline: Sendable, Codable {
     public var name: String
     public var format: VideoFormat
@@ -121,15 +162,19 @@ public struct Timeline: Sendable, Codable {
     public var transitions: [Transition]
     public var captions: [Caption]
     public var markers: [Marker]
+    /// Motion-graphics overlays. Defaulted so older serialized timelines decode.
+    public var titles: [MotionTitle] = []
 
     public init(name: String, format: VideoFormat, clips: [Clip] = [],
-                transitions: [Transition] = [], captions: [Caption] = [], markers: [Marker] = []) {
+                transitions: [Transition] = [], captions: [Caption] = [], markers: [Marker] = [],
+                titles: [MotionTitle] = []) {
         self.name = name
         self.format = format
         self.clips = clips
         self.transitions = transitions
         self.captions = captions
         self.markers = markers
+        self.titles = titles
     }
 
     /// Clips on the primary storyline (lane 0), in timeline order.

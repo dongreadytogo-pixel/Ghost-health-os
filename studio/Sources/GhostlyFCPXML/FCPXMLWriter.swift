@@ -251,7 +251,37 @@ public struct FCPXMLWriter {
                 element.child(captionElement(caption, offset: toLocal(caption.range.start),
                                              resources: &resources))
             }
+            for title in timeline.titles
+            where clip.timelineRange.contains(title.range.start) {
+                element.child(titleElement(title, offset: toLocal(title.range.start),
+                                           resources: &resources))
+            }
         }
+        return element
+    }
+
+    private func titleElement(_ title: MotionTitle, offset: RationalTime,
+                              resources: inout ResourceTable) -> XML {
+        let effectID = resources.effect(name: title.templateName, uid: title.templateUID)
+        let styleID = resources.allocateTextStyleID()
+        let element = XML("title")
+            .attr("ref", effectID)
+            .attr("lane", String(title.lane))
+            .attr("offset", offset.description)
+            .attr("name", title.text.isEmpty ? title.templateName : title.text)
+            .attr("duration", title.range.duration.description)
+        element.child(
+            XML("text").child(XML("text-style", [("ref", styleID)], text: title.text))
+        )
+        element.child(
+            XML("text-style-def", [("id", styleID)])
+                .child(XML("text-style", [
+                    ("font", title.fontName),
+                    ("fontSize", String(format: "%.0f", title.fontSize)),
+                    ("fontColor", "1 1 1 1"),
+                    ("alignment", title.position == .bottomLeft ? "left" : "center"),
+                ]))
+        )
         return element
     }
 

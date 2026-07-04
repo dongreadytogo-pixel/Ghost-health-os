@@ -32,6 +32,10 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 - ✅ Undo/redo command system + `TimelineDocument` + domain events (Phase 1)
 - ✅ Highlight / hook / CTA / chapter detection (`HighlightPlanner`, Phase 7)
 - ✅ `find_highlights` MCP tool
+- ✅ Motion graphics: `MotionTitle` + FCPXML `<title>` emission +
+  `MotionGraphicsLibrary` (lower thirds, title cards, callouts, subscribe,
+  progress bars) (Phase 8)
+- ✅ Subtitle auto-punctuation for raw ASR transcripts (Phase 6)
 
 ## M1 — Real media I/O 🔜
 

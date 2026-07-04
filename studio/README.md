@@ -21,6 +21,8 @@ layer activates on macOS.
 | Natural-language edit commands → edit plans | `GhostlyDirector` | ✅ tested |
 | AI auto-editor (silence removal, beat cuts, music bed, captions) | `GhostlyDirector` | ✅ tested |
 | Highlight / hook / CTA / chapter detection | `GhostlyDirector` | ✅ tested |
+| Motion graphics (lower thirds, titles, callouts…) → FCPXML `<title>` | `GhostlyDirector` + `GhostlyFCPXML` | ✅ tested |
+| Subtitle auto-punctuation for raw ASR | `GhostlySubtitles` | ✅ tested |
 | Undo/redo command system + domain events | `GhostlyDomain` | ✅ tested |
 | MCP server with 8 studio tools | `GhostlyMCP` | ✅ tested |
 | Multi-AI router (Claude, OpenAI-compatible, Gemini, Ollama, LM Studio) | `GhostlyAI` | ✅ tested |

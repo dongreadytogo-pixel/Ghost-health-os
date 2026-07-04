@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- `GhostlyDomain` + `GhostlyFCPXML`: `MotionTitle` overlay model and FCPXML
+  `<title>` emission (nested in source time, backed by Motion title effect
+  resources) — lower thirds, title cards, callouts, subscribe, progress bars.
+- `GhostlyDirector`: `MotionGraphicsLibrary` factory for those overlays,
+  including speaker-driven lower thirds.
+- `GhostlySubtitles`: `AutoPunctuator` — rule-based capitalization + terminal
+  punctuation for raw ASR transcripts, timing-preserving.
 - `GhostlyDomain`: reversible `EditCommand` system (append/insert/remove/move/
   trim/rename clip, add caption/marker) and `TimelineDocument` aggregate root
   with bounded undo/redo history and `DomainEvent` change notifications.

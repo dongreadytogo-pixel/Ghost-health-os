@@ -106,6 +106,29 @@ final class FCPXMLTests: XCTestCase {
         }
     }
 
+    func testWriterEmitsTitleElement() throws {
+        let video = Asset(name: "V", url: URL(string: "file:///v.mov")!,
+                          duration: RationalTime(seconds: 60), kind: .video, format: .hd1080p30)
+        var timeline = Timeline(name: "Titled", format: .hd1080p30)
+        timeline.appendToStoryline(assetID: video.id, name: "A",
+            sourceRange: TimeRange(start: .zero, duration: RationalTime(seconds: 10)))
+        timeline.titles = [
+            MotionTitle(text: "Hello World",
+                        range: TimeRange(start: RationalTime(seconds: 2),
+                                         duration: RationalTime(seconds: 3)),
+                        lane: 2, kind: .titleCard),
+        ]
+        let doc = try FCPXMLWriter().document(
+            for: Project(name: "P", timeline: timeline), assets: [video])
+
+        XCTAssertTrue(doc.contains("<title"))
+        XCTAssertTrue(doc.contains("Hello World"))
+        XCTAssertTrue(doc.contains("<effect"), "title must register a Motion template effect resource")
+        // Title anchored at timeline 2s inside clip A (offset 0, in-point 0) → source 2s.
+        XCTAssertTrue(doc.contains("offset=\"2s\""))
+        XCTAssertTrue(FCPXMLValidator().isAcceptable(doc), "\(FCPXMLValidator().validate(doc))")
+    }
+
     // MARK: Round trip
 
     func testRoundTripPreservesStructure() throws {
