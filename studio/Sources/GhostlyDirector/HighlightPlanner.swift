@@ -55,6 +55,7 @@ public struct HighlightPlanner: Sendable {
     /// first third is promoted to a `hook`; a `cta` is appended near the end.
     public func highlights(from analysis: MediaAnalysis,
                            transcript: SubtitleTrack? = nil,
+                           visual: VisualDetectionAggregator.Summary? = nil,
                            limit: Int = 5) -> [Highlight] {
         let total = analysis.duration.seconds
         guard total > 0 else { return [] }
@@ -65,7 +66,8 @@ public struct HighlightPlanner: Sendable {
         var t = 0.0
         while t < total {
             let end = min(t + window, total)
-            scored.append((t, score(from: t, to: end, analysis: analysis, transcript: transcript)))
+            scored.append((t, score(from: t, to: end, analysis: analysis,
+                                    transcript: transcript, visual: visual)))
             t += step
         }
 
@@ -136,10 +138,11 @@ public struct HighlightPlanner: Sendable {
 
     /// Adds chapter markers plus hook/highlight markers to a timeline copy.
     public func annotate(_ timeline: Timeline, analysis: MediaAnalysis,
-                         transcript: SubtitleTrack? = nil) -> Timeline {
+                         transcript: SubtitleTrack? = nil,
+                         visual: VisualDetectionAggregator.Summary? = nil) -> Timeline {
         var copy = timeline
         copy.markers.append(contentsOf: chapters(from: analysis, transcript: transcript))
-        for highlight in highlights(from: analysis, transcript: transcript)
+        for highlight in highlights(from: analysis, transcript: transcript, visual: visual)
         where highlight.kind != .cta {
             copy.markers.append(Marker(start: highlight.range.start,
                                        text: highlight.label,
@@ -151,7 +154,8 @@ public struct HighlightPlanner: Sendable {
     // MARK: Scoring
 
     private func score(from start: Double, to end: Double,
-                       analysis: MediaAnalysis, transcript: SubtitleTrack?) -> Double {
+                       analysis: MediaAnalysis, transcript: SubtitleTrack?,
+                       visual: VisualDetectionAggregator.Summary?) -> Double {
         let window = timeRange(start, end)
         let length = end - start
         guard length > 0 else { return 0 }
@@ -176,7 +180,27 @@ public struct HighlightPlanner: Sendable {
             return punchy ? 1 : 0
         } ?? 0
 
-        return speechFraction * 0.5 + beatDensity * 0.25 + hasCut * 0.15 + emphasis * 0.1
+        let base = speechFraction * 0.5 + beatDensity * 0.25 + hasCut * 0.15 + emphasis * 0.1
+
+        // Visual engagement is additive on top of the base signal so it only
+        // ever *promotes* a moment (and is a no-op when no vision data exists):
+        // a smiling, camera-facing subject is prime highlight/hook material.
+        return base + visualBoost(window: window, visual: visual)
+    }
+
+    /// 0 when no visual summary; otherwise up to +0.6 for a smiling,
+    /// eye-contact, face-present window.
+    private func visualBoost(window: TimeRange,
+                             visual: VisualDetectionAggregator.Summary?) -> Double {
+        guard let visual else { return 0 }
+        func overlapsAny(_ ranges: [TimeRange]) -> Bool {
+            ranges.contains { $0.overlaps(window) }
+        }
+        var boost = 0.0
+        if overlapsAny(visual.smileRanges) { boost += 0.3 }
+        if overlapsAny(visual.eyeContactRanges) { boost += 0.2 }
+        if overlapsAny(visual.facePresenceRanges) { boost += 0.1 }
+        return boost
     }
 
     private func labelForTime(_ seconds: Double, transcript: SubtitleTrack?) -> String? {

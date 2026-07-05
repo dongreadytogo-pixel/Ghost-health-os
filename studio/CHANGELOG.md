@@ -12,6 +12,10 @@
   bridging (Phase 4/6 groundwork; Vision/CoreML adapter to follow).
 
 ### Changed
+- `GhostlyDirector`: `HighlightPlanner` now accepts an optional
+  `VisualDetectionAggregator.Summary` — smile / eye-contact / face-presence
+  windows additively boost highlight and hook ranking (a no-op when absent,
+  so existing behavior is unchanged).
 - `GhostlyMCP`: `generate_captions` gains an `autoPunctuate` option (runs the
   `AutoPunctuator` over the track); new `validate_plugin_manifest` tool lints
   a `plugin.json` against the Plugin SDK and checks studio-version

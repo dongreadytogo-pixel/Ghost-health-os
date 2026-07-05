@@ -121,6 +121,35 @@ final class HighlightPlannerTests: XCTestCase {
         XCTAssertTrue(annotated.markers.contains { $0.kind == .chapter })
     }
 
+    func testVisualEngagementPromotesFacingSubject() {
+        // Uniform speech across 40s so the base score is flat everywhere; a
+        // smile+eye-contact window at 20–26s must win the ranking.
+        let a = analysis(duration: 40, speech: [(0, 40)])
+        let visual = VisualDetectionAggregator.Summary(
+            facePresenceRanges: [TimeRange(start: RationalTime(seconds: 0),
+                                           end: RationalTime(seconds: 40))],
+            smileRanges: [TimeRange(start: RationalTime(seconds: 20),
+                                    end: RationalTime(seconds: 26))],
+            eyeContactRanges: [TimeRange(start: RationalTime(seconds: 20),
+                                         end: RationalTime(seconds: 26))],
+            objectPrevalence: [],
+            textRanges: [],
+            recognizedText: [])
+        let withVisual = HighlightPlanner().highlights(from: a, visual: visual)
+        let best = withVisual.filter { $0.kind != .cta }.max { $0.score < $1.score }!
+        XCTAssertTrue(best.range.overlaps(
+            TimeRange(start: RationalTime(seconds: 20), end: RationalTime(seconds: 26))),
+            "the smiling, camera-facing window should rank highest")
+    }
+
+    func testVisualNilLeavesRankingUnchanged() {
+        let a = analysis(duration: 30, speech: [(0, 30)], cuts: [12],
+                         beats: Array(stride(from: 0.0, to: 30, by: 0.5)))
+        let withoutArg = HighlightPlanner().highlights(from: a)
+        let withNil = HighlightPlanner().highlights(from: a, visual: nil)
+        XCTAssertEqual(withoutArg, withNil, "visual is purely additive; nil is a no-op")
+    }
+
     func testDeterminism() {
         let a = analysis(duration: 50, speech: [(0, 50)],
                          cuts: [12, 30], beats: Array(stride(from: 0.0, to: 50, by: 0.5)))
