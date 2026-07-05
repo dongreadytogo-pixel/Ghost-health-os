@@ -94,6 +94,14 @@ let fcpxml = try FCPXMLWriter().document(
 
 Import the generated `.fcpxml` into Final Cut Pro via **File → Import → XML**.
 
+## Knowledge Base
+
+[docs/knowledge/](docs/knowledge/README.md) is the project's single source
+of truth: 20 reference documents covering Final Cut Pro concepts, the
+FCPXML specification, editing theory, Apple frameworks, the plugin SDK and
+marketplace designs, testing guidelines, and the binding development rules.
+Consult it before implementing any feature.
+
 ## Architecture
 
 Clean Architecture with strictly layered, independently testable modules —

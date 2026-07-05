@@ -162,7 +162,9 @@ public actor FileProjectStore: ProjectRepository {
     private func encode(_ envelope: StoredProject) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
+        // Millisecond precision: ISO-8601 truncates to whole seconds, which
+        // breaks "is the autosave newer than the save?" within the same second.
+        encoder.dateEncodingStrategy = .millisecondsSince1970
         do {
             return try encoder.encode(envelope)
         } catch {
@@ -178,7 +180,7 @@ public actor FileProjectStore: ProjectRepository {
             throw StudioError.io(path: url.path, detail: error.localizedDescription)
         }
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .millisecondsSince1970
         do {
             return try decoder.decode(StoredProject.self, from: data)
         } catch {

@@ -2,7 +2,19 @@
 
 ## Unreleased
 
+### Fixed
+- `GhostlyStorage`: persist dates with millisecond precision
+  (`millisecondsSince1970`) — ISO-8601 whole-second encoding made an
+  autosave written < 1 s after a save appear no newer, breaking recovery.
+
 ### Added
+- Knowledge Base: `docs/knowledge/` — 20 reference documents (FCP core,
+  FCPXML spec, workflows, shortcuts, effects, Motion templates, color,
+  audio, editing theory, per-genre workflows, Apple frameworks, macOS
+  development, AI video technologies, plugin SDK spec, marketplace spec,
+  testing guidelines, commercial release playbook, glossary, best
+  practices, binding development rules) + index. The project's single
+  source of truth.
 - `GhostlyStorage`: new module — `ProjectRepository` port and `FileProjectStore`
   (actor): atomic JSON envelopes with a `schemaVersion` + migration hook,
   bounded per-project version-history snapshots, project summaries/list/delete,
