@@ -136,7 +136,8 @@ final class HighlightPlannerTests: XCTestCase {
             textRanges: [],
             recognizedText: [])
         let withVisual = HighlightPlanner().highlights(from: a, visual: visual)
-        let best = withVisual.filter { $0.kind != .cta }.max { $0.score < $1.score }!
+        let ranked = withVisual.filter { $0.kind != Highlight.Kind.cta }
+        let best = ranked.max { $0.score < $1.score }!
         XCTAssertTrue(best.range.overlaps(
             TimeRange(start: RationalTime(seconds: 20), end: RationalTime(seconds: 26))),
             "the smiling, camera-facing window should rank highest")
