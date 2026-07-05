@@ -58,7 +58,7 @@ final class FileProjectStoreTests: XCTestCase {
         XCTAssertEqual(summaries.count, 2)
         XCTAssertEqual(summaries.first?.name, "Second", "newest first")
         XCTAssertEqual(summaries.first?.clipCount, 2)
-        XCTAssertEqual(summaries.first?.durationSeconds, 10, accuracy: 0.001)
+        XCTAssertEqual(summaries.first?.durationSeconds, 10)
     }
 
     func testDeleteRemovesProjectAndHistory() async throws {
