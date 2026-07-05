@@ -27,6 +27,11 @@ document is incomplete, improve it first (see
 | 18 | [glossary.md](18-glossary.md) | Terms used across the project |
 | 19 | [best-practices.md](19-best-practices.md) | Engineering & FCPXML best practices |
 | 20 | [development-rules.md](20-development-rules.md) | Binding rules for all future work |
+| ★ | [CONSTITUTION.md](CONSTITUTION.md) | AI Coding Constitution — mandatory engineering rules (overrides all) |
+
+**Language policy:** Thai is a primary target alongside English — Thai-audio
+clips and Thai captions must be first-class. Text handling must not assume
+space-delimited words (see the Constitution's language-support clause).
 
 Primary external sources: Apple's FCPXML Reference
 (https://developer.apple.com/documentation/professional-video-applications/fcpxml-reference),

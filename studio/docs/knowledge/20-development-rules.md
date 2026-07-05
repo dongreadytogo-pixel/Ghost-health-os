@@ -1,6 +1,9 @@
 # 20 — Development Rules (binding)
 
-These rules govern all future work on Ghostly790k AI Final Cut Studio.
+These rules govern all future work on Ghostly790k AI Final Cut Studio, and
+sit under the binding [AI Coding Constitution](CONSTITUTION.md) (which
+overrides convenience/shortcuts and mandates Thai + English as first-class
+languages).
 
 1. **Knowledge Base first.** Before implementing any feature, read the
    relevant documents here. If the needed knowledge is missing or
