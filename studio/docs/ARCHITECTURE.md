@@ -16,6 +16,7 @@ its own test suite, and all cross-module contracts are value types + protocols.
 | Application | `GhostlyAssets` | Auto-tagging, collections/folders/favorites, natural-language search, duplicate/unused finders | Core, Domain |
 | Application | `GhostlyExport` | Render presets, FFmpeg command builder, injectable-renderer render queue | Core, Domain |
 | Infrastructure | `GhostlyStorage` | `ProjectRepository` port + file-backed store: atomic JSON envelopes, schema migration, bounded snapshots, autosave/recovery | Core, Domain |
+| Ecosystem | `GhostlyPlugin` | Plugin manifest (`plugin.json`), semantic versioning, lifecycle state machine, registry with contribution queries | Core |
 | Application | `GhostlyDirector` | `EditIntentParser`, `PacingProfile`, `Director`, `AutoEditPlanner` | Core, Domain, Detection, FCPXML, Subtitles |
 | AI Engine | `GhostlyAI` | `LLMProvider` protocol, Anthropic/OpenAI-compatible/Gemini/Ollama adapters, `ModelRouter` | Core, Domain |
 | Application | `GhostlyLearning` | `PreferenceStore` (local JSON, atomic writes), usage stats, recommendations | Core, Domain |

@@ -46,6 +46,11 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 - ✅ Storage: `GhostlyStorage` — `ProjectRepository` port + file-backed store
   (atomic JSON envelopes, schema-version migration hook, bounded version-history
   snapshots, autosave + crash recovery) (Phase 2)
+- ✅ Knowledge Base: `docs/knowledge/` — 20 reference documents + index, the
+  project's single source of truth (KB Builder spec)
+- ✅ Plugin SDK groundwork: `GhostlyPlugin` — semantic versioning, validated
+  `plugin.json` manifest, lifecycle state machine, registry with
+  studio-version gating and per-kind contribution queries (Phase 13)
 
 ## M1 — Real media I/O 🔜
 

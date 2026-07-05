@@ -8,6 +8,13 @@
   autosave written < 1 s after a save appear no newer, breaking recovery.
 
 ### Added
+- `GhostlyPlugin`: new module — `SemanticVersion` (string-codable),
+  `PluginManifest` (`plugin.json` contract with reverse-DNS id, entry-point,
+  permission and contribution validation), `PluginState` lifecycle state
+  machine (discovered → validated → loaded → activated ⇄ deactivated →
+  unloaded, with failure capture), and the `PluginRegistry` actor
+  (duplicate-id rejection, studio-version compatibility gating, per-kind
+  contribution queries over active plugins).
 - Knowledge Base: `docs/knowledge/` — 20 reference documents (FCP core,
   FCPXML spec, workflows, shortcuts, effects, Motion templates, color,
   audio, editing theory, per-genre workflows, Apple frameworks, macOS
