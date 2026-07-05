@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added
+- `GhostlyDetection`: visual-detection layer — `NormalizedRect`,
+  `DetectedFace` (smile/eye-contact cues), `DetectedObject`, `DetectedText`
+  (text/QR/barcode), per-frame `FrameDetections`, a `VisualDetecting`
+  provider protocol, and a pure `VisualDetectionAggregator` that collapses
+  noisy per-frame results into face-presence / smile / eye-contact ranges,
+  time-ranked object prevalence, and deduped on-screen text with gap
+  bridging (Phase 4/6 groundwork; Vision/CoreML adapter to follow).
+
 ### Changed
 - `GhostlyMCP`: `generate_captions` gains an `autoPunctuate` option (runs the
   `AutoPunctuator` over the track); new `validate_plugin_manifest` tool lints

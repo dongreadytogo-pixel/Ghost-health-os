@@ -54,7 +54,11 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 
 ## M1 — Real media I/O 🔜
 
+- ✅ Visual-detection model + aggregator (faces/smile/eye-contact/objects/OCR
+  → editorial ranges), `VisualDetecting` provider protocol (Phase 4/6
+  groundwork; pure aggregator tested, Vision adapter pending)
 - 🔜 AVFoundation frame-histogram provider (scene detection on real video)
+- 🔜 Vision/CoreML `VisualDetecting` adapter (face/object/text on real frames)
 - 🔜 Whisper transcription adapter (whisper.cpp) → word-timed `SubtitleTrack`
 - 🔜 FFmpeg-based providers for Linux/CI media fixtures
 - 🔜 `ghostly edit` CLI command: media in → analyzed → FCPXML out
