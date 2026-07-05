@@ -57,7 +57,9 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 - ✅ Visual-detection model + aggregator (faces/smile/eye-contact/objects/OCR
   → editorial ranges), `VisualDetecting` provider protocol (Phase 4/6
   groundwork; pure aggregator tested, Vision adapter pending)
-- 🔜 AVFoundation frame-histogram provider (scene detection on real video)
+- ✅ Frame-histogram seam: pure `LumaHistogram` binning (grayscale/RGB→luma,
+  normalized) + platform-gated `AVFrameHistogramProvider` (samples + downscales
+  frames on Apple platforms) feeding `SceneChangeDetector`
 - 🔜 Vision/CoreML `VisualDetecting` adapter (face/object/text on real frames)
 - 🔜 Whisper transcription adapter (whisper.cpp) → word-timed `SubtitleTrack`
 - 🔜 FFmpeg-based providers for Linux/CI media fixtures

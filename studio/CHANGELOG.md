@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- `GhostlyDetection`: `LumaHistogram` — pure, dependency-free normalized
+  luma-histogram binning (from 0…1 luma, 8-bit grayscale, or Rec.601 RGB) that
+  every histogram provider shares, plus a platform-gated
+  `AVFrameHistogramProvider` (AVAssetImageGenerator sampling + grayscale
+  downscale) that feeds `SceneChangeDetector` on real video.
 - `GhostlyDetection`: visual-detection layer — `NormalizedRect`,
   `DetectedFace` (smile/eye-contact cues), `DetectedObject`, `DetectedText`
   (text/QR/barcode), per-frame `FrameDetections`, a `VisualDetecting`
