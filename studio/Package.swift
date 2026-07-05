@@ -41,7 +41,7 @@ let package = Package(
         .target(name: "GhostlyMCP", dependencies: [
             "GhostlyCore", "GhostlyDomain", "GhostlyFCPXML", "GhostlySubtitles",
             "GhostlyDirector", "GhostlyDetection", "GhostlyLearning", "GhostlyAssets",
-            "GhostlyExport",
+            "GhostlyExport", "GhostlyPlugin",
         ]),
         // MARK: Presentation (compiles to an empty module off-macOS)
         .target(name: "GhostlyApp", dependencies: [

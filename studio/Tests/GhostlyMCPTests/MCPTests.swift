@@ -59,7 +59,7 @@ final class MCPTests: XCTestCase {
         XCTAssertEqual(Set(names), ["auto_edit", "parse_edit_command", "generate_captions",
                                     "validate_fcpxml", "analyze_timeline", "find_highlights",
                                     "search_assets", "export_command", "list_export_presets",
-                                    "list_caption_styles", "recommend"])
+                                    "validate_plugin_manifest", "list_caption_styles", "recommend"])
         for tool in tools {
             XCTAssertNotNil(tool["description"]?.stringValue)
             XCTAssertNotNil(tool["inputSchema"]?["type"])
@@ -237,6 +237,59 @@ final class MCPTests: XCTestCase {
             #"{"jsonrpc":"2.0","id":24,"method":"tools/call","params":{"name":"list_export_presets","arguments":{}}}"#))
         XCTAssertTrue(text.contains("TikTok"))
         XCTAssertTrue(text.contains("YouTube 4K"))
+    }
+
+    func testGenerateCaptionsAutoPunctuate() async throws {
+        let server = try await makeServer()
+        let call: JSONValue = .object([
+            "jsonrpc": "2.0", "id": 30, "method": "tools/call",
+            "params": .object([
+                "name": "generate_captions",
+                "arguments": .object([
+                    "subtitles": "1\n00:00:00,000 --> 00:00:02,000\nhow are you today\n",
+                    "style": "YouTube",
+                    "autoPunctuate": .bool(true),
+                ]),
+            ]),
+        ])
+        let (text, isError) = try toolText(await server.handle(call.encoded()))
+        XCTAssertFalse(isError, text)
+        XCTAssertTrue(text.contains("How are you today?"),
+                      "raw ASR line should be capitalized + question-marked: \(text)")
+    }
+
+    func testValidatePluginManifestTool() async throws {
+        let server = try await makeServer()
+        let manifest = """
+        {"id":"com.example.pack","name":"Pack","version":"1.2.0",
+         "minStudioVersion":"1.0.0","author":"Me","entryPoint":"Pack.bundle",
+         "permissions":["network"],"contributes":["mcpTools"]}
+        """
+        let call: JSONValue = .object([
+            "jsonrpc": "2.0", "id": 31, "method": "tools/call",
+            "params": .object([
+                "name": "validate_plugin_manifest",
+                "arguments": .object(["manifest": .string(manifest), "studioVersion": "1.5.0"]),
+            ]),
+        ])
+        let (text, isError) = try toolText(await server.handle(call.encoded()))
+        XCTAssertFalse(isError, text)
+        XCTAssertTrue(text.contains("\"valid\":true"))
+        XCTAssertTrue(text.contains("\"compatible\":true"))
+        XCTAssertTrue(text.contains("com.example.pack"))
+    }
+
+    func testValidatePluginManifestRejectsBad() async throws {
+        let server = try await makeServer()
+        let call: JSONValue = .object([
+            "jsonrpc": "2.0", "id": 32, "method": "tools/call",
+            "params": .object([
+                "name": "validate_plugin_manifest",
+                "arguments": .object(["manifest": "{\"id\":\"notdns\",\"name\":\"x\"}"]),
+            ]),
+        ])
+        let (text, isError) = try toolText(await server.handle(call.encoded()))
+        XCTAssertTrue(isError, "invalid manifest must be a tool error: \(text)")
     }
 
     func testListStylesAndRecommendTools() async throws {

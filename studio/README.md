@@ -77,7 +77,8 @@ Add to your MCP client config (Claude Code shown):
 
 Exposed tools: `auto_edit`, `parse_edit_command`, `generate_captions`,
 `validate_fcpxml`, `analyze_timeline`, `find_highlights`, `search_assets`,
-`export_command`, `list_export_presets`, `list_caption_styles`, `recommend`.
+`export_command`, `list_export_presets`, `validate_plugin_manifest`,
+`list_caption_styles`, `recommend`.
 See [docs/MCP.md](docs/MCP.md) for schemas and examples.
 
 ### As a library

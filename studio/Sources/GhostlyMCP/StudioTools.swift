@@ -8,6 +8,7 @@ import GhostlyDetection
 import GhostlyLearning
 import GhostlyAssets
 import GhostlyExport
+import GhostlyPlugin
 
 /// The wire schema for auto-edit jobs submitted by AI agents. Times are in
 /// seconds (JSON-friendly); conversion to rational time happens at the edge.
@@ -194,6 +195,8 @@ public struct GenerateCaptionsTool: MCPTool {
             "subtitles": .object(["type": "string", "description": "SRT or VTT file content"]),
             "style": .object(["type": "string", "enum": ["TikTok", "YouTube", "Instagram", "Broadcast"]]),
             "shiftSeconds": .object(["type": "number", "description": "optional time offset"]),
+            "autoPunctuate": .object(["type": "boolean",
+                "description": "capitalize + add terminal punctuation for raw ASR transcripts"]),
         ]),
         "required": .array(["subtitles", "style"]),
     ])
@@ -214,6 +217,10 @@ public struct GenerateCaptionsTool: MCPTool {
             : try SRT.parse(content)
         if let shift = arguments["shiftSeconds"]?.numberValue, shift != 0 {
             track = track.shifted(by: RationalTime(seconds: shift, preferredTimescale: 1000))
+        }
+        // Optional ASR cleanup for raw, unpunctuated transcripts (Phase 6).
+        if arguments["autoPunctuate"]?.boolValue == true {
+            track = AutoPunctuator().punctuate(track)
         }
         let styled = style.styled(track)
         return .object([
@@ -531,6 +538,52 @@ public struct ListExportPresetsTool: MCPTool {
     }
 }
 
+/// `validate_plugin_manifest`: lint a `plugin.json` against the SDK contract.
+public struct ValidatePluginManifestTool: MCPTool {
+    public let name = "validate_plugin_manifest"
+    public let description = """
+    Validate a plugin manifest (plugin.json) against the Ghostly Plugin SDK: \
+    semantic-version fields, reverse-DNS id, entry point, declared permissions \
+    and contributions, and compatibility with a given studio version. Returns \
+    validity plus the parsed manifest summary.
+    """
+    public let inputSchema: JSONValue = .object([
+        "type": "object",
+        "properties": .object([
+            "manifest": .object(["type": "string", "description": "plugin.json contents"]),
+            "studioVersion": .object(["type": "string",
+                "description": "optional studio version to check compatibility against, e.g. 1.0.0"]),
+        ]),
+        "required": .array(["manifest"]),
+    ])
+
+    public init() {}
+
+    public func call(arguments: JSONValue) async throws -> JSONValue {
+        guard let raw = arguments["manifest"]?.stringValue, !raw.isEmpty else {
+            throw StudioError.invalidInput(field: "manifest", reason: "required")
+        }
+        let manifest = try PluginManifest.parse(Data(raw.utf8))
+        var result: [String: JSONValue] = [
+            "valid": .bool(true),
+            "id": .string(manifest.id),
+            "name": .string(manifest.name),
+            "version": .string(manifest.version.description),
+            "minStudioVersion": .string(manifest.minStudioVersion.description),
+            "permissions": .array(manifest.permissions.map { .string($0.rawValue) }),
+            "contributes": .array(manifest.contributes.map { .string($0.rawValue) }),
+        ]
+        if let studioRaw = arguments["studioVersion"]?.stringValue {
+            guard let studio = SemanticVersion(studioRaw) else {
+                throw StudioError.invalidInput(field: "studioVersion",
+                                               reason: "not a semantic version: '\(studioRaw)'")
+            }
+            result["compatible"] = .bool(manifest.isCompatible(withStudio: studio))
+        }
+        return .object(result)
+    }
+}
+
 /// `list_caption_styles`: enumerate built-in caption styles.
 public struct ListCaptionStylesTool: MCPTool {
     public let name = "list_caption_styles"
@@ -602,6 +655,7 @@ public enum GhostlyMCPFactory {
         await server.register(SearchAssetsTool())
         await server.register(ExportCommandTool())
         await server.register(ListExportPresetsTool())
+        await server.register(ValidatePluginManifestTool())
         await server.register(ListCaptionStylesTool())
         await server.register(RecommendTool(store: store))
         return server

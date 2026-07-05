@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Changed
+- `GhostlyMCP`: `generate_captions` gains an `autoPunctuate` option (runs the
+  `AutoPunctuator` over the track); new `validate_plugin_manifest` tool lints
+  a `plugin.json` against the Plugin SDK and checks studio-version
+  compatibility (14 tools total).
+
 ### Fixed
 - `GhostlyStorage`: persist dates with millisecond precision
   (`millisecondsSince1970`) — ISO-8601 whole-second encoding made an

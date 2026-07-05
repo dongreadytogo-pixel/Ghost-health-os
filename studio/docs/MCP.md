@@ -60,9 +60,11 @@ resolved pacing profile (shot lengths, format, captions, beat-cutting).
 Useful for previewing what `auto_edit` would do.
 
 ### `generate_captions`
-`{ "subtitles": "<SRT or VTT content>", "style": "TikTok", "shiftSeconds": 1.0 }`
-→ restyled SRT (wrapping, casing) plus style metadata. Styles: `TikTok`,
-`YouTube`, `Instagram`, `Broadcast`.
+`{ "subtitles": "<SRT or VTT content>", "style": "TikTok", "shiftSeconds": 1.0,
+"autoPunctuate": true }` → restyled SRT (wrapping, casing) plus style
+metadata. Styles: `TikTok`, `YouTube`, `Instagram`, `Broadcast`.
+`autoPunctuate` capitalizes and adds terminal punctuation for raw ASR
+transcripts (timing preserved).
 
 ### `validate_fcpxml`
 `{ "fcpxml": "<document>" }` → `{ valid, errors[], warnings[] }`. Checks XML
@@ -101,6 +103,12 @@ copy-paste `commandLine`. Presets: `YouTube 1080p`, `YouTube 4K`, `TikTok`,
 ### `list_export_presets`
 No arguments → the built-in render presets with container, codec, resolution,
 and bitrate.
+
+### `validate_plugin_manifest`
+`{ "manifest": "<plugin.json contents>", "studioVersion": "1.0.0" }` →
+validates the manifest against the Plugin SDK (semantic versions, reverse-DNS
+id, entry point, permissions, contributions) and, when `studioVersion` is
+given, reports compatibility. Invalid manifests return `isError: true`.
 
 ### `list_caption_styles`
 No arguments → the built-in caption presets with fonts, sizes, positions and
