@@ -43,6 +43,9 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
   deterministic FFmpeg command builder (exact NTSC rates, faststart, metadata),
   render queue with injectable renderer; `export`/`presets` CLI commands and
   `export_command`/`list_export_presets` MCP tools (Phase 16)
+- ✅ Storage: `GhostlyStorage` — `ProjectRepository` port + file-backed store
+  (atomic JSON envelopes, schema-version migration hook, bounded version-history
+  snapshots, autosave + crash recovery) (Phase 2)
 
 ## M1 — Real media I/O 🔜
 

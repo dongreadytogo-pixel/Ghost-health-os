@@ -12,6 +12,7 @@ let package = Package(
         .library(name: "GhostlyDetection", targets: ["GhostlyDetection"]),
         .library(name: "GhostlyAssets", targets: ["GhostlyAssets"]),
         .library(name: "GhostlyExport", targets: ["GhostlyExport"]),
+        .library(name: "GhostlyStorage", targets: ["GhostlyStorage"]),
         .library(name: "GhostlyDirector", targets: ["GhostlyDirector"]),
         .library(name: "GhostlyAI", targets: ["GhostlyAI"]),
         .library(name: "GhostlyLearning", targets: ["GhostlyLearning"]),
@@ -29,6 +30,7 @@ let package = Package(
         .target(name: "GhostlyDetection", dependencies: ["GhostlyCore", "GhostlyDomain"]),
         .target(name: "GhostlyAssets", dependencies: ["GhostlyCore", "GhostlyDomain"]),
         .target(name: "GhostlyExport", dependencies: ["GhostlyCore", "GhostlyDomain"]),
+        .target(name: "GhostlyStorage", dependencies: ["GhostlyCore", "GhostlyDomain"]),
         .target(name: "GhostlyDirector", dependencies: [
             "GhostlyCore", "GhostlyDomain", "GhostlyDetection", "GhostlyFCPXML", "GhostlySubtitles",
         ]),
@@ -58,6 +60,7 @@ let package = Package(
         .testTarget(name: "GhostlyDetectionTests", dependencies: ["GhostlyDetection", "GhostlyDomain", "GhostlyCore"]),
         .testTarget(name: "GhostlyAssetsTests", dependencies: ["GhostlyAssets", "GhostlyDomain", "GhostlyCore"]),
         .testTarget(name: "GhostlyExportTests", dependencies: ["GhostlyExport", "GhostlyDomain", "GhostlyCore"]),
+        .testTarget(name: "GhostlyStorageTests", dependencies: ["GhostlyStorage", "GhostlyDomain", "GhostlyCore"]),
         .testTarget(name: "GhostlyDirectorTests", dependencies: [
             "GhostlyDirector", "GhostlyDetection", "GhostlySubtitles", "GhostlyDomain", "GhostlyCore",
         ]),

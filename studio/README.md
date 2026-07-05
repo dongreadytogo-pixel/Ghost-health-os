@@ -25,6 +25,7 @@ layer activates on macOS.
 | Subtitle auto-punctuation for raw ASR | `GhostlySubtitles` | ✅ tested |
 | Asset manager (auto-tagging, collections, NL search) | `GhostlyAssets` | ✅ tested |
 | Export presets + FFmpeg command builder + render queue | `GhostlyExport` | ✅ tested |
+| Project persistence, version-history snapshots, autosave/recovery | `GhostlyStorage` | ✅ tested |
 | Undo/redo command system + domain events | `GhostlyDomain` | ✅ tested |
 | MCP server with 8 studio tools | `GhostlyMCP` | ✅ tested |
 | Multi-AI router (Claude, OpenAI-compatible, Gemini, Ollama, LM Studio) | `GhostlyAI` | ✅ tested |

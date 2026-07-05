@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- `GhostlyStorage`: new module — `ProjectRepository` port and `FileProjectStore`
+  (actor): atomic JSON envelopes with a `schemaVersion` + migration hook,
+  bounded per-project version-history snapshots, project summaries/list/delete,
+  and autosave with crash recovery (only offered when newer than the last save).
 - `GhostlyExport`: new module — `RenderPreset` (YouTube 1080p/4K, TikTok,
   Instagram Reel/Feed, ProRes 422 Master), `FFmpegCommandBuilder` (deterministic
   argument vectors with exact NTSC frame rates, `+faststart`, pixel-format and
