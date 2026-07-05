@@ -31,6 +31,18 @@ public struct VisualDetectionAggregator: Sendable {
         /// Distinct recognized text strings (deduped, in first-seen order).
         public var recognizedText: [String]
 
+        public init(facePresenceRanges: [TimeRange] = [], smileRanges: [TimeRange] = [],
+                    eyeContactRanges: [TimeRange] = [],
+                    objectPrevalence: [(label: String, seconds: Double)] = [],
+                    textRanges: [TimeRange] = [], recognizedText: [String] = []) {
+            self.facePresenceRanges = facePresenceRanges
+            self.smileRanges = smileRanges
+            self.eyeContactRanges = eyeContactRanges
+            self.objectPrevalence = objectPrevalence
+            self.textRanges = textRanges
+            self.recognizedText = recognizedText
+        }
+
         public static func == (lhs: Summary, rhs: Summary) -> Bool {
             lhs.facePresenceRanges == rhs.facePresenceRanges &&
             lhs.smileRanges == rhs.smileRanges &&
