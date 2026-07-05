@@ -141,8 +141,12 @@ final class ExportTests: XCTestCase {
         XCTAssertEqual(box.statuses, [.running, .completed])
     }
 
+    /// True if any `flag value` pair appears (a flag like `-metadata` recurs,
+    /// so we must scan every occurrence, not just the first).
     private func contains(_ args: [String], _ flag: String, _ value: String) -> Bool {
-        guard let index = args.firstIndex(of: flag), index + 1 < args.count else { return false }
-        return args[index + 1] == value
+        for index in args.indices where args[index] == flag && index + 1 < args.count {
+            if args[index + 1] == value { return true }
+        }
+        return false
     }
 }
