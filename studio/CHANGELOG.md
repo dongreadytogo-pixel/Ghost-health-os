@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- `GhostlyExport`: new module — `RenderPreset` (YouTube 1080p/4K, TikTok,
+  Instagram Reel/Feed, ProRes 422 Master), `FFmpegCommandBuilder` (deterministic
+  argument vectors with exact NTSC frame rates, `+faststart`, pixel-format and
+  metadata handling, shell-quoted command line), and a `RenderQueue` actor with
+  an injectable `Renderer` protocol (FFmpeg-backed in production, stubbed in
+  tests). Wired to `ghostly export`/`presets` CLI commands and the
+  `export_command` / `list_export_presets` MCP tools.
 - `GhostlyAssets`: new module — `AutoTagger` (resolution/aspect/duration/
   filename tags), `AssetQuery` (natural-language → structured filter with
   kind, favorite, vertical/horizontal, and duration bounds), and `AssetCatalog`

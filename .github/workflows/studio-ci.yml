@@ -46,6 +46,8 @@ jobs:
           "$BIN/ghostly" version
           "$BIN/ghostly" intent "edit this like marvel and add tiktok captions"
           "$BIN/ghostly" styles
+          "$BIN/ghostly" presets
+          "$BIN/ghostly" export in.mov --preset TikTok --out out.mp4 | grep -q "scale=1080:1920"
 
       - name: Smoke-test MCP server handshake
         run: |

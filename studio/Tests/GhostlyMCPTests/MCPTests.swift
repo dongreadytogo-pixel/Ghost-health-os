@@ -58,7 +58,8 @@ final class MCPTests: XCTestCase {
         let names = tools.compactMap { $0["name"]?.stringValue }
         XCTAssertEqual(Set(names), ["auto_edit", "parse_edit_command", "generate_captions",
                                     "validate_fcpxml", "analyze_timeline", "find_highlights",
-                                    "search_assets", "list_caption_styles", "recommend"])
+                                    "search_assets", "export_command", "list_export_presets",
+                                    "list_caption_styles", "recommend"])
         for tool in tools {
             XCTAssertNotNil(tool["description"]?.stringValue)
             XCTAssertNotNil(tool["inputSchema"]?["type"])
@@ -203,6 +204,39 @@ final class MCPTests: XCTestCase {
         XCTAssertTrue(text.contains("drone_flyover"))
         XCTAssertFalse(text.contains("interview"), "horizontal interview must not match a vertical query")
         XCTAssertTrue(text.contains("vertical"), "auto-tagging should add a vertical tag")
+    }
+
+    func testExportCommandTool() async throws {
+        let server = try await makeServer()
+        let call = """
+        {"jsonrpc":"2.0","id":22,"method":"tools/call","params":{"name":"export_command",
+         "arguments":{"input":"in.mov","output":"out.mp4","preset":"TikTok","title":"My Clip"}}}
+        """
+        let (text, isError) = try toolText(await send(server, call))
+        XCTAssertFalse(isError, text)
+        XCTAssertTrue(text.contains("1080x1920"), "TikTok is vertical")
+        XCTAssertTrue(text.contains("libx264"))
+        XCTAssertTrue(text.contains("commandLine"))
+        XCTAssertTrue(text.contains("My Clip"))
+    }
+
+    func testExportCommandUnknownPresetIsToolError() async throws {
+        let server = try await makeServer()
+        let call = """
+        {"jsonrpc":"2.0","id":23,"method":"tools/call","params":{"name":"export_command",
+         "arguments":{"input":"in.mov","output":"out.mp4","preset":"nonsense"}}}
+        """
+        let (text, isError) = try toolText(await send(server, call))
+        XCTAssertTrue(isError)
+        XCTAssertTrue(text.contains("RenderPreset"))
+    }
+
+    func testListExportPresetsTool() async throws {
+        let server = try await makeServer()
+        let (text, _) = try toolText(await send(server,
+            #"{"jsonrpc":"2.0","id":24,"method":"tools/call","params":{"name":"list_export_presets","arguments":{}}}"#))
+        XCTAssertTrue(text.contains("TikTok"))
+        XCTAssertTrue(text.contains("YouTube 4K"))
     }
 
     func testListStylesAndRecommendTools() async throws {

@@ -5,6 +5,7 @@ import GhostlyFCPXML
 import GhostlySubtitles
 import GhostlyDirector
 import GhostlyLearning
+import GhostlyExport
 
 /// `ghostly` — command-line access to the studio engines.
 ///
@@ -45,6 +46,8 @@ guard let command = arguments.first else {
       ghostly validate <file.fcpxml>
       ghostly analyze <file.fcpxml>
       ghostly styles
+      ghostly export <input> --preset <name> --out <output> [--title T] [--artist A]
+      ghostly presets
       ghostly version
     """)
     exit(0)
@@ -133,6 +136,27 @@ case "styles":
     for style in CaptionStyle.builtIn {
         print("\(style.name): \(style.fontName) \(Int(style.fontSize))pt, \(style.position.rawValue), \(style.animation.rawValue)\(style.allCaps ? ", ALL CAPS" : "")")
     }
+
+case "presets":
+    for preset in RenderPreset.builtIn {
+        print("\(preset.name): \(preset.container.rawValue) / \(preset.videoCodec.rawValue), \(preset.format.width)x\(preset.format.height) @ \(String(format: "%.3g", preset.format.frameRate.nominalFPS))fps, \(preset.videoBitrateKbps)kbps")
+    }
+
+case "export":
+    guard arguments.count >= 2 else { fail("usage: ghostly export <input> --preset <name> --out <output>") }
+    let input = arguments[1]
+    let presetName = option("preset", in: arguments) ?? "YouTube 1080p"
+    guard let preset = RenderPreset.named(presetName) else {
+        fail("unknown preset '\(presetName)'; try: \(RenderPreset.builtIn.map(\.name).joined(separator: ", "))")
+    }
+    let output = option("out", in: arguments)
+        ?? ((input as NSString).deletingPathExtension + "_\(preset.name.replacingOccurrences(of: " ", with: "")).\(preset.container.rawValue)")
+    let metadata = ExportMetadata(title: option("title", in: arguments),
+                                  artist: option("artist", in: arguments))
+    let command = FFmpegCommandBuilder().commandLine(
+        input: input, output: output, preset: preset, metadata: metadata)
+    // Print the command by default; the studio does not assume ffmpeg is present.
+    print(command)
 
 default:
     fail("unknown command '\(command)'; run 'ghostly' for usage")

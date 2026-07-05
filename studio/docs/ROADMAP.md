@@ -39,6 +39,10 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 - ✅ Asset manager: `GhostlyAssets` — auto-tagging, collections/folders/
   favorites, natural-language search, duplicate/unused finders, `search_assets`
   MCP tool (Phase 9)
+- ✅ Export: `GhostlyExport` — render presets (YouTube/TikTok/Instagram/ProRes),
+  deterministic FFmpeg command builder (exact NTSC rates, faststart, metadata),
+  render queue with injectable renderer; `export`/`presets` CLI commands and
+  `export_command`/`list_export_presets` MCP tools (Phase 16)
 
 ## M1 — Real media I/O 🔜
 

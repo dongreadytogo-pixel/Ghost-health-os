@@ -7,6 +7,7 @@ import GhostlyDirector
 import GhostlyDetection
 import GhostlyLearning
 import GhostlyAssets
+import GhostlyExport
 
 /// The wire schema for auto-edit jobs submitted by AI agents. Times are in
 /// seconds (JSON-friendly); conversion to rational time happens at the edge.
@@ -454,6 +455,82 @@ public struct FindHighlightsTool: MCPTool {
     }
 }
 
+/// `export_command`: build the FFmpeg command for a platform render preset.
+public struct ExportCommandTool: MCPTool {
+    public let name = "export_command"
+    public let description = """
+    Build the exact FFmpeg command to export a video for a platform preset \
+    (YouTube 1080p/4K, TikTok, Instagram Reel/Feed, ProRes 422 Master). \
+    Returns the preset details, the argument vector, and a copy-paste command \
+    line. Optionally embeds title/artist/comment metadata.
+    """
+    public let inputSchema: JSONValue = .object([
+        "type": "object",
+        "properties": .object([
+            "input": .object(["type": "string", "description": "source file path"]),
+            "output": .object(["type": "string", "description": "destination file path"]),
+            "preset": .object(["type": "string",
+                "description": "preset name, e.g. TikTok, YouTube 4K, Instagram Reel"]),
+            "title": .object(["type": "string"]),
+            "artist": .object(["type": "string"]),
+            "comment": .object(["type": "string"]),
+        ]),
+        "required": .array(["input", "output", "preset"]),
+    ])
+
+    public init() {}
+
+    public func call(arguments: JSONValue) async throws -> JSONValue {
+        guard let input = arguments["input"]?.stringValue, !input.isEmpty else {
+            throw StudioError.invalidInput(field: "input", reason: "required")
+        }
+        guard let output = arguments["output"]?.stringValue, !output.isEmpty else {
+            throw StudioError.invalidInput(field: "output", reason: "required")
+        }
+        guard let presetName = arguments["preset"]?.stringValue,
+              let preset = RenderPreset.named(presetName) else {
+            throw StudioError.notFound(entity: "RenderPreset",
+                                       id: arguments["preset"]?.stringValue ?? "")
+        }
+        let metadata = ExportMetadata(title: arguments["title"]?.stringValue,
+                                      artist: arguments["artist"]?.stringValue,
+                                      comment: arguments["comment"]?.stringValue)
+        let builder = FFmpegCommandBuilder()
+        let args = builder.arguments(input: input, output: output, preset: preset, metadata: metadata)
+        return .object([
+            "preset": .string(preset.name),
+            "container": .string(preset.container.rawValue),
+            "resolution": .string("\(preset.format.width)x\(preset.format.height)"),
+            "fps": .number((preset.format.frameRate.nominalFPS * 1000).rounded() / 1000),
+            "videoBitrateKbps": .number(Double(preset.videoBitrateKbps)),
+            "arguments": .array(args.map(JSONValue.string)),
+            "commandLine": .string(builder.commandLine(input: input, output: output,
+                                                        preset: preset, metadata: metadata)),
+        ])
+    }
+}
+
+/// `list_export_presets`: enumerate render presets.
+public struct ListExportPresetsTool: MCPTool {
+    public let name = "list_export_presets"
+    public let description = "List the built-in render/export presets with their container, codec, resolution, and bitrate."
+    public let inputSchema: JSONValue = .object(["type": "object", "properties": .object([:])])
+
+    public init() {}
+
+    public func call(arguments: JSONValue) async throws -> JSONValue {
+        .array(RenderPreset.builtIn.map { preset in
+            .object([
+                "name": .string(preset.name),
+                "container": .string(preset.container.rawValue),
+                "videoCodec": .string(preset.videoCodec.rawValue),
+                "resolution": .string("\(preset.format.width)x\(preset.format.height)"),
+                "videoBitrateKbps": .number(Double(preset.videoBitrateKbps)),
+            ])
+        })
+    }
+}
+
 /// `list_caption_styles`: enumerate built-in caption styles.
 public struct ListCaptionStylesTool: MCPTool {
     public let name = "list_caption_styles"
@@ -523,6 +600,8 @@ public enum GhostlyMCPFactory {
         await server.register(AnalyzeTimelineTool())
         await server.register(FindHighlightsTool())
         await server.register(SearchAssetsTool())
+        await server.register(ExportCommandTool())
+        await server.register(ListExportPresetsTool())
         await server.register(ListCaptionStylesTool())
         await server.register(RecommendTool(store: store))
         return server

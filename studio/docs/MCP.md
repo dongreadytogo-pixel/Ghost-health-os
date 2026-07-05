@@ -90,6 +90,18 @@ aspect, duration band, filename tokens) then returns ranked matches with their
 derived tags. Understands kinds, favorite/vertical/horizontal, and
 "under/over N seconds|minutes" bounds.
 
+### `export_command`
+`{ "input": "cut.mov", "output": "final.mp4", "preset": "TikTok", "title":
+"...", "artist": "...", "comment": "..." }` → the resolved preset (container,
+codec, resolution, fps, bitrate), the FFmpeg argument vector, and a
+copy-paste `commandLine`. Presets: `YouTube 1080p`, `YouTube 4K`, `TikTok`,
+`Instagram Reel`, `Instagram Feed`, `ProRes 422 Master`. NTSC rates stay exact
+(`30000/1001`); MP4/MOV get `+faststart`; metadata is embedded via `-metadata`.
+
+### `list_export_presets`
+No arguments → the built-in render presets with container, codec, resolution,
+and bitrate.
+
 ### `list_caption_styles`
 No arguments → the built-in caption presets with fonts, sizes, positions and
 animations.
