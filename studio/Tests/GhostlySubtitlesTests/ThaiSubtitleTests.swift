@@ -24,7 +24,7 @@ final class ThaiSubtitleTests: XCTestCase {
 
     // MARK: Character-based wrapping (no word timings)
 
-    func testThaiWrapByCharacterPreservesText() {
+    func testThaiWrapByCharacterPreservesText() throws {
         // A long Thai sentence with no spaces and no word timings.
         let thai = "สวัสดีครับวันนี้อากาศดีมากเราจะไปเที่ยวทะเลกันนะครับ" // 51 chars
         let cue = SubtitleCue(range: TimeRange(start: time(0), end: time(10)), text: thai)
@@ -39,7 +39,8 @@ final class ThaiSubtitleTests: XCTestCase {
         XCTAssertEqual(wrapped.cues.map(\.text).joined(), thai)
         // Time is partitioned contiguously across the original range.
         XCTAssertEqual(wrapped.cues.first?.range.start, time(0))
-        XCTAssertEqual(wrapped.cues.last?.range.end.seconds, 10, accuracy: 1e-6)
+        let lastEnd = try XCTUnwrap(wrapped.cues.last).range.end.seconds
+        XCTAssertEqual(lastEnd, 10, accuracy: 1e-6)
         for (a, b) in zip(wrapped.cues, wrapped.cues.dropFirst()) {
             XCTAssertEqual(a.range.end, b.range.start, "slices must be contiguous")
         }
