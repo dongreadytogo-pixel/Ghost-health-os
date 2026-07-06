@@ -48,6 +48,7 @@ guard let command = arguments.first else {
       ghostly styles
       ghostly export <input> --preset <name> --out <output> [--title T] [--artist A]
       ghostly presets
+      ghostly demo-thai [--out file.fcpxml]
       ghostly version
     """)
     exit(0)
@@ -135,6 +136,25 @@ case "analyze":
 case "styles":
     for style in CaptionStyle.builtIn {
         print("\(style.name): \(style.fontName) \(Int(style.fontSize))pt, \(style.position.rawValue), \(style.animation.rawValue)\(style.allCaps ? ", ALL CAPS" : "")")
+    }
+
+case "demo-thai":
+    do {
+        let result = try ThaiShortsExample.build()
+        if let outPath = option("out", in: arguments) {
+            try result.fcpxml.write(toFile: outPath, atomically: true, encoding: .utf8)
+            print("wrote \(outPath)")
+            print("  vertical: \(result.isVertical), duration: \(String(format: "%.1f", result.durationSeconds))s, captions: \(result.captionCount)")
+            print("  valid FCPXML: \(result.isValid)")
+        } else {
+            print(result.fcpxml)
+        }
+        if !result.isValid {
+            for issue in result.issues { FileHandle.standardError.write(Data("\(issue)\n".utf8)) }
+            exit(2)
+        }
+    } catch {
+        fail(error.localizedDescription)
     }
 
 case "presets":

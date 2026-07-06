@@ -48,6 +48,7 @@ jobs:
           "$BIN/ghostly" styles
           "$BIN/ghostly" presets
           "$BIN/ghostly" export in.mov --preset TikTok --out out.mp4 | grep -q "scale=1080:1920"
+          "$BIN/ghostly" demo-thai | grep -q "captionFormat=ITT.th"
 
       - name: Smoke-test MCP server handshake
         run: |

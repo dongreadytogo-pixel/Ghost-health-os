@@ -61,6 +61,7 @@ ghostly captions talk.srt --style TikTok --out styled.srt
 ghostly validate export.fcpxml
 ghostly analyze export.fcpxml
 ghostly styles
+ghostly demo-thai --out thai-short.fcpxml   # end-to-end Thai vertical short
 ```
 
 ### Drive it from an AI agent (MCP)
