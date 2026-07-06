@@ -18,6 +18,9 @@ public struct EditJob: Codable, Sendable {
     public var footage: [FootageItem]
     public var music: FootageItem?
     public var transcriptSRT: String?
+    /// BCP-47 caption language (e.g. "th"); default "en". Drives Thai/CJK
+    /// wrapping and the FCPXML caption role.
+    public var language: String?
 
     public struct FootageItem: Codable, Sendable {
         public var name: String
@@ -116,6 +119,8 @@ public struct AutoEditTool: MCPTool {
             ]),
             "music": .object(["type": "object", "description": "optional music asset, same shape as footage items"]),
             "transcriptSRT": .object(["type": "string", "description": "optional SRT transcript for captions"]),
+            "language": .object(["type": "string",
+                "description": "caption language (BCP-47), e.g. 'th' for Thai; default 'en'"]),
         ]),
         "required": .array(["command", "footage"]),
     ])
@@ -138,7 +143,12 @@ public struct AutoEditTool: MCPTool {
             let asset = try audioItem.asset()
             music = (asset, audioItem.analysis(for: asset))
         }
-        let transcript = try job.transcriptSRT.map { try SRT.parse($0) }
+        let transcript = try job.transcriptSRT.map { srt -> SubtitleTrack in
+            let parsed = try SRT.parse(srt)
+            // Tag the track's language so captions wrap correctly (Thai/CJK by
+            // character) and get the right FCPXML role (e.g. ITT.th).
+            return SubtitleTrack(language: job.language ?? "en", cues: parsed.cues)
+        }
 
         let timeline = try AutoEditPlanner(profile: plan.profile).plan(
             footage: footage, music: music, transcript: transcript,

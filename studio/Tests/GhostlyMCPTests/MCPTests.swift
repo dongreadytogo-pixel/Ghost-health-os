@@ -123,6 +123,23 @@ final class MCPTests: XCTestCase {
         XCTAssertTrue(text.contains("footage"), text)
     }
 
+    func testAutoEditToolThaiCaptions() async throws {
+        let server = try await makeServer()
+        let call = """
+        {"jsonrpc":"2.0","id":40,"method":"tools/call","params":{"name":"auto_edit","arguments":{
+            "command":"create a tiktok with captions",
+            "language":"th",
+            "footage":[{"name":"talk","url":"file:///media/talk.mov","durationSeconds":12,
+                        "speechRanges":[[1,4],[5,10]]}],
+            "transcriptSRT":"1\\n00:00:01,000 --> 00:00:03,000\\nสวัสดีครับ\\n"
+        }}}
+        """
+        let (text, isError) = try toolText(await send(server, call))
+        XCTAssertFalse(isError, text)
+        XCTAssertTrue(text.contains("captionFormat=ITT.th"), "Thai language must tag the caption role")
+        XCTAssertTrue(text.contains("สวัสดีครับ"))
+    }
+
     func testParseCommandTool() async throws {
         let server = try await makeServer()
         let call = """

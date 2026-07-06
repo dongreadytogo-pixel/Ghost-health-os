@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- `auto_edit` MCP tool accepts a `language` argument (BCP-47) so agents can
+  request Thai (or CJK) captions in a single call — tags the caption track,
+  driving character-based wrapping and the `ITT.th` FCPXML role.
 - **Thai vertical-short demo**: `ThaiShortsExample` runs the whole pipeline
   end-to-end from fixtures (analyze → plan a 9:16 TikTok edit → attach Thai
   captions → emit validated FCPXML with the `ITT.th` role), exposed as the

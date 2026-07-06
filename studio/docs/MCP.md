@@ -50,8 +50,9 @@ Natural-language command + analyzed footage → complete, validated FCPXML.
 ```
 
 Times are seconds. Detection data is optional — without `speechRanges` the
-planner falls back to scene cuts, then to whole-asset. The returned FCPXML has
-already passed the structural validator; import it with
+planner falls back to scene cuts, then to whole-asset. Pass `"language": "th"`
+(BCP-47) to produce Thai captions (character-based wrapping + `ITT.th` role).
+The returned FCPXML has already passed the structural validator; import it with
 **File → Import → XML** in Final Cut Pro.
 
 ### `parse_edit_command`
