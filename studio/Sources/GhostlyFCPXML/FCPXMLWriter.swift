@@ -301,11 +301,14 @@ public struct FCPXMLWriter {
     private func captionElement(_ caption: Caption, offset: RationalTime,
                                 resources: inout ResourceTable) -> XML {
         let styleID = resources.allocateTextStyleID()
+        // FCP caption roles are suffixed with the language code, e.g.
+        // "iTT?captionFormat=ITT.th" for Thai captions.
+        let lang = caption.language.isEmpty ? "en" : caption.language
         let roleFormat: String
         switch caption.format {
-        case .itt: roleFormat = "iTT?captionFormat=ITT.en"
-        case .cea608: roleFormat = "captions?captionFormat=CEA-608.en"
-        case .srt: roleFormat = "captions?captionFormat=SRT.en"
+        case .itt: roleFormat = "iTT?captionFormat=ITT.\(lang)"
+        case .cea608: roleFormat = "captions?captionFormat=CEA-608.\(lang)"
+        case .srt: roleFormat = "captions?captionFormat=SRT.\(lang)"
         }
         let element = XML("caption")
             .attr("role", roleFormat)

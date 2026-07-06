@@ -40,38 +40,112 @@ public struct SubtitleTrack: Sendable, Codable {
 
     public var duration: RationalTime { cues.map(\.range.end).max() ?? .zero }
 
-    /// Splits long cues so none exceeds `maxCharactersPerLine` characters —
-    /// respecting word timings when present so re-timing stays accurate.
+    /// Splits long cues so none exceeds `maxCharactersPerLine` characters.
+    /// Word-timed cues wrap on word boundaries (timings preserved); cues in
+    /// spaceless scripts (Thai, CJK…) wrap by character, splitting the time
+    /// range proportionally. Timed tokens are re-joined without inserting
+    /// spaces for spaceless scripts, so Thai text is never mangled.
     public func wrapped(maxCharactersPerLine: Int) -> SubtitleTrack {
         var out: [SubtitleCue] = []
         for cue in cues {
-            if cue.text.count <= maxCharactersPerLine || cue.words.count < 2 {
+            if cue.text.count <= maxCharactersPerLine {
                 out.append(cue)
-                continue
+            } else if cue.words.count >= 2 {
+                out.append(contentsOf: wrapByWords(cue, max: maxCharactersPerLine))
+            } else {
+                out.append(contentsOf: wrapPlainText(cue, max: maxCharactersPerLine))
             }
-            var current: [SubtitleCue.TimedWord] = []
-            var currentLength = 0
-            func flush() {
-                guard let first = current.first, let last = current.last else { return }
-                out.append(SubtitleCue(
-                    range: TimeRange(start: first.range.start, end: last.range.end),
-                    text: current.map(\.text).joined(separator: " "),
-                    speaker: cue.speaker,
-                    words: current))
-                current = []
-                currentLength = 0
-            }
-            for word in cue.words {
-                let projected = currentLength + word.text.count + (current.isEmpty ? 0 : 1)
-                if projected > maxCharactersPerLine, !current.isEmpty {
-                    flush()
-                }
-                current.append(word)
-                currentLength += word.text.count + (current.count > 1 ? 1 : 0)
-            }
-            flush()
         }
         return SubtitleTrack(language: language, cues: out)
+    }
+
+    /// Wraps a word-timed cue on word boundaries. The join separator is empty
+    /// for spaceless scripts so Thai/CJK tokens re-join into contiguous text.
+    private func wrapByWords(_ cue: SubtitleCue, max maxCharactersPerLine: Int) -> [SubtitleCue] {
+        let separator = TextScript.isSpaceless(cue.text) ? "" : " "
+        let sepLength = separator.count
+        var out: [SubtitleCue] = []
+        var current: [SubtitleCue.TimedWord] = []
+        var currentLength = 0
+        func flush() {
+            guard let first = current.first, let last = current.last else { return }
+            out.append(SubtitleCue(
+                range: TimeRange(start: first.range.start, end: last.range.end),
+                text: current.map(\.text).joined(separator: separator),
+                speaker: cue.speaker,
+                words: current))
+            current = []
+            currentLength = 0
+        }
+        for word in cue.words {
+            let projected = currentLength + word.text.count + (current.isEmpty ? 0 : sepLength)
+            if projected > maxCharactersPerLine, !current.isEmpty {
+                flush()
+            }
+            current.append(word)
+            currentLength += word.text.count + (current.count > 1 ? sepLength : 0)
+        }
+        flush()
+        return out
+    }
+
+    /// Wraps a cue that has no usable word timings. Spaceless scripts (Thai,
+    /// CJK…) are chunked by grapheme; spaced text is packed on word boundaries
+    /// so words are never broken. Each chunk is allocated a share of the cue's
+    /// duration proportional to its character length.
+    private func wrapPlainText(_ cue: SubtitleCue, max maxCharactersPerLine: Int) -> [SubtitleCue] {
+        let chunks: [String] = TextScript.isSpaceless(cue.text)
+            ? graphemeChunks(cue.text, max: maxCharactersPerLine)
+            : packWords(cue.text, max: maxCharactersPerLine)
+        guard chunks.count > 1 else { return [cue] }
+
+        let lengths = chunks.map(\.count)
+        let total = max(1, lengths.reduce(0, +))
+        let start = cue.range.start
+        let duration = cue.range.duration
+        var out: [SubtitleCue] = []
+        var consumed = 0
+        for (chunk, length) in zip(chunks, lengths) {
+            let sliceStart = start + duration.scaled(by: consumed, over: total)
+            consumed += length
+            let sliceEnd = start + duration.scaled(by: consumed, over: total)
+            out.append(SubtitleCue(
+                range: TimeRange(start: sliceStart, end: sliceEnd),
+                text: chunk, speaker: cue.speaker))
+        }
+        return out
+    }
+
+    /// Fixed-size grapheme chunks (for spaceless scripts).
+    private func graphemeChunks(_ text: String, max maxCharactersPerLine: Int) -> [String] {
+        let chars = Array(text)
+        var chunks: [String] = []
+        var index = 0
+        while index < chars.count {
+            let end = Swift.min(index + maxCharactersPerLine, chars.count)
+            chunks.append(String(chars[index..<end]))
+            index = end
+        }
+        return chunks
+    }
+
+    /// Greedily packs whitespace-separated words into lines ≤ max (a single
+    /// word longer than max becomes its own line rather than being split).
+    private func packWords(_ text: String, max maxCharactersPerLine: Int) -> [String] {
+        var lines: [String] = []
+        var current = ""
+        for word in text.split(whereSeparator: { $0 == " " || $0 == "\n" }) {
+            if current.isEmpty {
+                current = String(word)
+            } else if current.count + 1 + word.count <= maxCharactersPerLine {
+                current += " " + word
+            } else {
+                lines.append(current)
+                current = String(word)
+            }
+        }
+        if !current.isEmpty { lines.append(current) }
+        return lines
     }
 
     /// Shifts all cues by a signed offset (e.g. to align to a clip's position).
@@ -88,12 +162,14 @@ public struct SubtitleTrack: Sendable, Codable {
         })
     }
 
-    /// Converts cues into FCP timeline captions.
+    /// Converts cues into FCP timeline captions, carrying the track's language
+    /// (BCP-47) into each caption so the FCPXML role is tagged correctly
+    /// (e.g. `ITT.th` for a Thai track).
     public func captions(format: Caption.CaptionFormat = .itt, styleName: String? = nil) -> [Caption] {
         cues.map { cue in
             Caption(text: cue.speaker.map { "\($0): \(cue.text)" } ?? cue.text,
                     range: cue.range, speaker: cue.speaker,
-                    format: format, styleName: styleName)
+                    format: format, styleName: styleName, language: language)
         }
     }
 }

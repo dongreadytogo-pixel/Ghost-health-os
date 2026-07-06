@@ -95,6 +95,8 @@ public struct Caption: Hashable, Sendable, Codable {
     public var speaker: String?
     public var format: CaptionFormat
     public var styleName: String?
+    /// BCP-47 language code (e.g. "en", "th"); drives the FCPXML caption role.
+    public var language: String
 
     public enum CaptionFormat: String, Sendable, Codable, CaseIterable {
         case itt = "ITT"
@@ -103,12 +105,30 @@ public struct Caption: Hashable, Sendable, Codable {
     }
 
     public init(text: String, range: TimeRange, speaker: String? = nil,
-                format: CaptionFormat = .itt, styleName: String? = nil) {
+                format: CaptionFormat = .itt, styleName: String? = nil,
+                language: String = "en") {
         self.text = text
         self.range = range
         self.speaker = speaker
         self.format = format
         self.styleName = styleName
+        self.language = language
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case text, range, speaker, format, styleName, language
+    }
+
+    /// Custom decode so captions serialized before `language` existed still
+    /// decode (defaulting to "en").
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        text = try c.decode(String.self, forKey: .text)
+        range = try c.decode(TimeRange.self, forKey: .range)
+        speaker = try c.decodeIfPresent(String.self, forKey: .speaker)
+        format = try c.decodeIfPresent(CaptionFormat.self, forKey: .format) ?? .itt
+        styleName = try c.decodeIfPresent(String.self, forKey: .styleName)
+        language = try c.decodeIfPresent(String.self, forKey: .language) ?? "en"
     }
 }
 

@@ -261,9 +261,12 @@ public struct FCPXMLReader {
         if role.contains("CEA-608") { format = .cea608 }
         else if role.contains("SRT") { format = .srt }
         else { format = .itt }
+        // Language is the suffix after the last dot in the role, e.g.
+        // "iTT?captionFormat=ITT.th" → "th".
+        let language = role.split(separator: ".").last.map(String.init) ?? "en"
         return Caption(text: text,
                        range: TimeRange(start: sourceToTimeline(offset), duration: duration),
-                       format: format)
+                       format: format, language: language)
     }
 
     private func parseRole(_ string: String) -> Role {

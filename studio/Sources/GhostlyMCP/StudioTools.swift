@@ -196,7 +196,9 @@ public struct GenerateCaptionsTool: MCPTool {
             "style": .object(["type": "string", "enum": ["TikTok", "YouTube", "Instagram", "Broadcast"]]),
             "shiftSeconds": .object(["type": "number", "description": "optional time offset"]),
             "autoPunctuate": .object(["type": "boolean",
-                "description": "capitalize + add terminal punctuation for raw ASR transcripts"]),
+                "description": "capitalize + add terminal punctuation for raw ASR transcripts (no-op on Thai/CJK)"]),
+            "language": .object(["type": "string",
+                "description": "BCP-47 code, e.g. 'en' or 'th'; Thai/CJK wrap by character and tag the caption role"]),
         ]),
         "required": .array(["subtitles", "style"]),
     ])
@@ -212,13 +214,18 @@ public struct GenerateCaptionsTool: MCPTool {
             throw StudioError.notFound(entity: "CaptionStyle",
                                        id: arguments["style"]?.stringValue ?? "")
         }
-        var track = content.hasPrefix("WEBVTT")
+        let parsed = content.hasPrefix("WEBVTT")
             ? try WebVTT.parse(content)
             : try SRT.parse(content)
+        // Language (BCP-47) drives caption wrapping (Thai wraps by character)
+        // and the FCPXML caption role; default "en".
+        let language = arguments["language"]?.stringValue ?? "en"
+        var track = SubtitleTrack(language: language, cues: parsed.cues)
         if let shift = arguments["shiftSeconds"]?.numberValue, shift != 0 {
             track = track.shifted(by: RationalTime(seconds: shift, preferredTimescale: 1000))
         }
         // Optional ASR cleanup for raw, unpunctuated transcripts (Phase 6).
+        // A no-op on non-Latin scripts (e.g. Thai).
         if arguments["autoPunctuate"]?.boolValue == true {
             track = AutoPunctuator().punctuate(track)
         }
@@ -227,6 +234,7 @@ public struct GenerateCaptionsTool: MCPTool {
             "srt": .string(SRT.serialize(styled)),
             "cueCount": .number(Double(styled.cues.count)),
             "style": .string(style.name),
+            "language": .string(language),
             "position": .string(style.position.rawValue),
             "animation": .string(style.animation.rawValue),
         ])

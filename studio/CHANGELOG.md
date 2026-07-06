@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **Thai-first captions** (per the Constitution's language policy):
+  `TextScript` detects spaceless scripts (Thai/Lao/Khmer/Myanmar/CJK/kana/
+  Hangul); `SubtitleTrack.wrapped` now wraps spaceless scripts by grapheme and
+  re-joins timed Thai tokens without inserting spaces, while spaced languages
+  still wrap on word boundaries; `Caption` gains a BCP-47 `language` (tolerant
+  decode) that the FCPXML writer/reader map to the caption role (`ITT.th`);
+  `AutoPunctuator` is a no-op on non-Latin text; the `generate_captions` MCP
+  tool accepts a `language` argument. Tested with real Thai text.
 - `GhostlyDetection`: `LumaHistogram` — pure, dependency-free normalized
   luma-histogram binning (from 0…1 luma, 8-bit grayscale, or Rec.601 RGB) that
   every histogram provider shares, plus a platform-gated

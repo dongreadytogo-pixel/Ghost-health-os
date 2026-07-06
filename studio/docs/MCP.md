@@ -64,7 +64,9 @@ Useful for previewing what `auto_edit` would do.
 "autoPunctuate": true }` → restyled SRT (wrapping, casing) plus style
 metadata. Styles: `TikTok`, `YouTube`, `Instagram`, `Broadcast`.
 `autoPunctuate` capitalizes and adds terminal punctuation for raw ASR
-transcripts (timing preserved).
+transcripts (timing preserved; a no-op on Thai/CJK). `language` (BCP-47, e.g.
+`th`) makes Thai/CJK wrap by character instead of by spaces and tags the
+FCPXML caption role (`ITT.th`).
 
 ### `validate_fcpxml`
 `{ "fcpxml": "<document>" }` → `{ valid, errors[], warnings[] }`. Checks XML

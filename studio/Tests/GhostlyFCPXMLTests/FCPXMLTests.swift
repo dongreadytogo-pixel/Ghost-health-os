@@ -129,6 +129,29 @@ final class FCPXMLTests: XCTestCase {
         XCTAssertTrue(FCPXMLValidator().isAcceptable(doc), "\(FCPXMLValidator().validate(doc))")
     }
 
+    func testThaiCaptionRoleLanguageRoundTrip() throws {
+        let video = Asset(name: "V", url: URL(string: "file:///v.mov")!,
+                          duration: RationalTime(seconds: 60), kind: .video, format: .hd1080p30)
+        var timeline = Timeline(name: "Thai", format: .hd1080p30)
+        timeline.appendToStoryline(assetID: video.id, name: "A",
+            sourceRange: TimeRange(start: .zero, duration: RationalTime(seconds: 10)))
+        timeline.captions.append(Caption(
+            text: "สวัสดีครับ",
+            range: TimeRange(start: RationalTime(seconds: 1), duration: RationalTime(seconds: 2)),
+            format: .itt, language: "th"))
+
+        let doc = try FCPXMLWriter().document(
+            for: Project(name: "P", timeline: timeline), assets: [video])
+        XCTAssertTrue(doc.contains("captionFormat=ITT.th"), "Thai caption role must be tagged .th")
+        XCTAssertTrue(doc.contains("สวัสดีครับ"))
+        XCTAssertTrue(FCPXMLValidator().isAcceptable(doc), "\(FCPXMLValidator().validate(doc))")
+
+        let parsed = try FCPXMLReader().library(from: doc)
+        let caption = try XCTUnwrap(parsed.events.first?.projects.first?.timeline.captions.first)
+        XCTAssertEqual(caption.language, "th")
+        XCTAssertEqual(caption.text, "สวัสดีครับ")
+    }
+
     // MARK: Round trip
 
     func testRoundTripPreservesStructure() throws {

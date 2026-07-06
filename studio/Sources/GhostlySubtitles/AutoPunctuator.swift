@@ -29,6 +29,11 @@ public struct AutoPunctuator: Sendable {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return text }
 
+        // Latin-style capitalization and terminal "." / "?" are meaningless for
+        // scripts like Thai (no letter case, different punctuation norms), so
+        // leave such text untouched rather than corrupting it.
+        guard TextScript.hasLatinLetters(trimmed) else { return text }
+
         // Capitalize word-by-word: sentence starts, "I", and known nouns.
         var capitalizeNext = true
         var words: [String] = []
