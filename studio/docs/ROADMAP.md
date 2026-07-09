@@ -61,7 +61,9 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
   normalized) + platform-gated `AVFrameHistogramProvider` (samples + downscales
   frames on Apple platforms) feeding `SceneChangeDetector`
 - 🔜 Vision/CoreML `VisualDetecting` adapter (face/object/text on real frames)
-- 🔜 Whisper transcription adapter (whisper.cpp) → word-timed `SubtitleTrack`
+- ✅ Whisper seam: `GhostlyTranscription` — whisper.cpp full-JSON parser →
+  word-timed `SubtitleTrack` (Thai-tested) + injectable CLI wrapper +
+  `ghostly transcribe` (binary runs on user's machine; parser CI-tested)
 - 🔜 FFmpeg-based providers for Linux/CI media fixtures
 - 🔜 `ghostly edit` CLI command: media in → analyzed → FCPXML out
 - 🔜 Speaker diarization for multi-speaker captions

@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- `GhostlyTranscription`: new module — the Whisper seam. `Transcribing`
+  protocol, `WhisperJSONParser` (whisper.cpp full-JSON → word-timed
+  `SubtitleTrack`, millisecond-exact offsets, control tokens like `[_BEG_]`
+  filtered, detected language carried through — fixture-tested with Thai
+  output), and `WhisperCLITranscriber` (injectable-runner CLI wrapper with
+  token-level timestamps via --max-len 1). New `ghostly transcribe` command:
+  audio → Thai/any-language SRT with a local whisper.cpp model.
 - `ThaiNumber` — Thai numeral verbalization for captions/voiceover text:
   `spell` (150 → "หนึ่งร้อยห้าสิบ", เอ็ด/ยี่สิบ/ล้าน rules) and `verbalize`
   (rewrites Arabic and Thai digits inside text, decimals read as "จุด…"),

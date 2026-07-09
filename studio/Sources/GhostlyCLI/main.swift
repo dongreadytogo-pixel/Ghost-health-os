@@ -6,6 +6,7 @@ import GhostlySubtitles
 import GhostlyDirector
 import GhostlyLearning
 import GhostlyExport
+import GhostlyTranscription
 
 /// `ghostly` — command-line access to the studio engines.
 ///
@@ -49,6 +50,7 @@ guard let command = arguments.first else {
       ghostly export <input> --preset <name> --out <output> [--title T] [--artist A]
       ghostly presets
       ghostly demo-thai [--out file.fcpxml]
+      ghostly transcribe <audio> --model <ggml.bin> [--lang th] [--out subs.srt] [--whisper path]
       ghostly version
     """)
     exit(0)
@@ -136,6 +138,31 @@ case "analyze":
 case "styles":
     for style in CaptionStyle.builtIn {
         print("\(style.name): \(style.fontName) \(Int(style.fontSize))pt, \(style.position.rawValue), \(style.animation.rawValue)\(style.allCaps ? ", ALL CAPS" : "")")
+    }
+
+case "transcribe":
+    guard arguments.count >= 2 else {
+        fail("usage: ghostly transcribe <audio> --model <ggml.bin> [--lang th]")
+    }
+    guard let modelPath = option("model", in: arguments) else {
+        fail("--model <path to whisper.cpp ggml model> is required")
+    }
+    let audioURL = URL(fileURLWithPath: arguments[1])
+    let language = option("lang", in: arguments)
+    let whisperPath = option("whisper", in: arguments) ?? "whisper-cli"
+    let transcriber = WhisperCLITranscriber(executablePath: whisperPath, modelPath: modelPath)
+    do {
+        // Top-level await: main.swift supports an async entry point.
+        let track = try await transcriber.transcribe(audioURL, language: language)
+        let srt = SRT.serialize(track)
+        if let outPath = option("out", in: arguments) {
+            try srt.write(toFile: outPath, atomically: true, encoding: .utf8)
+            print("wrote \(outPath) (\(track.cues.count) cues, language: \(track.language))")
+        } else {
+            print(srt, terminator: "")
+        }
+    } catch {
+        fail(error.localizedDescription)
     }
 
 case "demo-thai":

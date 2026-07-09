@@ -14,6 +14,7 @@ let package = Package(
         .library(name: "GhostlyExport", targets: ["GhostlyExport"]),
         .library(name: "GhostlyStorage", targets: ["GhostlyStorage"]),
         .library(name: "GhostlyPlugin", targets: ["GhostlyPlugin"]),
+        .library(name: "GhostlyTranscription", targets: ["GhostlyTranscription"]),
         .library(name: "GhostlyDirector", targets: ["GhostlyDirector"]),
         .library(name: "GhostlyAI", targets: ["GhostlyAI"]),
         .library(name: "GhostlyLearning", targets: ["GhostlyLearning"]),
@@ -33,6 +34,7 @@ let package = Package(
         .target(name: "GhostlyExport", dependencies: ["GhostlyCore", "GhostlyDomain"]),
         .target(name: "GhostlyStorage", dependencies: ["GhostlyCore", "GhostlyDomain"]),
         .target(name: "GhostlyPlugin", dependencies: ["GhostlyCore"]),
+        .target(name: "GhostlyTranscription", dependencies: ["GhostlyCore", "GhostlySubtitles"]),
         .target(name: "GhostlyDirector", dependencies: [
             "GhostlyCore", "GhostlyDomain", "GhostlyDetection", "GhostlyFCPXML", "GhostlySubtitles",
         ]),
@@ -52,6 +54,7 @@ let package = Package(
         .executableTarget(name: "GhostlyCLI", dependencies: [
             "GhostlyCore", "GhostlyDomain", "GhostlyFCPXML", "GhostlySubtitles",
             "GhostlyDirector", "GhostlyDetection", "GhostlyLearning", "GhostlyExport",
+            "GhostlyTranscription",
         ]),
         .executableTarget(name: "GhostlyMCPServer", dependencies: ["GhostlyMCP"]),
         // MARK: Tests
@@ -64,6 +67,9 @@ let package = Package(
         .testTarget(name: "GhostlyExportTests", dependencies: ["GhostlyExport", "GhostlyDomain", "GhostlyCore"]),
         .testTarget(name: "GhostlyStorageTests", dependencies: ["GhostlyStorage", "GhostlyDomain", "GhostlyCore"]),
         .testTarget(name: "GhostlyPluginTests", dependencies: ["GhostlyPlugin", "GhostlyCore"]),
+        .testTarget(name: "GhostlyTranscriptionTests", dependencies: [
+            "GhostlyTranscription", "GhostlySubtitles", "GhostlyCore",
+        ]),
         .testTarget(name: "GhostlyDirectorTests", dependencies: [
             "GhostlyDirector", "GhostlyDetection", "GhostlySubtitles", "GhostlyDomain", "GhostlyCore",
         ]),
