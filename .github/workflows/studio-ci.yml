@@ -49,6 +49,19 @@ jobs:
           "$BIN/ghostly" presets
           "$BIN/ghostly" export in.mov --preset TikTok --out out.mp4 | grep -q "scale=1080:1920"
           "$BIN/ghostly" demo-thai | grep -q "captionFormat=ITT.th"
+          cat > /tmp/thai.srt <<'EOF'
+          1
+          00:00:01,000 --> 00:00:03,500
+          สวัสดีครับวันนี้เราจะมารีวิวกล้องตัวใหม่
+
+          2
+          00:00:04,000 --> 00:00:07,000
+          กล้องตัวนี้ถ่ายวิดีโอได้สวยมาก
+          EOF
+          "$BIN/ghostly" edit /tmp/thai.srt --duration 8 --command "create a tiktok with captions, remove silence" > /tmp/edit.fcpxml
+          grep -q "<fcpxml" /tmp/edit.fcpxml
+          grep -q "captionFormat=ITT.th" /tmp/edit.fcpxml
+          "$BIN/ghostly" validate /tmp/edit.fcpxml
 
       - name: Smoke-test MCP server handshake
         run: |

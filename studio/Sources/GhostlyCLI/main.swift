@@ -43,6 +43,7 @@ guard let command = arguments.first else {
 
     Usage:
       ghostly intent "<editing command>"
+      ghostly edit <subtitles.srt|.vtt> --duration <seconds> --command "<editing command>" [--lang th] [--name clip] [--project name] [--out file.fcpxml]
       ghostly captions <subtitles.srt|.vtt> --style <TikTok|YouTube|Instagram|Broadcast> [--shift seconds] [--out file]
       ghostly validate <file.fcpxml>
       ghostly analyze <file.fcpxml>
@@ -72,6 +73,49 @@ case "intent":
         print("  format: \(plan.profile.format.width)x\(plan.profile.format.height)")
         print("  cut on beats: \(plan.profile.cutOnBeats)")
         print("  captions: \(plan.profile.captionStyleName ?? "none")")
+    } catch {
+        fail(error.localizedDescription)
+    }
+
+case "edit":
+    // End-to-end: transcript + declared clip duration → auto-edit → FCPXML.
+    // Thai-first: --lang defaults to "th".
+    guard arguments.count >= 2 else {
+        fail("usage: ghostly edit <subtitles.srt|.vtt> --duration <seconds> --command \"<editing command>\"")
+    }
+    let subtitlePath = arguments[1]
+    guard let durationText = option("duration", in: arguments),
+          let durationSeconds = Double(durationText) else {
+        fail("--duration <seconds> is required (declared length of the source clip)")
+    }
+    guard let editCommand = option("command", in: arguments) else {
+        fail("--command \"<editing command>\" is required, e.g. --command \"create a tiktok with captions, remove silence\"")
+    }
+    let clipName = option("name", in: arguments)
+        ?? (subtitlePath as NSString).lastPathComponent
+    do {
+        let output = try EditPipeline.run(EditPipeline.Input(
+            subtitles: readFile(subtitlePath),
+            durationSeconds: durationSeconds,
+            command: editCommand,
+            language: option("lang", in: arguments) ?? "th",
+            clipName: clipName,
+            projectName: option("project", in: arguments) ?? "AI Edit"))
+        if let outPath = option("out", in: arguments) {
+            try output.fcpxml.write(toFile: outPath, atomically: true, encoding: .utf8)
+            print("wrote \(outPath)")
+        } else {
+            print(output.fcpxml)
+        }
+        FileHandle.standardError.write(Data("""
+        profile: \(output.profileStyle), language: \(output.language)
+        clips: \(output.storylineClipCount), captions: \(output.captionCount), duration: \(String(format: "%.2f", output.durationSeconds))s, vertical: \(output.isVertical)
+        valid FCPXML: \(output.isValid)\n
+        """.utf8))
+        if !output.isValid {
+            for issue in output.issues { FileHandle.standardError.write(Data("\(issue)\n".utf8)) }
+            exit(2)
+        }
     } catch {
         fail(error.localizedDescription)
     }

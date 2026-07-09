@@ -65,7 +65,10 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
   word-timed `SubtitleTrack` (Thai-tested) + injectable CLI wrapper +
   `ghostly transcribe` (binary runs on user's machine; parser CI-tested)
 - 🔜 FFmpeg-based providers for Linux/CI media fixtures
-- 🔜 `ghostly edit` CLI command: media in → analyzed → FCPXML out
+- ✅ `ghostly edit` CLI command: `EditPipeline` — transcript (SRT/VTT) +
+  declared duration + natural-language command → auto-edit → Thai captions →
+  validated FCPXML (cue timings double as speech ranges, so the whole chain
+  is CI-tested without media; pair with `ghostly transcribe` for real audio)
 - 🔜 Speaker diarization for multi-speaker captions
 
 ## M2 — App experience 🗺️

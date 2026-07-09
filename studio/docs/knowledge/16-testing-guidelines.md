@@ -15,7 +15,9 @@ handshake.
   (auto_edit → validate_fcpxml round-trip), storage save/snapshot/restore,
   FCPXML write→read round-trips.
 - **Smoke (CI)** — the built executables actually run (`ghostly intent`,
-  `presets`, `export`, MCP initialize/tools list over stdio).
+  `presets`, `export`, `demo-thai`, the end-to-end `edit` command from a Thai
+  SRT fixture — output re-linted with `ghostly validate` — and MCP
+  initialize/tools list over stdio).
 - **Performance** — `measure {}` blocks for RationalTime accumulation,
   detector throughput, FCPXML generation on large timelines (planned Phase 17).
 - **Stress** — 10k-clip timelines, hour-long detection arrays (planned).

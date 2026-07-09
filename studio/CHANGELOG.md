@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- `EditPipeline` (GhostlyDirector) + **`ghostly edit`** command — the first
+  end-to-end editing entry point: a transcript (SRT/WebVTT) plus a declared
+  clip duration and a natural-language command go through intent parsing,
+  pacing, auto-edit planning, and caption attachment to a **validated FCPXML
+  document** in one call. Cue timings double as speech ranges, so the entire
+  chain is deterministic and CI-tested without media; `--lang` defaults to
+  `th` (Thai-first). Cues past the declared duration are clamped/dropped;
+  out-of-range inputs fail with typed errors. Pairs with `ghostly transcribe`
+  for the audio → SRT step on a real machine.
 - `GhostlyTranscription`: new module — the Whisper seam. `Transcribing`
   protocol, `WhisperJSONParser` (whisper.cpp full-JSON → word-timed
   `SubtitleTrack`, millisecond-exact offsets, control tokens like `[_BEG_]`
