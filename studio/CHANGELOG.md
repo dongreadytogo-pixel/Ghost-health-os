@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- `ThaiNumber` — Thai numeral verbalization for captions/voiceover text:
+  `spell` (150 → "หนึ่งร้อยห้าสิบ", เอ็ด/ยี่สิบ/ล้าน rules) and `verbalize`
+  (rewrites Arabic and Thai digits inside text, decimals read as "จุด…"),
+  plus `SubtitleTrack.verbalizingThaiNumbers()` (timing-preserving).
 - `auto_edit` MCP tool accepts a `language` argument (BCP-47) so agents can
   request Thai (or CJK) captions in a single call — tags the caption track,
   driving character-based wrapping and the `ITT.th` FCPXML role.

@@ -162,6 +162,17 @@ public struct SubtitleTrack: Sendable, Codable {
         })
     }
 
+    /// Returns a copy with every numeral in each cue read aloud in Thai
+    /// (e.g. "ราคา 150 บาท" → "ราคา หนึ่งร้อยห้าสิบ บาท"). Word timings, being
+    /// tied to the original tokens, are dropped for rewritten cues.
+    public func verbalizingThaiNumbers() -> SubtitleTrack {
+        SubtitleTrack(language: language, cues: cues.map { cue in
+            let spoken = ThaiNumber.verbalize(cue.text)
+            guard spoken != cue.text else { return cue }
+            return SubtitleCue(range: cue.range, text: spoken, speaker: cue.speaker)
+        })
+    }
+
     /// Converts cues into FCP timeline captions, carrying the track's language
     /// (BCP-47) into each caption so the FCPXML role is tagged correctly
     /// (e.g. `ITT.th` for a Thai track).
