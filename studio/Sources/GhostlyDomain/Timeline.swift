@@ -1,6 +1,18 @@
 import Foundation
 import GhostlyCore
 
+/// A volume keyframe on a clip, in the clip's source-time coordinates.
+public struct VolumeKeyframe: Hashable, Sendable, Codable {
+    public var time: RationalTime
+    /// Linear gain; 1 = unity.
+    public var gain: Double
+
+    public init(time: RationalTime, gain: Double) {
+        self.time = time
+        self.gain = gain
+    }
+}
+
 /// A clip placed on a timeline: a window (`sourceRange`) into an asset,
 /// positioned at `offset` on its lane.
 public struct Clip: Hashable, Sendable, Codable, Identifiable {
@@ -16,6 +28,9 @@ public struct Clip: Hashable, Sendable, Codable, Identifiable {
     public var role: Role
     public var enabled: Bool
     public var volume: Double
+    /// Volume automation (e.g. music ducking); when non-empty these override
+    /// the flat `volume` in FCPXML output.
+    public var volumeKeyframes: [VolumeKeyframe]
     public var markers: [Marker]
     public var keywords: [KeywordRange]
     /// Effect references (Motion template / built-in effect identifiers).
@@ -24,6 +39,7 @@ public struct Clip: Hashable, Sendable, Codable, Identifiable {
     public init(id: ClipID = ClipID(), assetID: AssetID, name: String,
                 offset: RationalTime, sourceRange: TimeRange, lane: Int = 0,
                 role: Role = .video, enabled: Bool = true, volume: Double = 1.0,
+                volumeKeyframes: [VolumeKeyframe] = [],
                 markers: [Marker] = [], keywords: [KeywordRange] = [],
                 effects: [EffectReference] = []) {
         self.id = id
@@ -35,9 +51,35 @@ public struct Clip: Hashable, Sendable, Codable, Identifiable {
         self.role = role
         self.enabled = enabled
         self.volume = volume
+        self.volumeKeyframes = volumeKeyframes
         self.markers = markers
         self.keywords = keywords
         self.effects = effects
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, assetID, name, offset, sourceRange, lane, role, enabled,
+             volume, volumeKeyframes, markers, keywords, effects
+    }
+
+    /// Tolerant decode: `volumeKeyframes` is absent in documents written
+    /// before volume automation existed.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(ClipID.self, forKey: .id)
+        assetID = try c.decode(AssetID.self, forKey: .assetID)
+        name = try c.decode(String.self, forKey: .name)
+        offset = try c.decode(RationalTime.self, forKey: .offset)
+        sourceRange = try c.decode(TimeRange.self, forKey: .sourceRange)
+        lane = try c.decode(Int.self, forKey: .lane)
+        role = try c.decode(Role.self, forKey: .role)
+        enabled = try c.decode(Bool.self, forKey: .enabled)
+        volume = try c.decode(Double.self, forKey: .volume)
+        volumeKeyframes = try c.decodeIfPresent([VolumeKeyframe].self,
+                                                forKey: .volumeKeyframes) ?? []
+        markers = try c.decode([Marker].self, forKey: .markers)
+        keywords = try c.decode([KeywordRange].self, forKey: .keywords)
+        effects = try c.decode([EffectReference].self, forKey: .effects)
     }
 
     public var duration: RationalTime { sourceRange.duration }

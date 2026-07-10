@@ -3,6 +3,7 @@ import GhostlyCore
 import GhostlyDomain
 import GhostlyDetection
 import GhostlySubtitles
+import GhostlyAudio
 
 /// Turns media analysis + a pacing profile into a finished timeline: the
 /// heart of "AI auto editing". Deterministic and pure — same inputs, same
@@ -63,14 +64,24 @@ public struct AutoEditPlanner: Sendable {
                                                   preferredTimescale: Int32(frameRate.frames)))
         }
 
-        // 5. Music bed on the lane below, trimmed to the edit.
+        // 5. Music bed on the lane below, trimmed to the edit, ducked under
+        // the storyline (which carries the narration after silence removal).
+        // Keyframe gains bake the 0.35 bed level in, so the flat `volume`
+        // stays the fallback for apps that ignore automation.
         if let music {
             let duration = min(timeline.duration, music.asset.duration)
+            let bedLevel = 0.35
+            let ducking = MusicDucking(duckDB: -9, fadeSeconds: 0.4)
+            let keyframes = ducking
+                .envelope(speechRanges: timeline.storyline.map(\.timelineRange),
+                          duration: duration)
+                .map { VolumeKeyframe(time: $0.time, gain: $0.gain * bedLevel) }
             timeline.clips.append(Clip(
                 assetID: music.asset.id, name: music.asset.name,
                 offset: .zero,
                 sourceRange: TimeRange(start: .zero, duration: duration),
-                lane: -1, role: .music, volume: 0.35))
+                lane: -1, role: .music, volume: bedLevel,
+                volumeKeyframes: keyframes))
             for beat in music.analysis.beats where beat < timeline.duration {
                 timeline.markers.append(Marker(start: beat, text: "beat"))
             }

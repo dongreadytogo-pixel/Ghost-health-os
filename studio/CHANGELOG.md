@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- Music beds in auto-edits now **duck under the narration in FCPXML**:
+  `Clip` gains `volumeKeyframes` (tolerant decode for older documents), the
+  FCPXML writer emits `adjust-volume → param(amount) → keyframeAnimation`
+  with dB values, and `AutoEditPlanner` bakes a `MusicDucking` envelope
+  (−9 dB under storyline content, 0.4 s ramps, 0.35 bed level baked into
+  keyframe gains with the flat volume kept as fallback).
 - Audio engine core: new `GhostlyAudio` module — `Loudness` (RMS/peak in
   dBFS, peak-ceiling-aware normalization gain; silence-safe) and
   `MusicDucking` (speech ranges → piecewise-linear gain envelope with merge

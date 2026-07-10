@@ -206,7 +206,20 @@ public struct FCPXMLWriter {
         default:
             element.attr("videoRole", clip.role.description)
         }
-        if clip.volume != 1.0 {
+        if !clip.volumeKeyframes.isEmpty {
+            // Volume automation (music ducking): keyframed `amount` param.
+            // Keyframe times are in the clip's source-time coordinates.
+            let animation = XML("keyframeAnimation")
+            for key in clip.volumeKeyframes.sorted(by: { $0.time < $1.time }) {
+                animation.child(XML("keyframe", [
+                    ("time", key.time.description),
+                    ("value", volumeDB(key.gain)),
+                ]))
+            }
+            element.child(
+                XML("adjust-volume", [("amount", volumeDB(clip.volume))])
+                    .child(XML("param", [("name", "amount")]).child(animation)))
+        } else if clip.volume != 1.0 {
             element.child(XML("adjust-volume", [("amount", volumeDB(clip.volume))]))
         }
         for effect in clip.effects {

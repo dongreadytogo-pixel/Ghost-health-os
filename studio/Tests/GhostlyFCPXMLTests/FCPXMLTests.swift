@@ -94,6 +94,48 @@ final class FCPXMLTests: XCTestCase {
         XCTAssertNoThrow(try XMLDocumentParser.parse(doc))
     }
 
+    func testWriterEmitsVolumeKeyframes() throws {
+        let music = Asset(name: "M", url: URL(string: "file:///m.m4a")!,
+                          duration: RationalTime(seconds: 60), kind: .audio)
+        let video = Asset(name: "V", url: URL(string: "file:///v.mov")!,
+                          duration: RationalTime(seconds: 60), kind: .video, format: .hd1080p30)
+        var timeline = Timeline(name: "Ducked", format: .hd1080p30)
+        timeline.appendToStoryline(assetID: video.id, name: "V",
+            sourceRange: TimeRange(start: .zero, duration: RationalTime(seconds: 8)))
+        timeline.clips.append(Clip(
+            assetID: music.id, name: "M", offset: .zero,
+            sourceRange: TimeRange(start: .zero, duration: RationalTime(seconds: 8)),
+            lane: -1, role: .music, volume: 0.35,
+            volumeKeyframes: [
+                VolumeKeyframe(time: .zero, gain: 0.35),
+                VolumeKeyframe(time: RationalTime(seconds: 2), gain: 0.125),
+                VolumeKeyframe(time: RationalTime(seconds: 8), gain: 0.35),
+            ]))
+        let doc = try FCPXMLWriter().document(
+            for: Project(name: "P", timeline: timeline), assets: [video, music])
+        XCTAssertTrue(doc.contains("<keyframeAnimation>"))
+        XCTAssertTrue(doc.contains(#"<param name="amount">"#))
+        XCTAssertEqual(doc.components(separatedBy: "<keyframe ").count - 1, 3)
+        XCTAssertTrue(doc.contains("-9.1dB"), "0.35 → −9.1 dB")
+        XCTAssertTrue(doc.contains("-18.1dB"), "0.125 → −18.1 dB")
+        XCTAssertTrue(FCPXMLValidator().isAcceptable(doc), "\(FCPXMLValidator().validate(doc))")
+        XCTAssertNoThrow(try XMLDocumentParser.parse(doc))
+    }
+
+    func testClipDecodesWithoutVolumeKeyframesKey() throws {
+        // Documents saved before volume automation existed lack the key.
+        let clip = Clip(assetID: AssetID("a"), name: "old",
+                        offset: .zero,
+                        sourceRange: TimeRange(start: .zero, duration: RationalTime(seconds: 1)))
+        var object = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(clip)) as! [String: Any]
+        object.removeValue(forKey: "volumeKeyframes")
+        let legacy = try JSONSerialization.data(withJSONObject: object)
+        let decoded = try JSONDecoder().decode(Clip.self, from: legacy)
+        XCTAssertEqual(decoded.name, "old")
+        XCTAssertTrue(decoded.volumeKeyframes.isEmpty)
+    }
+
     func testMissingAssetThrows() {
         var timeline = Timeline(name: "Broken", format: .hd1080p30)
         timeline.appendToStoryline(assetID: AssetID("nope"), name: "X",

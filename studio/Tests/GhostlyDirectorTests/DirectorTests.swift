@@ -144,6 +144,22 @@ final class DirectorTests: XCTestCase {
         XCTAssertLessThan(bed?.volume ?? 1, 1)
         XCTAssertFalse(timeline.markers.isEmpty)
         XCTAssertTrue(timeline.markers.allSatisfy { $0.start < timeline.duration })
+
+        // The bed ducks under the storyline via volume keyframes: gains never
+        // exceed the bed level, actually dip during content, stay inside the
+        // clip, and are strictly ordered.
+        let keyframes = try XCTUnwrap(bed?.volumeKeyframes)
+        XCTAssertGreaterThanOrEqual(keyframes.count, 2)
+        for key in keyframes {
+            XCTAssertLessThanOrEqual(key.gain, 0.35 + 1e-9)
+            XCTAssertGreaterThanOrEqual(key.time, .zero)
+            XCTAssertLessThanOrEqual(key.time, try XCTUnwrap(bed).sourceRange.end)
+        }
+        XCTAssertLessThan(try XCTUnwrap(keyframes.map(\.gain).min()), 0.2,
+                          "music must actually duck under the narration")
+        for (a, b) in zip(keyframes, keyframes.dropFirst()) {
+            XCTAssertLessThan(a.time, b.time)
+        }
     }
 
     func testPlanBeatAlignmentKeepsStorylineContiguous() throws {
