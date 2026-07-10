@@ -100,7 +100,105 @@ public struct EditIntentParser: Sendable {
             intents.append(.addTransitions(name: "Cross Dissolve"))
         }
 
+        intents.append(contentsOf: thaiIntents(in: lowered))
         return dedupe(intents)
+    }
+
+    // MARK: Thai vocabulary (Thai-first per the Workflow Constitution)
+
+    /// Understands natural Thai instructions — "ตัดช่วงเงียบออก",
+    /// "ทำเป็นคลิป YouTube", "ใส่คำบรรยาย", "เร่งจังหวะ" — as first-class
+    /// commands, not translations. Thai needs no lowercasing but mixed
+    /// Thai-English commands arrive already lowercased.
+    private func thaiIntents(in command: String) -> [EditIntent] {
+        var intents: [EditIntent] = []
+
+        // Styles: "แนวหนัง", "สไตล์สารคดี", "เหมือน marvel" …
+        let thaiStyleWords: [(words: [String], style: PacingProfile.Style)] = [
+            (["แบบหนัง", "เหมือนหนัง", "โทนหนัง", "แนวหนัง", "ให้ดูเป็นหนัง"], .cinematic),
+            (["สารคดี"], .documentary),
+            (["วล็อก", "วีล็อก", "บล็อกท่องเที่ยว"], .vlog),
+            (["พอดแคสต์", "พอดคาสต์", "รายการพูดคุย"], .podcast),
+        ]
+        for (words, style) in thaiStyleWords where containsAny(command, words) {
+            intents.append(.applyStyle(style))
+        }
+        if containsAny(command, ["สไตล์", "แนว", "เหมือน", "แบบ"]) {
+            for style in PacingProfile.Style.allCases {
+                let name = style.rawValue.lowercased()
+                if ["สไตล์ \(name)", "สไตล์\(name)", "แนว \(name)", "แนว\(name)",
+                    "เหมือน \(name)", "เหมือน\(name)", "แบบ \(name)", "แบบ\(name)"]
+                    .contains(where: command.contains) {
+                    intents.append(.applyStyle(style))
+                }
+            }
+        }
+
+        // Deliverables: Thai creation verbs + Thai or English platform names.
+        let thaiCreationVerbs = ["ทำเป็น", "ทำคลิป", "สร้างคลิป", "ตัดเป็น",
+                                 "ทำให้เป็น", "เอาไปลง", "ตัดคลิป", "ทำวิดีโอ"]
+        if containsAny(command, thaiCreationVerbs) {
+            let platformNames: [(words: [String], deliverable: EditIntent.Deliverable)] = [
+                (["ติ๊กต๊อก", "ติ๊กตอก", "tiktok"], .tiktok),
+                (["ยูทูบ", "ยูทูป", "youtube"], .youtube),
+                (["ชอร์ตส์", "ชอร์ต", "shorts"], .shorts),
+                (["รีล", "reel"], .reel),
+                (["ไอจี", "อินสตาแกรม", "instagram"], .instagram),
+            ]
+            for (words, deliverable) in platformNames where containsAny(command, words) {
+                intents.append(.createDeliverable(deliverable))
+            }
+        }
+
+        // Pacing: "เร่งจังหวะ" / "ช้าลง".
+        if containsAny(command, ["เร่งจังหวะ", "เร็วขึ้น", "ให้ไวขึ้น", "กระชับขึ้น",
+                                 "ตัดให้ไว", "ให้กระชับ"]) {
+            intents.append(.adjustPacing(direction: .faster))
+        } else if containsAny(command, ["ช้าลง", "ผ่อนจังหวะ", "ให้ช้ากว่านี้", "ใจเย็นขึ้น"]) {
+            intents.append(.adjustPacing(direction: .slower))
+        }
+
+        // Captions: "ใส่คำบรรยาย" / "ใส่ซับ" (+ Thai platform style names).
+        if containsAny(command, ["คำบรรยาย", "ซับไตเติล", "ซับไตเติ้ล", "ใส่ซับ",
+                                 "ทำซับ", "มีซับ", "พร้อมซับ", "แคปชั่น", "แคปชัน"]) {
+            let style: CaptionStyle
+            if containsAny(command, ["ติ๊กต๊อก", "ติ๊กตอก"]) {
+                style = .tiktok
+            } else if containsAny(command, ["ยูทูบ", "ยูทูป"]) {
+                style = .youtube
+            } else if containsAny(command, ["ไอจี", "อินสตาแกรม"]) {
+                style = .instagram
+            } else {
+                style = CaptionStyle.builtIn.first { command.contains($0.name.lowercased()) }
+                    ?? .broadcast
+            }
+            intents.append(.generateCaptions(styleName: style.name))
+        }
+
+        // Silence removal: "ตัดช่วงเงียบออก".
+        if containsAny(command, ["ตัดช่วงเงียบ", "ตัดเงียบ", "ลบช่วงเงียบ",
+                                 "เอาช่วงเงียบออก", "ตัดช่วงที่ไม่พูด", "ตัดช่วงว่าง"]) {
+            intents.append(.removeSilence)
+        }
+
+        // Beat cutting: "ตัดตามจังหวะเพลง".
+        if containsAny(command, ["ตัดตามจังหวะ", "ตามจังหวะเพลง", "ตัดตามบีต",
+                                 "เข้าจังหวะเพลง", "ตัดเข้าเพลง"]) {
+            intents.append(.cutToBeat)
+        }
+
+        // Music: "เปลี่ยนเพลง" / "ใส่เพลงประกอบ".
+        if containsAny(command, ["เปลี่ยนเพลง", "เพลงใหม่", "ใส่เพลงประกอบ",
+                                 "เปลี่ยนดนตรี", "เปลี่ยนเสียงเพลง"]) {
+            intents.append(.replaceMusic(query: nil))
+        }
+
+        // Transitions: "ใส่ทรานสิชั่น".
+        if containsAny(command, ["ทรานสิชั่น", "ทรานซิชัน", "ครอสดิสโซลฟ์", "เฟดภาพ"]) {
+            intents.append(.addTransitions(name: "Cross Dissolve"))
+        }
+
+        return intents
     }
 
     private func containsAny(_ haystack: String, _ needles: [String]) -> Bool {

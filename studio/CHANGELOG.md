@@ -3,6 +3,20 @@
 ## Unreleased
 
 ### Added
+- **Thai natural-language commands** (Workflow Constitution v5.0): the
+  intent parser now understands conversational Thai as first-class
+  vocabulary — "ตัดช่วงเงียบออก", "ทำเป็นคลิป YouTube" / "ทำเป็นติ๊กต๊อก",
+  "ใส่คำบรรยาย" / "ใส่ซับสไตล์ติ๊กต๊อก", "เร่งจังหวะ" / "ช้าลง",
+  "ตัดตามจังหวะเพลง", "เปลี่ยนเพลง", "ใส่ทรานสิชั่น", "แนวหนัง/สารคดี" —
+  driving the same intents, profiles, and pipelines as English. Compound
+  Thai sentences parse to multiple intents; Thai platform names select
+  caption styles. Seven test suites' worth of examples pinned, including
+  the constitution's own sample commands, plus a Thai CLI smoke line.
+- **Personal Workflow Constitution v5.0** recorded in the Knowledge Base:
+  the studio is a personal Thai-first editing assistant for one
+  professional editor — commercial features (marketplace, licensing,
+  multi-user) are descoped; automation, AI memory, and simplicity rank
+  above feature count. ROADMAP updated accordingly.
 - Performance baselines (Phase 17): best-of-N wall-time suites (generous
   budgets; corelibs XCTest's `measure {}` fails noisy CI runs on >10%
   deviation, so it is deliberately not used) for RationalTime accumulation

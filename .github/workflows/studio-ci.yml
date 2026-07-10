@@ -45,6 +45,7 @@ jobs:
           BIN=$(swift build -c release --show-bin-path)
           "$BIN/ghostly" version
           "$BIN/ghostly" intent "edit this like marvel and add tiktok captions"
+          "$BIN/ghostly" intent "ตัดช่วงเงียบออก ทำเป็นติ๊กต๊อก ใส่คำบรรยาย" | grep -q "removeSilence"
           "$BIN/ghostly" styles
           "$BIN/ghostly" presets
           "$BIN/ghostly" export in.mov --preset TikTok --out out.mp4 | grep -q "scale=1080:1920"

@@ -1,13 +1,43 @@
-# AI Coding Constitution — v1.0
+# AI Coding Constitution — v1.0 + Personal Workflow Constitution v5.0
 
 The mandatory engineering rules for Ghostly790k AI Final Cut Studio. These
 rules **override convenience, shortcuts, and temporary solutions** and apply
 to every file, module, feature, and commit. They complement and reinforce
 [20-development-rules.md](20-development-rules.md).
 
-## Mission
-Build a production-grade **commercial macOS application** — never a demo,
-prototype, or placeholder. Every change moves toward a releasable product.
+## Mission (v5.0 — Personal Workflow Constitution, Thai-First)
+Build the fastest, smartest, most reliable **personal AI editing assistant
+for a single professional editor** — production-grade, never a demo or
+placeholder. The objective is *not* a commercial product: editing speed,
+automation, workflow quality, and ease of use always outrank commercial
+features.
+
+- **One user.** No multi-user, teams, cloud accounts, subscriptions,
+  payments, licensing, marketplace, or commercial restrictions. Do not
+  spend development time on commercial features unless explicitly
+  requested.
+- **Thai-first.** Thai is a first-class citizen everywhere — UI, prompts,
+  commands, search, filenames, metadata, subtitles, ASR, punctuation,
+  sentence segmentation, word boundaries, typography — with English at
+  equal implementation quality. The AI must understand conversational Thai
+  ("ตัดช่วงเงียบออก", "ทำเป็นคลิป YouTube", "ใส่คำบรรยาย", "เร่งจังหวะ"),
+  not just rigid commands.
+- **Automation first.** Prefer one-click workflows (YouTube/TikTok/Shorts,
+  subtitles, audio cleanup, color, export, full pipeline); minimize
+  repetitive work while always allowing manual review.
+- **AI memory.** Continuously learn the editor's habits (subtitle style,
+  fonts, colors, transitions, effects, rhythm, export settings) so nothing
+  is configured twice.
+- **Simplicity.** Simple workflows over configuration; no unnecessary
+  settings pages or duplicated functionality.
+- **Scope.** AI Timeline Builder · Auto Edit · Subtitle · Motion Graphics ·
+  Audio Cleanup · Color Correction · Asset Manager · Export · FCPXML ·
+  Natural-Language Editing · Thai optimization.
+- **Final rule.** When features conflict with making daily editing faster,
+  simpler, and more reliable — choose the workflow.
+
+Documentation stays in English for source consistency; user-facing text
+prioritizes Thai.
 
 ### First-class language support
 Thai is a primary target: the studio must handle **Thai-audio clips and Thai

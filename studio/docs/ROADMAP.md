@@ -112,9 +112,17 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 
 ## M4 — Ecosystem 🗺️
 
+Per the **Personal Workflow Constitution v5.0** the studio is a personal
+editing assistant, not a commercial product: marketplace, licensing, and
+multi-user features are **out of scope** unless explicitly requested.
+
 - 🗺️ Plugin SDK: manifest, sandboxed lifecycle, tool/profile registration
-- 🗺️ Marketplace client: packages, licensing, offline cache
+  (personal automation plugins only)
+- ⛔ Marketplace client — descoped by Constitution v5.0
 - ✅ Agent mode (engine): `Workflow` chains analyze → edit → caption →
   preset → export command in one call (`ghostly workflow` / `run_workflow`);
   🗺️ remaining: multi-turn agent sessions and actual render execution
 - 🗺️ Premiere Pro / Resolve exporters over the same domain model
+- ✅ Thai natural-language commands: the intent parser understands
+  conversational Thai ("ตัดช่วงเงียบออก ทำเป็นติ๊กต๊อก ใส่ซับ") as
+  first-class vocabulary alongside English
