@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- **Thai asset search** (Workflow Constitution v5): `AssetQuery` understands
+  Thai queries — kinds ("คลิป/เสียง/รูปภาพ"), favorites ("รายการโปรด"),
+  orientation ("แนวตั้ง/แนวนอน"), duration bounds ("ไม่เกิน 30 วินาที",
+  "ยาวกว่า 2 นาที") — and matches Thai concepts against English auto-tags
+  via a curated Thai↔English synonym map ("แมว"→cat, "ทะเล"→sea/beach,
+  "พระอาทิตย์ตก"→sunset, "คนกำลังยิ้ม"→people/smiling, …). Glued
+  conversational queries work ("หาคลิปแมวตอนกลางคืนให้หน่อย"): command
+  words strip away and every embedded concept expands. English queries
+  behave exactly as before. Reaches CLI/MCP through the existing
+  `search_assets` tool.
 - **Thai natural-language commands** (Workflow Constitution v5.0): the
   intent parser now understands conversational Thai as first-class
   vocabulary — "ตัดช่วงเงียบออก", "ทำเป็นคลิป YouTube" / "ทำเป็นติ๊กต๊อก",
