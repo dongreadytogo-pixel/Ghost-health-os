@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- Performance baselines (Phase 17): `measure {}` suites for RationalTime
+  accumulation across mixed timescales (100k additions), NTSC frame
+  snapping, silence/beat detector throughput on 60 s fixtures, WAV decode
+  of a minute of audio, and FCPXML generation/validation on a 1,000-clip
+  timeline with 200 Thai captions — each asserts correctness alongside the
+  timing so slowdowns and wrong output both surface. README capability
+  table now lists GhostlyColor, GhostlyAudio, and the agent workflow
+  (15 MCP tools).
 - Frame-average seam (GhostlyColor): `FrameAverage` — mean RGB from raw
   8-bit RGB/RGBA/BGRA pixel buffers (pure, cross-platform-tested) plus the
   platform-gated `AVFrameAverageProvider` that samples/downscales real video

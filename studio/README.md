@@ -34,7 +34,10 @@ layer activates on macOS.
 | Speaker diarization (pitch clustering → S1/S2 caption tags) | `GhostlyDetection` | ✅ tested |
 | End-to-end `edit` pipeline: SRT and/or WAV + command → validated FCPXML | `GhostlyDirector` | ✅ tested |
 | FFmpeg extraction recipes (video → analysis WAV / frames) | `GhostlyExport` | ✅ tested |
-| MCP server with 14 studio tools | `GhostlyMCP` | ✅ tested |
+| Color engine: `.cube` LUT parse/generate/sample + auto white balance | `GhostlyColor` | ✅ tested |
+| Audio engine: loudness normalization + music ducking (FCPXML keyframes) | `GhostlyAudio` | ✅ tested |
+| Agent-mode workflow (analyze → edit → captions → export command) | `GhostlyDirector` | ✅ tested |
+| MCP server with 15 studio tools | `GhostlyMCP` | ✅ tested |
 | Multi-AI router (Claude, OpenAI-compatible, Gemini, Ollama, LM Studio) | `GhostlyAI` | ✅ tested |
 | Local learning system (preferences, usage, recommendations) | `GhostlyLearning` | ✅ tested |
 | `ghostly` CLI | `GhostlyCLI` | ✅ CI smoke-tested |
@@ -93,10 +96,10 @@ Add to your MCP client config (Claude Code shown):
 ```
 
 Exposed tools: `auto_edit`, `edit_from_audio`, `analyze_audio`,
-`parse_edit_command`, `generate_captions`, `validate_fcpxml`,
-`analyze_timeline`, `find_highlights`, `search_assets`, `export_command`,
-`list_export_presets`, `validate_plugin_manifest`, `list_caption_styles`,
-`recommend`.
+`run_workflow`, `parse_edit_command`, `generate_captions`,
+`validate_fcpxml`, `analyze_timeline`, `find_highlights`, `search_assets`,
+`export_command`, `list_export_presets`, `validate_plugin_manifest`,
+`list_caption_styles`, `recommend`.
 See [docs/MCP.md](docs/MCP.md) for schemas and examples.
 
 ### As a library

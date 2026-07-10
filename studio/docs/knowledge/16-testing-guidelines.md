@@ -20,8 +20,11 @@ handshake.
   SRT fixture — output re-linted with `ghostly validate` —,
   `demo-audio`/`analyze-audio` on generated WAV bytes, and MCP
   initialize/tools list over stdio).
-- **Performance** — `measure {}` blocks for RationalTime accumulation,
-  detector throughput, FCPXML generation on large timelines (planned Phase 17).
+- **Performance** — `measure {}` baselines (Phase 17): RationalTime
+  accumulation (100k mixed-timescale additions), NTSC frame snapping,
+  silence/beat detection over 60 s fixtures, WAV decode, and FCPXML
+  write/validate on a 1,000-clip timeline. Blocks assert correctness too,
+  so they catch wrong output as well as slowdowns.
 - **Stress** — 10k-clip timelines, hour-long detection arrays (planned).
 - **UI / accessibility** — XCUITest on the macOS app; every control needs a
   label (planned with app buildout, M2).
