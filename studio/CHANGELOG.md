@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- Color engine core: new `GhostlyColor` module — Adobe `.cube` 3D LUT
+  parser/serializer with exact round-trip, trilinear sampling, identity
+  generation, and `ColorAdjustments` (exposure EV, contrast pivoted at
+  middle gray, saturation, temperature, tint) that bakes any grade into a
+  LUT importable by Final Cut/Resolve/ffmpeg. CLI: `ghostly lut` (generate)
+  and `ghostly lut-info` (inspect/validate); both CI-smoke-tested.
 - **Thai syllable-boundary wrapping**: `ThaiSegmentation` — dictionary-free
   break-opportunity segmentation from Thai orthography (leading vowels bind
   forward; ะ า ๅ ๆ ฯ bind backward; marked clusters and onset+vowel pairs

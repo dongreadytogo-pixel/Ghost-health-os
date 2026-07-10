@@ -8,6 +8,7 @@ import GhostlyDirector
 import GhostlyLearning
 import GhostlyExport
 import GhostlyTranscription
+import GhostlyColor
 
 /// `ghostly` — command-line access to the studio engines.
 ///
@@ -58,6 +59,8 @@ guard let command = arguments.first else {
       ghostly demo-audio [--out file.wav]       Write a deterministic demo WAV (speech + 120 BPM beats)
       ghostly demo-thai [--out file.fcpxml]
       ghostly transcribe <audio> --model <ggml.bin> [--lang th] [--out subs.srt] [--whisper path]
+      ghostly lut [--exposure EV] [--contrast x] [--saturation x] [--temperature -1..1] [--tint -1..1] [--size 33] [--title name] [--out grade.cube]
+      ghostly lut-info <file.cube>              Inspect/validate a .cube LUT
       ghostly version
     """)
     exit(0)
@@ -346,6 +349,41 @@ case "demo-thai":
             for issue in result.issues { FileHandle.standardError.write(Data("\(issue)\n".utf8)) }
             exit(2)
         }
+    } catch {
+        fail(error.localizedDescription)
+    }
+
+case "lut":
+    do {
+        let value = { (name: String) in option(name, in: arguments).flatMap(Double.init) }
+        let grade = ColorAdjustments(
+            exposureEV: value("exposure") ?? 0,
+            contrast: value("contrast") ?? 1,
+            saturation: value("saturation") ?? 1,
+            temperature: value("temperature") ?? 0,
+            tint: value("tint") ?? 0)
+        let size = option("size", in: arguments).flatMap(Int.init) ?? 33
+        let lut = try grade.lut(size: size, title: option("title", in: arguments))
+        let cube = lut.serialized()
+        if let outPath = option("out", in: arguments) {
+            try cube.write(toFile: outPath, atomically: true, encoding: .utf8)
+            print("wrote \(outPath) (size \(size), \(lut.table.count) entries)")
+        } else {
+            print(cube, terminator: "")
+        }
+    } catch {
+        fail(error.localizedDescription)
+    }
+
+case "lut-info":
+    guard arguments.count >= 2 else { fail("usage: ghostly lut-info <file.cube>") }
+    do {
+        let lut = try CubeLUT.parse(readFile(arguments[1]))
+        print("title: \(lut.title ?? "(none)")")
+        print("size: \(lut.size) (\(lut.table.count) entries)")
+        let mid = lut.sample(RGB(0.5, 0.5, 0.5))
+        print(String(format: "mid-gray → %.4f %.4f %.4f", mid.r, mid.g, mid.b))
+        print("✓ valid 3D cube LUT")
     } catch {
         fail(error.localizedDescription)
     }

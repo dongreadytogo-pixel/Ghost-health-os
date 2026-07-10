@@ -15,6 +15,7 @@ let package = Package(
         .library(name: "GhostlyStorage", targets: ["GhostlyStorage"]),
         .library(name: "GhostlyPlugin", targets: ["GhostlyPlugin"]),
         .library(name: "GhostlyTranscription", targets: ["GhostlyTranscription"]),
+        .library(name: "GhostlyColor", targets: ["GhostlyColor"]),
         .library(name: "GhostlyDirector", targets: ["GhostlyDirector"]),
         .library(name: "GhostlyAI", targets: ["GhostlyAI"]),
         .library(name: "GhostlyLearning", targets: ["GhostlyLearning"]),
@@ -35,6 +36,7 @@ let package = Package(
         .target(name: "GhostlyStorage", dependencies: ["GhostlyCore", "GhostlyDomain"]),
         .target(name: "GhostlyPlugin", dependencies: ["GhostlyCore"]),
         .target(name: "GhostlyTranscription", dependencies: ["GhostlyCore", "GhostlySubtitles"]),
+        .target(name: "GhostlyColor", dependencies: ["GhostlyCore"]),
         .target(name: "GhostlyDirector", dependencies: [
             "GhostlyCore", "GhostlyDomain", "GhostlyDetection", "GhostlyFCPXML", "GhostlySubtitles",
             "GhostlyExport",
@@ -55,7 +57,7 @@ let package = Package(
         .executableTarget(name: "GhostlyCLI", dependencies: [
             "GhostlyCore", "GhostlyDomain", "GhostlyFCPXML", "GhostlySubtitles",
             "GhostlyDirector", "GhostlyDetection", "GhostlyLearning", "GhostlyExport",
-            "GhostlyTranscription",
+            "GhostlyTranscription", "GhostlyColor",
         ]),
         .executableTarget(name: "GhostlyMCPServer", dependencies: ["GhostlyMCP"]),
         // MARK: Tests
@@ -71,6 +73,7 @@ let package = Package(
         .testTarget(name: "GhostlyTranscriptionTests", dependencies: [
             "GhostlyTranscription", "GhostlySubtitles", "GhostlyCore",
         ]),
+        .testTarget(name: "GhostlyColorTests", dependencies: ["GhostlyColor", "GhostlyCore"]),
         .testTarget(name: "GhostlyDirectorTests", dependencies: [
             "GhostlyDirector", "GhostlyDetection", "GhostlySubtitles", "GhostlyDomain", "GhostlyCore",
         ]),

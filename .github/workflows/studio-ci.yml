@@ -76,6 +76,8 @@ jobs:
           grep -q "export: ffmpeg" /tmp/wf.txt
           grep -q "preset: TikTok" /tmp/wf.txt
           "$BIN/ghostly" validate /tmp/wf.fcpxml
+          "$BIN/ghostly" lut --exposure 0.3 --temperature 0.2 --out /tmp/warm.cube
+          "$BIN/ghostly" lut-info /tmp/warm.cube | grep -q "valid 3D cube LUT"
 
       - name: Smoke-test MCP server handshake
         run: |

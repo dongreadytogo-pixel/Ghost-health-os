@@ -99,7 +99,10 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 - 🗺️ Workflow Extension target (ProExtension) with one-click AI tools
 - 🗺️ Apple Events bridge for library automation
 - 🗺️ Motion template generation (lower thirds, callouts, progress bars)
-- 🗺️ Color engine: LUT parsing/generation, auto white balance via histograms
+- ✅ Color engine core: `GhostlyColor` — `.cube` 3D LUT parse/serialize/
+  trilinear sampling + `ColorAdjustments` (exposure/contrast/saturation/
+  temperature/tint) baked to LUTs; `ghostly lut` / `lut-info` commands;
+  🗺️ remaining: auto white balance via frame histograms
 - 🗺️ Audio engine: loudness normalization, music ducking envelopes
 
 ## M4 — Ecosystem 🗺️
