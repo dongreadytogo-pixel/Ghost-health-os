@@ -13,7 +13,9 @@ final class WAVTests: XCTestCase {
         XCTAssertEqual(decoded.sampleRate, 8000)
         XCTAssertEqual(decoded.samples.count, source.count)
         for (a, b) in zip(decoded.samples, source) {
-            XCTAssertEqual(a, b, accuracy: 1.0 / 32767, "16-bit quantization only")
+            // Worst case = half an LSB of rounding (0.5/32767) plus the
+            // encode×32767 / decode÷32768 scale asymmetry (≤ 1/32768).
+            XCTAssertEqual(a, b, accuracy: 5.0 / 65536, "16-bit quantization only")
         }
     }
 

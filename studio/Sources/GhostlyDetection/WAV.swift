@@ -154,7 +154,8 @@ public enum WAV {
         appendUInt32(&out, dataSize)
         for sample in audio.samples {
             let clamped = max(-1, min(1, sample))
-            let value = Int16(clamped * 32767)
+            // Round to nearest (not truncate) to keep quantization unbiased.
+            let value = Int16((clamped * 32767).rounded())
             appendUInt16(&out, UInt16(bitPattern: value))
         }
         return out
