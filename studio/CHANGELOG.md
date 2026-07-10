@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- Frame-average seam (GhostlyColor): `FrameAverage` — mean RGB from raw
+  8-bit RGB/RGBA/BGRA pixel buffers (pure, cross-platform-tested) plus the
+  platform-gated `AVFrameAverageProvider` that samples/downscales real video
+  frames and offers one-call `autoWhiteBalance(for:)`. Completes the auto-WB
+  chain on Apple platforms: video → frame means → gray-world correction →
+  `.cube` LUT.
 - Auto white balance (GhostlyColor): `AutoWhiteBalance` — gray-world
   estimate turning frame-average colors into the `ColorAdjustments`
   temperature/tint that neutralize the cast (tint referenced to the R/B

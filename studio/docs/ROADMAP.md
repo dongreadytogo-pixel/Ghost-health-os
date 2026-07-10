@@ -103,7 +103,8 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
   trilinear sampling + `ColorAdjustments` (exposure/contrast/saturation/
   temperature/tint) baked to LUTs; `ghostly lut` / `lut-info` commands;
   gray-world auto white balance (`AutoWhiteBalance` + `lut --neutralize`);
-  🗺️ remaining: frame-average extraction from real video (AV/ffmpeg seam)
+  frame-average seam (`FrameAverage` pure math + `AVFrameAverageProvider`
+  sampling real video on Apple platforms → one-call `autoWhiteBalance(for:)`)
 - ✅ Audio engine core: `GhostlyAudio` — RMS/peak loudness (dBFS), peak-safe
   normalization (`ghostly normalize-audio`), and speech-driven music-ducking
   envelopes (merge-gap + linear ramps → keyframes / rendered samples);

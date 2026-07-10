@@ -153,6 +153,50 @@ final class ColorTests: XCTestCase {
         XCTAssertEqual(combined.tint, direct.tint, accuracy: 1e-9)
     }
 
+    // MARK: Frame averaging (raw pixel buffers)
+
+    func testFrameMeanRGB8() throws {
+        // One pure-red, one pure-green, one pure-blue pixel → equal thirds.
+        let mean = try XCTUnwrap(FrameAverage.mean(
+            rgb8: [255, 0, 0,  0, 255, 0,  0, 0, 255]))
+        XCTAssertEqual(mean.r, 1.0 / 3, accuracy: 1e-9)
+        XCTAssertEqual(mean.g, 1.0 / 3, accuracy: 1e-9)
+        XCTAssertEqual(mean.b, 1.0 / 3, accuracy: 1e-9)
+    }
+
+    func testFrameMeanIgnoresAlphaAndHandlesBGRA() throws {
+        let rgba = try XCTUnwrap(FrameAverage.mean(
+            rgba8: [255, 128, 0, 7,  255, 128, 0, 200]))
+        XCTAssertEqual(rgba.r, 1.0, accuracy: 1e-9)
+        XCTAssertEqual(rgba.g, 128.0 / 255, accuracy: 1e-9)
+        XCTAssertEqual(rgba.b, 0, accuracy: 1e-9)
+
+        // Same pixel in BGRA byte order decodes to the same color.
+        let bgra = try XCTUnwrap(FrameAverage.mean(
+            bgra8: [0, 128, 255, 7,  0, 128, 255, 200]))
+        XCTAssertEqual(bgra.r, rgba.r, accuracy: 1e-9)
+        XCTAssertEqual(bgra.g, rgba.g, accuracy: 1e-9)
+        XCTAssertEqual(bgra.b, rgba.b, accuracy: 1e-9)
+    }
+
+    func testFrameMeanEmptyAndPartialPixels() {
+        XCTAssertNil(FrameAverage.mean(rgb8: []))
+        XCTAssertNil(FrameAverage.mean(rgb8: [255, 0]), "partial pixel is not a frame")
+        // Trailing partial pixel ignored, full pixel counted.
+        XCTAssertNotNil(FrameAverage.mean(rgb8: [10, 20, 30, 40]))
+    }
+
+    func testWarmBufferFlowsIntoWhiteBalance() throws {
+        // A warm frame straight from pixels → cooling correction end-to-end.
+        var pixels: [UInt8] = []
+        for _ in 0..<64 { pixels += [140, 115, 90] } // ≈ (0.55, 0.45, 0.35)
+        let mean = try XCTUnwrap(FrameAverage.mean(rgb8: pixels))
+        let fix = AutoWhiteBalance.estimate(frameAverages: [mean])
+        XCTAssertLessThan(fix.temperature, 0)
+        let corrected = fix.applied(to: mean)
+        XCTAssertEqual(corrected.r, corrected.b, accuracy: 0.03)
+    }
+
     func testIdentityAdjustmentsAreIdentity() throws {
         XCTAssertTrue(ColorAdjustments().isIdentity)
         let lut = try ColorAdjustments().lut(size: 9)
