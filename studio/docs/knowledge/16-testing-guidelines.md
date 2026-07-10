@@ -20,11 +20,13 @@ handshake.
   SRT fixture — output re-linted with `ghostly validate` —,
   `demo-audio`/`analyze-audio` on generated WAV bytes, and MCP
   initialize/tools list over stdio).
-- **Performance** — `measure {}` baselines (Phase 17): RationalTime
+- **Performance** — best-of-N wall-time baselines (Phase 17): RationalTime
   accumulation (100k mixed-timescale additions), NTSC frame snapping,
   silence/beat detection over 60 s fixtures, WAV decode, and FCPXML
-  write/validate on a 1,000-clip timeline. Blocks assert correctness too,
-  so they catch wrong output as well as slowdowns.
+  write/validate on a 1,000-clip timeline, each against a deliberately
+  generous budget. XCTest `measure {}` is avoided: corelibs XCTest fails
+  runs whose deviation exceeds 10%, which noisy CI runners routinely do.
+  Blocks assert correctness too, so wrong output fails as well.
 - **Stress** — 10k-clip timelines, hour-long detection arrays (planned).
 - **UI / accessibility** — XCUITest on the macOS app; every control needs a
   label (planned with app buildout, M2).
