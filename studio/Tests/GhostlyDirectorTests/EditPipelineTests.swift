@@ -143,6 +143,40 @@ final class EditPipelineTests: XCTestCase {
         XCTAssertEqual(bpm, 120, accuracy: 8)
     }
 
+    func testDiarizationTagsCaptionSpeakers() throws {
+        // Interview: low voice asks (1–2.5s), high voice answers (3.5–5.5s).
+        let interview = AudioFixture(sampleRate: 16_000)
+            .silence(1.0).tone(frequency: 150, seconds: 1.5)
+            .silence(1.0).tone(frequency: 310, seconds: 2.0)
+            .silence(0.5)
+            .audio()
+        let srt = """
+        1
+        00:00:01,000 --> 00:00:02,500
+        วันนี้เป็นยังไงบ้างครับ
+
+        2
+        00:00:03,500 --> 00:00:05,500
+        สบายดีค่ะ ขอบคุณมากนะคะ
+        """
+        let output = try EditPipeline.run(EditPipeline.AudioInput(
+            audio: interview, subtitles: srt,
+            command: "create a tiktok with captions",
+            diarize: true))
+        XCTAssertTrue(output.isValid, "issues: \(output.issues)")
+        XCTAssertEqual(output.speakerCount, 2)
+
+        // The tagged transcript flows through: verify via the same seam.
+        let turns = SpeakerDiarizer().turns(
+            samples: interview.samples, sampleRate: interview.sampleRate,
+            speechRanges: SilenceDetector().speechRanges(
+                samples: interview.samples, sampleRate: interview.sampleRate))
+        let track = try SRT.parse(srt)
+        let tagged = EditPipeline.attributingSpeakers(
+            SubtitleTrack(language: "th", cues: track.cues), turns: turns)
+        XCTAssertEqual(tagged.cues.map(\.speaker), ["S1", "S2"])
+    }
+
     func testAudioEditRejectsSilenceAndEmpty() {
         XCTAssertThrowsError(try EditPipeline.run(EditPipeline.AudioInput(
             audio: WAV.Audio(samples: [], sampleRate: 16_000),

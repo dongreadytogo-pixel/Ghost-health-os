@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- Speaker diarization (GhostlyDetection): `SpeakerDiarizer` attributes each
+  speech range to a voice by clustering autocorrelation pitch + energy
+  features — pure, deterministic, capped speaker count, unvoiced ranges
+  attributed to the previous speaker. `ghostly edit --wav --diarize` tags
+  caption cues with S1/S2/… (ready for lower-thirds), reports the speaker
+  count in the edit summary, and `ghostly analyze-audio --diarize` prints
+  per-range speakers. Tested with alternating-voice fixtures (stable labels,
+  determinism, max-speaker folding, 220 Hz pitch accuracy).
 - `MediaExtraction` (GhostlyExport) + `ghostly extract-audio` — deterministic
   ffmpeg recipes for the *input* direction: pull a mono 16 kHz 16-bit WAV (or
   downscaled grayscale frames for scene analysis) out of any video, printed as

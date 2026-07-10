@@ -56,19 +56,23 @@ public enum EditPipeline {
         public var language: String
         public var clipName: String
         public var projectName: String
+        /// Attribute captions to speakers by voice similarity (S1, S2, …).
+        public var diarize: Bool
 
         public init(audio: WAV.Audio,
                     subtitles: String? = nil,
                     command: String,
                     language: String = "th",
                     clipName: String = "clip",
-                    projectName: String = "AI Edit") {
+                    projectName: String = "AI Edit",
+                    diarize: Bool = false) {
             self.audio = audio
             self.subtitles = subtitles
             self.command = command
             self.language = language
             self.clipName = clipName
             self.projectName = projectName
+            self.diarize = diarize
         }
     }
 
@@ -85,6 +89,8 @@ public enum EditPipeline {
         public let profileStyle: String
         /// Tempo detected from real audio; nil on the transcript-only path.
         public let detectedBPM: Double?
+        /// Distinct voices found by diarization; nil when not requested.
+        public let speakerCount: Int?
     }
 
     public static func run(_ input: Input) throws -> Output {
@@ -107,7 +113,8 @@ public enum EditPipeline {
                            beats: [], bpm: nil,
                            transcript: transcript,
                            clipName: input.clipName,
-                           projectName: input.projectName)
+                           projectName: input.projectName,
+                           speakerCount: nil)
     }
 
     public static func run(_ input: AudioInput) throws -> Output {
@@ -122,8 +129,18 @@ public enum EditPipeline {
                 detail: "no speech found in \(String(format: "%.1f", audio.duration.seconds))s of audio")
         }
         let beats = BeatDetector().detect(samples: audio.samples, sampleRate: audio.sampleRate)
-        let transcript = try input.subtitles.flatMap {
+        var transcript = try input.subtitles.flatMap {
             try transcriptTrack(from: $0, language: input.language, clampedTo: audio.duration)
+        }
+        var speakerCount: Int?
+        if input.diarize {
+            let turns = SpeakerDiarizer().turns(samples: audio.samples,
+                                                sampleRate: audio.sampleRate,
+                                                speechRanges: speech)
+            speakerCount = SpeakerDiarizer.speakerCount(turns)
+            if let track = transcript {
+                transcript = attributingSpeakers(track, turns: turns)
+            }
         }
         return try compose(command: input.command,
                            duration: audio.duration,
@@ -131,7 +148,30 @@ public enum EditPipeline {
                            beats: beats.beats, bpm: beats.bpm,
                            transcript: transcript,
                            clipName: input.clipName,
-                           projectName: input.projectName)
+                           projectName: input.projectName,
+                           speakerCount: speakerCount)
+    }
+
+    /// Tags each cue with the speaker whose turn overlaps it the most.
+    static func attributingSpeakers(_ track: SubtitleTrack,
+                                    turns: [SpeakerTurn]) -> SubtitleTrack {
+        guard !turns.isEmpty else { return track }
+        var out = track
+        out.cues = track.cues.map { cue in
+            var best: (speaker: String, seconds: Double)?
+            for turn in turns {
+                guard let overlap = cue.range.intersection(turn.range) else { continue }
+                let seconds = overlap.duration.seconds
+                if seconds > (best?.seconds ?? 0) {
+                    best = (turn.speaker, seconds)
+                }
+            }
+            guard let best else { return cue }
+            var tagged = cue
+            tagged.speaker = best.speaker
+            return tagged
+        }
+        return out
     }
 
     // MARK: Shared core
@@ -159,7 +199,8 @@ public enum EditPipeline {
                                 beats: [RationalTime], bpm: Double?,
                                 transcript: SubtitleTrack?,
                                 clipName: String,
-                                projectName: String) throws -> Output {
+                                projectName: String,
+                                speakerCount: Int?) throws -> Output {
         let plan = try Director().interpret(command)
         let asset = Asset(
             name: clipName,
@@ -190,7 +231,8 @@ public enum EditPipeline {
             isVertical: timeline.format.isVertical,
             language: transcript?.language ?? "und",
             profileStyle: plan.profile.style.rawValue,
-            detectedBPM: bpm)
+            detectedBPM: bpm,
+            speakerCount: speakerCount)
     }
 
     /// Merges overlapping/touching ranges so back-to-back cues form one

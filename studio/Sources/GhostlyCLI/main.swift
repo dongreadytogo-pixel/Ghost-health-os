@@ -45,14 +45,14 @@ guard let command = arguments.first else {
     Usage:
       ghostly intent "<editing command>"
       ghostly edit <subtitles.srt|.vtt> --duration <seconds> --command "<editing command>" [--lang th] [--name clip] [--project name] [--out file.fcpxml]
-      ghostly edit --wav <clip.wav> --command "<editing command>" [<subtitles.srt|.vtt>] [--lang th] [--name clip] [--project name] [--out file.fcpxml]
+      ghostly edit --wav <clip.wav> --command "<editing command>" [<subtitles.srt|.vtt>] [--diarize] [--lang th] [--name clip] [--project name] [--out file.fcpxml]
       ghostly captions <subtitles.srt|.vtt> --style <TikTok|YouTube|Instagram|Broadcast> [--shift seconds] [--out file]
       ghostly validate <file.fcpxml>
       ghostly analyze <file.fcpxml>
       ghostly styles
       ghostly export <input> --preset <name> --out <output> [--title T] [--artist A]
       ghostly presets
-      ghostly analyze-audio <file.wav>          Speech ranges + beats/BPM from a WAV file
+      ghostly analyze-audio <file.wav> [--diarize]   Speech ranges + beats/BPM (+ speakers) from a WAV file
       ghostly extract-audio <video> [--out file.wav] [--rate 16000]   Print the ffmpeg command that produces an analysis WAV
       ghostly demo-audio [--out file.wav]       Write a deterministic demo WAV (speech + 120 BPM beats)
       ghostly demo-thai [--out file.fcpxml]
@@ -107,7 +107,8 @@ case "edit":
                 command: editCommand,
                 language: language,
                 clipName: option("name", in: arguments) ?? (wavPath as NSString).lastPathComponent,
-                projectName: projectName))
+                projectName: projectName,
+                diarize: arguments.contains("--diarize")))
         } else {
             guard let subtitlePath else {
                 fail("provide a subtitle file (with --duration) or --wav <clip.wav>")
@@ -131,8 +132,9 @@ case "edit":
             print(output.fcpxml)
         }
         let bpmNote = output.detectedBPM.map { String(format: ", tempo ≈ %.0f BPM", $0) } ?? ""
+        let speakerNote = output.speakerCount.map { ", speakers: \($0)" } ?? ""
         FileHandle.standardError.write(Data("""
-        profile: \(output.profileStyle), language: \(output.language)\(bpmNote)
+        profile: \(output.profileStyle), language: \(output.language)\(bpmNote)\(speakerNote)
         clips: \(output.storylineClipCount), captions: \(output.captionCount), duration: \(String(format: "%.2f", output.durationSeconds))s, vertical: \(output.isVertical)
         valid FCPXML: \(output.isValid)\n
         """.utf8))
@@ -252,6 +254,16 @@ case "analyze-audio":
             print("beats: \(beats.beats.count) onsets, tempo ≈ \(String(format: "%.0f", bpm)) BPM")
         } else {
             print("beats: \(beats.beats.count) onsets, tempo unknown")
+        }
+        if arguments.contains("--diarize") {
+            let turns = SpeakerDiarizer().turns(samples: audio.samples,
+                                                sampleRate: audio.sampleRate,
+                                                speechRanges: speech.map(\.range))
+            print("speakers: \(SpeakerDiarizer.speakerCount(turns))")
+            for turn in turns {
+                print(String(format: "  %.2fs – %.2fs  %@",
+                             turn.range.start.seconds, turn.range.end.seconds, turn.speaker))
+            }
         }
     } catch {
         fail(error.localizedDescription)

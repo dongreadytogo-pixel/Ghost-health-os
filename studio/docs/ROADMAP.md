@@ -81,7 +81,10 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
   `EditPipeline.AudioInput` runs the silence/beat detectors on decoded WAV
   samples (transcript optional), closing the loop: record → `transcribe` →
   `edit --wav` → FCPXML into Final Cut Pro
-- 🔜 Speaker diarization for multi-speaker captions
+- ✅ Speaker diarization: `SpeakerDiarizer` — autocorrelation pitch + energy
+  per speech range, greedy centroid clustering (deterministic, capped
+  speaker count); `edit --wav --diarize` tags caption cues S1/S2/… and
+  `analyze-audio --diarize` prints per-range speakers
 
 ## M2 — App experience 🗺️
 
