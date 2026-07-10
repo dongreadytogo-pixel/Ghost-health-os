@@ -24,6 +24,43 @@ final class ThaiSubtitleTests: XCTestCase {
 
     // MARK: Character-based wrapping (no word timings)
 
+    // MARK: Syllable-boundary segmentation (dictionary-free)
+
+    func testBreakUnitsFollowThaiSyllableStructure() {
+        XCTAssertEqual(ThaiSegmentation.breakUnits("สวัสดี"), ["ส", "วัส", "ดี"])
+        XCTAssertEqual(ThaiSegmentation.breakUnits("อากาศ"), ["อา", "กาศ"])
+        XCTAssertEqual(ThaiSegmentation.breakUnits("วันนี้อากาศดีมาก"),
+                       ["วัน", "นี้", "อา", "กาศ", "ดี", "มาก"])
+        // Leading vowel เ binds to its syllable; never a dangling "เ".
+        XCTAssertEqual(ThaiSegmentation.breakUnits("เที่ยว"), ["เที่ยว"])
+        // Digits travel as one unit between Thai runs.
+        XCTAssertEqual(ThaiSegmentation.breakUnits("ราคา1500บาท"),
+                       ["รา", "คา", "1500", "บาท"])
+    }
+
+    func testBreakUnitsJoinBackExactly() {
+        for text in ["สวัสดีครับวันนี้เราจะมารีวิวกล้องตัวใหม่",
+                     "ใครสนใจอย่าลืมกดติดตามช่องของเราด้วยนะครับ",
+                     "ไปเที่ยวทะเลกันเถอะ", "๑๒๓ กับ abc"] {
+            XCTAssertEqual(ThaiSegmentation.breakUnits(text).joined(), text)
+        }
+    }
+
+    func testThaiWrapBreaksAtSyllableBoundaries() {
+        let thai = "วันนี้อากาศดีมาก"
+        let cue = SubtitleCue(range: TimeRange(start: time(0), end: time(4)), text: thai)
+        let wrapped = SubtitleTrack(language: "th", cues: [cue]).wrapped(maxCharactersPerLine: 4)
+        XCTAssertEqual(wrapped.cues.map(\.text).joined(), thai)
+        let units = Set(ThaiSegmentation.breakUnits(thai))
+        for c in wrapped.cues {
+            XCTAssertLessThanOrEqual(c.text.count, 4)
+            // Every line must itself be a join of whole syllable units —
+            // no line may start or end mid-syllable.
+            XCTAssertEqual(ThaiSegmentation.breakUnits(c.text).filter { !units.contains($0) },
+                           [], "line '\(c.text)' broke inside a syllable")
+        }
+    }
+
     func testThaiWrapByCharacterPreservesText() throws {
         // A long Thai sentence with no spaces and no word timings.
         let thai = "สวัสดีครับวันนี้อากาศดีมากเราจะไปเที่ยวทะเลกันนะครับ" // 51 chars

@@ -89,14 +89,20 @@ public struct SubtitleTrack: Sendable, Codable {
         return out
     }
 
-    /// Wraps a cue that has no usable word timings. Spaceless scripts (Thai,
-    /// CJK…) are chunked by grapheme; spaced text is packed on word boundaries
-    /// so words are never broken. Each chunk is allocated a share of the cue's
+    /// Wraps a cue that has no usable word timings. Thai packs on
+    /// syllable-boundary units (never splitting a written syllable), other
+    /// spaceless scripts (CJK…) chunk by grapheme, and spaced text packs on
+    /// word boundaries. Each chunk is allocated a share of the cue's
     /// duration proportional to its character length.
     private func wrapPlainText(_ cue: SubtitleCue, max maxCharactersPerLine: Int) -> [SubtitleCue] {
-        let chunks: [String] = TextScript.isSpaceless(cue.text)
-            ? graphemeChunks(cue.text, max: maxCharactersPerLine)
-            : packWords(cue.text, max: maxCharactersPerLine)
+        let chunks: [String]
+        if ThaiSegmentation.containsThai(cue.text) {
+            chunks = packUnits(ThaiSegmentation.breakUnits(cue.text), max: maxCharactersPerLine)
+        } else if TextScript.isSpaceless(cue.text) {
+            chunks = graphemeChunks(cue.text, max: maxCharactersPerLine)
+        } else {
+            chunks = packWords(cue.text, max: maxCharactersPerLine)
+        }
         guard chunks.count > 1 else { return [cue] }
 
         let lengths = chunks.map(\.count)
@@ -114,6 +120,31 @@ public struct SubtitleTrack: Sendable, Codable {
                 text: chunk, speaker: cue.speaker))
         }
         return out
+    }
+
+    /// Greedily packs indivisible units (Thai syllables) into lines ≤ max,
+    /// joined without separators; a single unit longer than max falls back
+    /// to grapheme splitting so lines never overflow.
+    private func packUnits(_ units: [String], max maxCharactersPerLine: Int) -> [String] {
+        var lines: [String] = []
+        var current = ""
+        for unit in units {
+            if current.isEmpty {
+                current = unit
+            } else if current.count + unit.count <= maxCharactersPerLine {
+                current += unit
+            } else {
+                lines.append(current)
+                current = unit
+            }
+            if current.count > maxCharactersPerLine {
+                let split = graphemeChunks(current, max: maxCharactersPerLine)
+                lines.append(contentsOf: split.dropLast())
+                current = split.last ?? ""
+            }
+        }
+        if !current.isEmpty { lines.append(current) }
+        return lines
     }
 
     /// Fixed-size grapheme chunks (for spaceless scripts).

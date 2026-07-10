@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- **Thai syllable-boundary wrapping**: `ThaiSegmentation` — dictionary-free
+  break-opportunity segmentation from Thai orthography (leading vowels bind
+  forward; ะ า ๅ ๆ ฯ bind backward; marked clusters and onset+vowel pairs
+  start syllables; digit/Latin runs travel whole). Un-timed Thai captions now
+  wrap at written-syllable boundaries instead of fixed character counts — no
+  more mid-word cuts like "รีวิวก|ล้อง". Deterministic on every platform
+  (no ICU); wrapped lines still join back to the original text exactly.
 - **Agent mode**: `Workflow` (GhostlyDirector) chains the whole delivery in
   one deterministic call — analyze (WAV or transcript) → auto-edit → captions
   → validated FCPXML → render-preset selection (inferred from the edit's
