@@ -2,6 +2,7 @@ import Foundation
 import GhostlyCore
 import GhostlyDetection
 import GhostlyDirector
+import GhostlyLearning
 
 /// MCP tools over the real-audio pipeline: agents get the same powers as
 /// `ghostly analyze-audio` and `ghostly edit --wav`. Audio is referenced by
@@ -87,11 +88,17 @@ public struct RunWorkflowTool: MCPTool {
             "diarize": .object(["type": "boolean"]),
             "projectName": .object(["type": "string"]),
             "exportPreset": .object(["type": "string", "description": "render preset name; inferred when omitted"]),
+            "useMemory": .object(["type": "boolean",
+                "description": "AI memory (ใช้ค่าที่เคยใช้): pre-fill unspecified choices from the editor's learned favorites and record what gets used"]),
         ]),
         "required": .array(["command"]),
     ])
 
-    public init() {}
+    private let store: PreferenceStore?
+
+    public init(store: PreferenceStore? = nil) {
+        self.store = store
+    }
 
     public func call(arguments: JSONValue) async throws -> JSONValue {
         guard let command = arguments["command"]?.stringValue, !command.isEmpty else {
@@ -112,7 +119,12 @@ public struct RunWorkflowTool: MCPTool {
             request.durationSeconds = seconds
         }
 
-        let result = try Workflow.run(request)
+        let result: Workflow.Result
+        if arguments["useMemory"]?.boolValue == true, let store {
+            result = try await Workflow.run(request, memory: store)
+        } else {
+            result = try Workflow.run(request)
+        }
         guard result.edit.isValid else {
             throw StudioError.validationFailure(detail: result.edit.issues.joined(separator: "; "))
         }

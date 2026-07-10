@@ -54,7 +54,7 @@ guard let command = arguments.first else {
       ghostly styles
       ghostly export <input> --preset <name> --out <output> [--title T] [--artist A]
       ghostly presets
-      ghostly workflow --wav <clip.wav> --command "<editing command>" [<subs.srt>] [--diarize] [--preset name] [--out file.fcpxml]   Full chain: analyze → edit → captions → export command
+      ghostly workflow --wav <clip.wav> --command "<editing command>" [<subs.srt>] [--diarize] [--preset name] [--remember] [--out file.fcpxml]   Full chain: analyze → edit → captions → export command (--remember = ใช้/จำค่าที่เคยใช้)
       ghostly analyze-audio <file.wav> [--diarize]   Speech ranges + beats/BPM (+ speakers) from a WAV file
       ghostly extract-audio <video> [--out file.wav] [--rate 16000]   Print the ffmpeg command that produces an analysis WAV
       ghostly demo-audio [--out file.wav]       Write a deterministic demo WAV (speech + 120 BPM beats)
@@ -268,7 +268,19 @@ case "workflow":
         }
         request.subtitles = subtitlePath.map(readFile)
 
-        let result = try Workflow.run(request)
+        let result: Workflow.Result
+        if arguments.contains("--remember") {
+            // AI memory (ใช้ค่าที่เคยใช้): pre-fill from and record into the
+            // local preference store (~/.ghostly, or GHOSTLY_HOME).
+            let home = ProcessInfo.processInfo.environment["GHOSTLY_HOME"]
+                .map { URL(fileURLWithPath: $0) }
+                ?? FileManager.default.homeDirectoryForCurrentUser
+                    .appendingPathComponent(".ghostly")
+            let store = try PreferenceStore(directory: home)
+            result = try await Workflow.run(request, memory: store)
+        } else {
+            result = try Workflow.run(request)
+        }
         let outPath = option("out", in: arguments) ?? "edit.fcpxml"
         try result.edit.fcpxml.write(toFile: outPath, atomically: true, encoding: .utf8)
         for step in result.steps { print("• \(step)") }

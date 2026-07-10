@@ -73,7 +73,8 @@ jobs:
           "$BIN/ghostly" edit /tmp/thai.srt --wav /tmp/demo.wav --command "create a tiktok with captions" | grep -q "captionFormat=ITT.th"
           "$BIN/ghostly" extract-audio "คลิป.mp4" | grep -q "pcm_s16le"
           "$BIN/ghostly" analyze-audio /tmp/demo.wav --diarize | grep -q "speakers: 1"
-          "$BIN/ghostly" workflow --wav /tmp/demo.wav --command "create a tiktok, remove silence" --out /tmp/wf.fcpxml | tee /tmp/wf.txt
+          GHOSTLY_HOME=/tmp/ghostly-cli "$BIN/ghostly" workflow --wav /tmp/demo.wav --command "create a tiktok, remove silence" --remember --out /tmp/wf.fcpxml | tee /tmp/wf.txt
+          grep -q "TikTok" /tmp/ghostly-cli/preferences.json
           grep -q "export: ffmpeg" /tmp/wf.txt
           grep -q "preset: TikTok" /tmp/wf.txt
           "$BIN/ghostly" validate /tmp/wf.fcpxml

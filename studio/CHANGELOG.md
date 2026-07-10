@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- **AI memory for the workflow** (Workflow Constitution v5 — "ใช้ค่าที่เคยใช้"):
+  `Workflow.run(_:memory:)` pre-fills an unspecified export preset from the
+  editor's learned favorites (falling back to format inference when the
+  favorite no longer exists) and records the used export preset, caption
+  style, pacing style, and command into the local `PreferenceStore` — so
+  nothing is configured twice and `recommend` keeps improving. Exposed as
+  `ghostly workflow --remember` (store at `~/.ghostly` or `GHOSTLY_HOME`)
+  and `run_workflow {"useMemory": true}` over MCP.
+  `EditPipeline.Output` now reports the attached `captionStyleName`.
 - **Thai asset search** (Workflow Constitution v5): `AssetQuery` understands
   Thai queries — kinds ("คลิป/เสียง/รูปภาพ"), favorites ("รายการโปรด"),
   orientation ("แนวตั้ง/แนวนอน"), duration bounds ("ไม่เกิน 30 วินาที",

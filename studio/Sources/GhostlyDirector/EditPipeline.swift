@@ -91,6 +91,9 @@ public enum EditPipeline {
         public let detectedBPM: Double?
         /// Distinct voices found by diarization; nil when not requested.
         public let speakerCount: Int?
+        /// Caption style the profile attached (e.g. "TikTok"); nil when the
+        /// edit carries no captions.
+        public let captionStyleName: String?
     }
 
     public static func run(_ input: Input) throws -> Output {
@@ -232,7 +235,8 @@ public enum EditPipeline {
             language: transcript?.language ?? "und",
             profileStyle: plan.profile.style.rawValue,
             detectedBPM: bpm,
-            speakerCount: speakerCount)
+            speakerCount: speakerCount,
+            captionStyleName: transcript == nil ? nil : plan.profile.captionStyleName)
     }
 
     /// Merges overlapping/touching ranges so back-to-back cues form one

@@ -132,11 +132,15 @@ speakers. Returns the FCPXML plus clip/caption/BPM/speaker metadata.
 
 ### `run_workflow`
 `{ "audioPath": "/path/clip.wav", "command": "create a tiktok with captions",
-"transcriptSRT": "…", "diarize": true, "exportPreset": "TikTok" }` → the whole
-delivery chain in one call: analyze → auto-edit → captions (default `th`) →
-validated FCPXML → render preset (inferred from the edit's format when
-omitted) → the exact ffmpeg export command, plus a step-by-step `steps`
-trace. Accepts `transcriptSRT` + `durationSeconds` instead of `audioPath`.
+"transcriptSRT": "…", "diarize": true, "exportPreset": "TikTok",
+"useMemory": true }` → the whole delivery chain in one call: analyze →
+auto-edit → captions (default `th`) → validated FCPXML → render preset
+(inferred from the edit's format when omitted) → the exact ffmpeg export
+command, plus a step-by-step `steps` trace. Accepts `transcriptSRT` +
+`durationSeconds` instead of `audioPath`. With `useMemory` (ใช้ค่าที่เคยใช้)
+an unspecified preset is pre-filled from the editor's learned favorites and
+the used preset/caption/pacing styles are recorded for future
+recommendations.
 
 ### `recommend`
 `{ "category": "transition", "limit": 5 }` → the user's learned favorites for
