@@ -74,6 +74,10 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
   declared duration + natural-language command → auto-edit → Thai captions →
   validated FCPXML (cue timings double as speech ranges, so the whole chain
   is CI-tested without media; pair with `ghostly transcribe` for real audio)
+- ✅ `ghostly edit --wav`: the same pipeline driven by **real audio** —
+  `EditPipeline.AudioInput` runs the silence/beat detectors on decoded WAV
+  samples (transcript optional), closing the loop: record → `transcribe` →
+  `edit --wav` → FCPXML into Final Cut Pro
 - 🔜 Speaker diarization for multi-speaker captions
 
 ## M2 — App experience 🗺️

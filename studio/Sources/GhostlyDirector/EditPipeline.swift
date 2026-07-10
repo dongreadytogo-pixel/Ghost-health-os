@@ -43,6 +43,35 @@ public enum EditPipeline {
         }
     }
 
+    /// Real-audio variant: speech ranges come from the `SilenceDetector`
+    /// (and tempo from the `BeatDetector`) instead of transcript timings, so
+    /// an actually recorded clip — decoded via `WAV` — can be auto-edited
+    /// with no transcript at all. Pass `subtitles` too when a transcript
+    /// exists and captions should be attached.
+    public struct AudioInput: Sendable {
+        public var audio: WAV.Audio
+        /// Optional SRT/WebVTT transcript for captions.
+        public var subtitles: String?
+        public var command: String
+        public var language: String
+        public var clipName: String
+        public var projectName: String
+
+        public init(audio: WAV.Audio,
+                    subtitles: String? = nil,
+                    command: String,
+                    language: String = "th",
+                    clipName: String = "clip",
+                    projectName: String = "AI Edit") {
+            self.audio = audio
+            self.subtitles = subtitles
+            self.command = command
+            self.language = language
+            self.clipName = clipName
+            self.projectName = projectName
+        }
+    }
+
     public struct Output: Sendable {
         public let fcpxml: String
         public let isValid: Bool
@@ -54,6 +83,8 @@ public enum EditPipeline {
         public let isVertical: Bool
         public let language: String
         public let profileStyle: String
+        /// Tempo detected from real audio; nil on the transcript-only path.
+        public let detectedBPM: Double?
     }
 
     public static func run(_ input: Input) throws -> Output {
@@ -62,44 +93,90 @@ public enum EditPipeline {
                                            reason: "clip duration must be positive seconds")
         }
         let duration = RationalTime(seconds: input.durationSeconds, preferredTimescale: 3000)
+        guard let transcript = try transcriptTrack(from: input.subtitles,
+                                                   language: input.language,
+                                                   clampedTo: duration) else {
+            throw StudioError.invalidInput(
+                field: "subtitles",
+                reason: "no cues fall within the declared \(input.durationSeconds)s duration")
+        }
+        // Cue timings double as speech ranges for the planner.
+        return try compose(command: input.command,
+                           duration: duration,
+                           speechRanges: mergedRanges(transcript.cues.map(\.range)),
+                           beats: [], bpm: nil,
+                           transcript: transcript,
+                           clipName: input.clipName,
+                           projectName: input.projectName)
+    }
 
-        // 1. Transcript → language-tagged subtitle track, clamped to the clip.
-        let parsed = input.subtitles.hasPrefix("WEBVTT")
-            ? try WebVTT.parse(input.subtitles)
-            : try SRT.parse(input.subtitles)
+    public static func run(_ input: AudioInput) throws -> Output {
+        let audio = input.audio
+        guard !audio.samples.isEmpty, audio.sampleRate > 0 else {
+            throw StudioError.invalidInput(field: "audio", reason: "no audio samples")
+        }
+        let speech = SilenceDetector().speechRanges(samples: audio.samples,
+                                                    sampleRate: audio.sampleRate)
+        guard !speech.isEmpty else {
+            throw StudioError.validationFailure(
+                detail: "no speech found in \(String(format: "%.1f", audio.duration.seconds))s of audio")
+        }
+        let beats = BeatDetector().detect(samples: audio.samples, sampleRate: audio.sampleRate)
+        let transcript = try input.subtitles.flatMap {
+            try transcriptTrack(from: $0, language: input.language, clampedTo: audio.duration)
+        }
+        return try compose(command: input.command,
+                           duration: audio.duration,
+                           speechRanges: speech,
+                           beats: beats.beats, bpm: beats.bpm,
+                           transcript: transcript,
+                           clipName: input.clipName,
+                           projectName: input.projectName)
+    }
+
+    // MARK: Shared core
+
+    /// Parses SRT/WebVTT and clamps cues to the clip; nil when no cue starts
+    /// inside the clip.
+    private static func transcriptTrack(from subtitles: String, language: String,
+                                        clampedTo duration: RationalTime) throws -> SubtitleTrack? {
+        let parsed = subtitles.hasPrefix("WEBVTT")
+            ? try WebVTT.parse(subtitles)
+            : try SRT.parse(subtitles)
         let cues = parsed.cues.compactMap { cue -> SubtitleCue? in
             guard cue.range.start < duration else { return nil }
             guard cue.range.end > duration else { return cue }
             return SubtitleCue(range: TimeRange(start: cue.range.start, end: duration),
                                text: cue.text, speaker: cue.speaker, words: cue.words)
         }
-        guard !cues.isEmpty else {
-            throw StudioError.invalidInput(
-                field: "subtitles",
-                reason: "no cues fall within the declared \(input.durationSeconds)s duration")
-        }
-        let transcript = SubtitleTrack(language: input.language, cues: cues)
+        guard !cues.isEmpty else { return nil }
+        return SubtitleTrack(language: language, cues: cues)
+    }
 
-        // 2. Intent → pacing profile.
-        let plan = try Director().interpret(input.command)
-
-        // 3. Cue timings double as speech ranges for the planner.
+    private static func compose(command: String,
+                                duration: RationalTime,
+                                speechRanges: [TimeRange],
+                                beats: [RationalTime], bpm: Double?,
+                                transcript: SubtitleTrack?,
+                                clipName: String,
+                                projectName: String) throws -> Output {
+        let plan = try Director().interpret(command)
         let asset = Asset(
-            name: input.clipName,
-            url: URL(fileURLWithPath: "/media/\(input.clipName)"),
+            name: clipName,
+            url: URL(fileURLWithPath: "/media/\(clipName)"),
             duration: duration,
             kind: .video, format: plan.profile.format)
         let analysis = MediaAnalysis(
             assetID: asset.id,
             duration: duration,
-            speechRanges: mergedRanges(cues.map(\.range)))
+            speechRanges: speechRanges,
+            beats: beats, bpm: bpm)
 
-        // 4. Auto-edit + captions → validated FCPXML.
         let timeline = try AutoEditPlanner(profile: plan.profile).plan(
             footage: [(asset, analysis)],
             transcript: transcript,
-            projectName: input.projectName)
-        let project = Project(name: input.projectName, timeline: timeline)
+            projectName: projectName)
+        let project = Project(name: projectName, timeline: timeline)
         let document = try FCPXMLWriter().document(for: project, assets: [asset])
         let issues = FCPXMLValidator().validate(document)
 
@@ -111,8 +188,9 @@ public enum EditPipeline {
             storylineClipCount: timeline.storyline.count,
             durationSeconds: timeline.duration.seconds,
             isVertical: timeline.format.isVertical,
-            language: transcript.language,
-            profileStyle: plan.profile.style.rawValue)
+            language: transcript?.language ?? "und",
+            profileStyle: plan.profile.style.rawValue,
+            detectedBPM: bpm)
     }
 
     /// Merges overlapping/touching ranges so back-to-back cues form one

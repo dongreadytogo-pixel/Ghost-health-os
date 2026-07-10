@@ -66,6 +66,10 @@ jobs:
           "$BIN/ghostly" analyze-audio /tmp/demo.wav | tee /tmp/audio.txt
           grep -q "speech: 2 range" /tmp/audio.txt || grep -q "speech: 3 range" /tmp/audio.txt
           grep -q "BPM" /tmp/audio.txt
+          "$BIN/ghostly" edit --wav /tmp/demo.wav --command "create a tiktok, remove silence" > /tmp/wav-edit.fcpxml
+          grep -q "<fcpxml" /tmp/wav-edit.fcpxml
+          "$BIN/ghostly" validate /tmp/wav-edit.fcpxml
+          "$BIN/ghostly" edit /tmp/thai.srt --wav /tmp/demo.wav --command "create a tiktok with captions" | grep -q "captionFormat=ITT.th"
 
       - name: Smoke-test MCP server handshake
         run: |

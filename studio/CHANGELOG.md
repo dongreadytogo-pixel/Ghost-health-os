@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- `ghostly edit --wav clip.wav` — auto-edit **real recordings**:
+  `EditPipeline.AudioInput` decodes WAV audio, finds speech with the
+  `SilenceDetector`, tempo with the `BeatDetector`, and needs no transcript
+  at all (pass an SRT/VTT too and Thai captions attach as before). The edit
+  summary reports the detected BPM. Rejects empty/pure-silence audio with
+  typed errors; covered by four new tests plus CI smoke lines that edit a
+  generated WAV end-to-end.
 - Real-audio analysis seam (GhostlyDetection): dependency-free `WAV` codec —
   decodes PCM 8/16/24/32-bit and IEEE float 32/64 WAVs on any platform,
   downmixing multichannel to mono, with typed parse errors — plus

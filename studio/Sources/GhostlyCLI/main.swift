@@ -45,6 +45,7 @@ guard let command = arguments.first else {
     Usage:
       ghostly intent "<editing command>"
       ghostly edit <subtitles.srt|.vtt> --duration <seconds> --command "<editing command>" [--lang th] [--name clip] [--project name] [--out file.fcpxml]
+      ghostly edit --wav <clip.wav> --command "<editing command>" [<subtitles.srt|.vtt>] [--lang th] [--name clip] [--project name] [--out file.fcpxml]
       ghostly captions <subtitles.srt|.vtt> --style <TikTok|YouTube|Instagram|Broadcast> [--shift seconds] [--out file]
       ghostly validate <file.fcpxml>
       ghostly analyze <file.fcpxml>
@@ -81,37 +82,56 @@ case "intent":
     }
 
 case "edit":
-    // End-to-end: transcript + declared clip duration → auto-edit → FCPXML.
+    // End-to-end: transcript (or real WAV audio) → auto-edit → FCPXML.
     // Thai-first: --lang defaults to "th".
     guard arguments.count >= 2 else {
-        fail("usage: ghostly edit <subtitles.srt|.vtt> --duration <seconds> --command \"<editing command>\"")
-    }
-    let subtitlePath = arguments[1]
-    guard let durationText = option("duration", in: arguments),
-          let durationSeconds = Double(durationText) else {
-        fail("--duration <seconds> is required (declared length of the source clip)")
+        fail("usage: ghostly edit <subtitles.srt|.vtt> --duration <seconds> --command \"...\"  |  ghostly edit --wav <clip.wav> --command \"...\"")
     }
     guard let editCommand = option("command", in: arguments) else {
         fail("--command \"<editing command>\" is required, e.g. --command \"create a tiktok with captions, remove silence\"")
     }
-    let clipName = option("name", in: arguments)
-        ?? (subtitlePath as NSString).lastPathComponent
+    // First non-flag argument after `edit` is the optional subtitle file.
+    let subtitlePath: String? = arguments[1].hasPrefix("--") ? nil : arguments[1]
+    let wavPath = option("wav", in: arguments)
+    let language = option("lang", in: arguments) ?? "th"
+    let projectName = option("project", in: arguments) ?? "AI Edit"
     do {
-        let output = try EditPipeline.run(EditPipeline.Input(
-            subtitles: readFile(subtitlePath),
-            durationSeconds: durationSeconds,
-            command: editCommand,
-            language: option("lang", in: arguments) ?? "th",
-            clipName: clipName,
-            projectName: option("project", in: arguments) ?? "AI Edit"))
+        let output: EditPipeline.Output
+        if let wavPath {
+            // Real audio: duration + speech ranges + tempo come from the WAV.
+            let audio = try WAV.decode(contentsOf: URL(fileURLWithPath: wavPath))
+            output = try EditPipeline.run(EditPipeline.AudioInput(
+                audio: audio,
+                subtitles: subtitlePath.map(readFile),
+                command: editCommand,
+                language: language,
+                clipName: option("name", in: arguments) ?? (wavPath as NSString).lastPathComponent,
+                projectName: projectName))
+        } else {
+            guard let subtitlePath else {
+                fail("provide a subtitle file (with --duration) or --wav <clip.wav>")
+            }
+            guard let durationText = option("duration", in: arguments),
+                  let durationSeconds = Double(durationText) else {
+                fail("--duration <seconds> is required (declared length of the source clip)")
+            }
+            output = try EditPipeline.run(EditPipeline.Input(
+                subtitles: readFile(subtitlePath),
+                durationSeconds: durationSeconds,
+                command: editCommand,
+                language: language,
+                clipName: option("name", in: arguments) ?? (subtitlePath as NSString).lastPathComponent,
+                projectName: projectName))
+        }
         if let outPath = option("out", in: arguments) {
             try output.fcpxml.write(toFile: outPath, atomically: true, encoding: .utf8)
             print("wrote \(outPath)")
         } else {
             print(output.fcpxml)
         }
+        let bpmNote = output.detectedBPM.map { String(format: ", tempo ≈ %.0f BPM", $0) } ?? ""
         FileHandle.standardError.write(Data("""
-        profile: \(output.profileStyle), language: \(output.language)
+        profile: \(output.profileStyle), language: \(output.language)\(bpmNote)
         clips: \(output.storylineClipCount), captions: \(output.captionCount), duration: \(String(format: "%.2f", output.durationSeconds))s, vertical: \(output.isVertical)
         valid FCPXML: \(output.isValid)\n
         """.utf8))

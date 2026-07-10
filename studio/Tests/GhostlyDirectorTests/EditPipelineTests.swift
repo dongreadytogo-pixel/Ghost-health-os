@@ -1,6 +1,7 @@
 import XCTest
 import GhostlyCore
 import GhostlyDomain
+import GhostlyDetection
 import GhostlySubtitles
 @testable import GhostlyDirector
 
@@ -96,6 +97,59 @@ final class EditPipelineTests: XCTestCase {
             subtitles: thaiSRT, durationSeconds: 0, command: "add captions")))
         XCTAssertThrowsError(try EditPipeline.run(EditPipeline.Input(
             subtitles: "not a subtitle file", durationSeconds: 10, command: "add captions")))
+    }
+
+    // MARK: Real-audio path (WAV → detectors → edit)
+
+    /// 12s "recording": narration-shaped tone bursts matching the Thai SRT.
+    private func recordedClip() -> WAV.Audio {
+        AudioFixture(sampleRate: 16_000)
+            .silence(1.0).speech(2.5)
+            .silence(0.5).speech(3.0)
+            .silence(1.0).speech(3.0)
+            .silence(1.0)
+            .audio()
+    }
+
+    func testAudioOnlyEditNeedsNoTranscript() throws {
+        let output = try EditPipeline.run(EditPipeline.AudioInput(
+            audio: recordedClip(),
+            command: "create a tiktok, remove silence"))
+        XCTAssertTrue(output.isValid, "issues: \(output.issues)")
+        XCTAssertGreaterThan(output.storylineClipCount, 0)
+        XCTAssertEqual(output.captionCount, 0, "no transcript, no captions")
+        XCTAssertTrue(output.isVertical)
+    }
+
+    func testAudioPlusThaiSRTAttachesCaptions() throws {
+        let output = try EditPipeline.run(EditPipeline.AudioInput(
+            audio: recordedClip(),
+            subtitles: thaiSRT,
+            command: "create a tiktok with captions, remove silence"))
+        XCTAssertTrue(output.isValid, "issues: \(output.issues)")
+        XCTAssertEqual(output.language, "th")
+        XCTAssertGreaterThanOrEqual(output.captionCount, 3)
+        XCTAssertTrue(output.fcpxml.contains("captionFormat=ITT.th"))
+    }
+
+    func testAudioEditReportsDetectedTempo() throws {
+        let music = AudioFixture(sampleRate: 16_000)
+            .speech(1.0)
+            .beats(bpm: 120, seconds: 5)
+            .audio()
+        let output = try EditPipeline.run(EditPipeline.AudioInput(
+            audio: music, command: "edit this like a vlog"))
+        let bpm = try XCTUnwrap(output.detectedBPM)
+        XCTAssertEqual(bpm, 120, accuracy: 8)
+    }
+
+    func testAudioEditRejectsSilenceAndEmpty() {
+        XCTAssertThrowsError(try EditPipeline.run(EditPipeline.AudioInput(
+            audio: WAV.Audio(samples: [], sampleRate: 16_000),
+            command: "create a tiktok")))
+        XCTAssertThrowsError(try EditPipeline.run(EditPipeline.AudioInput(
+            audio: AudioFixture(sampleRate: 16_000).silence(5).audio(),
+            command: "create a tiktok")), "pure silence has nothing to edit")
     }
 
     // MARK: Range merging
