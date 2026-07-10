@@ -16,7 +16,8 @@ handshake.
   FCPXML write→read round-trips.
 - **Smoke (CI)** — the built executables actually run (`ghostly intent`,
   `presets`, `export`, `demo-thai`, the end-to-end `edit` command from a Thai
-  SRT fixture — output re-linted with `ghostly validate` — and MCP
+  SRT fixture — output re-linted with `ghostly validate` —,
+  `demo-audio`/`analyze-audio` on generated WAV bytes, and MCP
   initialize/tools list over stdio).
 - **Performance** — `measure {}` blocks for RationalTime accumulation,
   detector throughput, FCPXML generation on large timelines (planned Phase 17).

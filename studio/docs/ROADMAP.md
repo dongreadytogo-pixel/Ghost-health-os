@@ -64,7 +64,12 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 - ✅ Whisper seam: `GhostlyTranscription` — whisper.cpp full-JSON parser →
   word-timed `SubtitleTrack` (Thai-tested) + injectable CLI wrapper +
   `ghostly transcribe` (binary runs on user's machine; parser CI-tested)
-- 🔜 FFmpeg-based providers for Linux/CI media fixtures
+- ✅ Real-audio seam: dependency-free `WAV` codec (PCM 8/16/24/32-bit +
+  float32/64, any channel count downmixed to mono) + deterministic
+  `AudioFixture` synthesis (silence/tones/noise/beat clicks) feeding
+  `SilenceDetector`/`BeatDetector`; `ghostly analyze-audio` + `demo-audio`
+  commands, CI-smoke-tested end-to-end on generated WAV bytes
+- 🔜 FFmpeg command recipes for extracting WAV/frames from video on CI
 - ✅ `ghostly edit` CLI command: `EditPipeline` — transcript (SRT/VTT) +
   declared duration + natural-language command → auto-edit → Thai captions →
   validated FCPXML (cue timings double as speech ranges, so the whole chain

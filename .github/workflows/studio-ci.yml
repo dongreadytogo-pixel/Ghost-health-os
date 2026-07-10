@@ -62,6 +62,10 @@ jobs:
           grep -q "<fcpxml" /tmp/edit.fcpxml
           grep -q "captionFormat=ITT.th" /tmp/edit.fcpxml
           "$BIN/ghostly" validate /tmp/edit.fcpxml
+          "$BIN/ghostly" demo-audio --out /tmp/demo.wav
+          "$BIN/ghostly" analyze-audio /tmp/demo.wav | tee /tmp/audio.txt
+          grep -q "speech: 2 range" /tmp/audio.txt || grep -q "speech: 3 range" /tmp/audio.txt
+          grep -q "BPM" /tmp/audio.txt
 
       - name: Smoke-test MCP server handshake
         run: |

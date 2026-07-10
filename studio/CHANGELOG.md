@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- Real-audio analysis seam (GhostlyDetection): dependency-free `WAV` codec —
+  decodes PCM 8/16/24/32-bit and IEEE float 32/64 WAVs on any platform,
+  downmixing multichannel to mono, with typed parse errors — plus
+  `AudioFixture`, a deterministic synthesizer (silence, speech-band tones,
+  seeded noise, BPM click tracks) whose byte-identical WAV output pins
+  detector behavior in CI without media files in the repo. New CLI commands:
+  `ghostly analyze-audio <file.wav>` (speech ranges + beat onsets/BPM from
+  real audio) and `ghostly demo-audio` (writes the canonical demo WAV);
+  both smoke-tested on CI.
 - `EditPipeline` (GhostlyDirector) + **`ghostly edit`** command — the first
   end-to-end editing entry point: a transcript (SRT/WebVTT) plus a declared
   clip duration and a natural-language command go through intent parsing,

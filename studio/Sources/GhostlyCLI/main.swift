@@ -3,6 +3,7 @@ import GhostlyCore
 import GhostlyDomain
 import GhostlyFCPXML
 import GhostlySubtitles
+import GhostlyDetection
 import GhostlyDirector
 import GhostlyLearning
 import GhostlyExport
@@ -50,6 +51,8 @@ guard let command = arguments.first else {
       ghostly styles
       ghostly export <input> --preset <name> --out <output> [--title T] [--artist A]
       ghostly presets
+      ghostly analyze-audio <file.wav>          Speech ranges + beats/BPM from a WAV file
+      ghostly demo-audio [--out file.wav]       Write a deterministic demo WAV (speech + 120 BPM beats)
       ghostly demo-thai [--out file.fcpxml]
       ghostly transcribe <audio> --model <ggml.bin> [--lang th] [--out subs.srt] [--whisper path]
       ghostly version
@@ -207,6 +210,40 @@ case "transcribe":
         }
     } catch {
         fail(error.localizedDescription)
+    }
+
+case "analyze-audio":
+    guard arguments.count >= 2 else { fail("usage: ghostly analyze-audio <file.wav>") }
+    do {
+        let audio = try WAV.decode(contentsOf: URL(fileURLWithPath: arguments[1]))
+        print("duration: \(String(format: "%.2f", audio.duration.seconds))s @ \(audio.sampleRate)Hz")
+        let segments = SilenceDetector().segments(samples: audio.samples,
+                                                  sampleRate: audio.sampleRate)
+        let speech = segments.filter(\.isSpeech)
+        let speechSeconds = speech.reduce(0.0) { $0 + $1.range.duration.seconds }
+        print("speech: \(speech.count) range(s), \(String(format: "%.2f", speechSeconds))s total")
+        for segment in speech {
+            print(String(format: "  %.2fs – %.2fs",
+                         segment.range.start.seconds, segment.range.end.seconds))
+        }
+        let beats = BeatDetector().detect(samples: audio.samples, sampleRate: audio.sampleRate)
+        if let bpm = beats.bpm {
+            print("beats: \(beats.beats.count) onsets, tempo ≈ \(String(format: "%.0f", bpm)) BPM")
+        } else {
+            print("beats: \(beats.beats.count) onsets, tempo unknown")
+        }
+    } catch {
+        fail(error.localizedDescription)
+    }
+
+case "demo-audio":
+    let fixture = AudioFixture.demo()
+    let outPath = option("out", in: arguments) ?? "ghostly-demo.wav"
+    do {
+        try fixture.wavData().write(to: URL(fileURLWithPath: outPath))
+        print("wrote \(outPath) (\(String(format: "%.1f", fixture.durationSeconds))s: narration pattern + 120 BPM beats)")
+    } catch {
+        fail("cannot write '\(outPath)': \(error.localizedDescription)")
     }
 
 case "demo-thai":
