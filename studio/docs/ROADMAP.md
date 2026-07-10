@@ -102,7 +102,8 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 - ✅ Color engine core: `GhostlyColor` — `.cube` 3D LUT parse/serialize/
   trilinear sampling + `ColorAdjustments` (exposure/contrast/saturation/
   temperature/tint) baked to LUTs; `ghostly lut` / `lut-info` commands;
-  🗺️ remaining: auto white balance via frame histograms
+  gray-world auto white balance (`AutoWhiteBalance` + `lut --neutralize`);
+  🗺️ remaining: frame-average extraction from real video (AV/ffmpeg seam)
 - ✅ Audio engine core: `GhostlyAudio` — RMS/peak loudness (dBFS), peak-safe
   normalization (`ghostly normalize-audio`), and speech-driven music-ducking
   envelopes (merge-gap + linear ramps → keyframes / rendered samples);

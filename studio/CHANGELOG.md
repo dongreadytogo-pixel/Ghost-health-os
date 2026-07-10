@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- Auto white balance (GhostlyColor): `AutoWhiteBalance` — gray-world
+  estimate turning frame-average colors into the `ColorAdjustments`
+  temperature/tint that neutralize the cast (tint referenced to the R/B
+  average so green casts fully correct; black/blown frames yield identity).
+  `ghostly lut --neutralize "r g b"` bakes the correction into a .cube LUT.
 - Music beds in auto-edits now **duck under the narration in FCPXML**:
   `Clip` gains `volumeKeyframes` (tolerant decode for older documents), the
   FCPXML writer emits `adjust-volume → param(amount) → keyframeAnimation`

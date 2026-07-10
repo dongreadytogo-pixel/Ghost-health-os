@@ -60,7 +60,7 @@ guard let command = arguments.first else {
       ghostly demo-audio [--out file.wav]       Write a deterministic demo WAV (speech + 120 BPM beats)
       ghostly demo-thai [--out file.fcpxml]
       ghostly transcribe <audio> --model <ggml.bin> [--lang th] [--out subs.srt] [--whisper path]
-      ghostly lut [--exposure EV] [--contrast x] [--saturation x] [--temperature -1..1] [--tint -1..1] [--size 33] [--title name] [--out grade.cube]
+      ghostly lut [--exposure EV] [--contrast x] [--saturation x] [--temperature -1..1] [--tint -1..1] [--neutralize "r g b"] [--size 33] [--title name] [--out grade.cube]
       ghostly lut-info <file.cube>              Inspect/validate a .cube LUT
       ghostly normalize-audio <in.wav> [--target -16] [--peak -1] [--out out.wav]   Level a voice/music track (RMS dBFS, peak-safe)
       ghostly version
@@ -378,12 +378,22 @@ case "demo-thai":
 case "lut":
     do {
         let value = { (name: String) in option(name, in: arguments).flatMap(Double.init) }
-        let grade = ColorAdjustments(
+        var grade = ColorAdjustments(
             exposureEV: value("exposure") ?? 0,
             contrast: value("contrast") ?? 1,
             saturation: value("saturation") ?? 1,
             temperature: value("temperature") ?? 0,
             tint: value("tint") ?? 0)
+        if let neutralize = option("neutralize", in: arguments) {
+            // Gray-world auto white balance from a frame-average color.
+            let parts = neutralize.split(separator: " ").compactMap { Double($0) }
+            guard parts.count == 3 else {
+                fail("--neutralize expects \"r g b\" in 0…1, e.g. \"0.55 0.45 0.35\"")
+            }
+            let wb = AutoWhiteBalance.estimate(averageColor: RGB(parts[0], parts[1], parts[2]))
+            grade.temperature = wb.temperature
+            grade.tint = wb.tint
+        }
         let size = option("size", in: arguments).flatMap(Int.init) ?? 33
         let lut = try grade.lut(size: size, title: option("title", in: arguments))
         let cube = lut.serialized()

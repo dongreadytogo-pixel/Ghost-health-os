@@ -111,6 +111,48 @@ final class ColorTests: XCTestCase {
         }
     }
 
+    // MARK: Auto white balance (gray-world)
+
+    func testNeutralSceneNeedsNoCorrection() {
+        let adjustments = AutoWhiteBalance.estimate(averageColor: RGB(0.4, 0.4, 0.4))
+        XCTAssertEqual(adjustments.temperature, 0, accuracy: 1e-9)
+        XCTAssertEqual(adjustments.tint, 0, accuracy: 1e-9)
+    }
+
+    func testWarmCastGetsCooled() {
+        // Tungsten-ish scene: too much red, too little blue.
+        let warm = RGB(0.55, 0.45, 0.35)
+        let fix = AutoWhiteBalance.estimate(averageColor: warm)
+        XCTAssertLessThan(fix.temperature, 0, "warm cast needs a cooling correction")
+        let corrected = fix.applied(to: warm)
+        XCTAssertEqual(corrected.r, corrected.b, accuracy: 0.03,
+                       "red/blue must roughly meet after correction")
+    }
+
+    func testGreenCastGetsTintCorrection() {
+        let fluorescent = RGB(0.42, 0.5, 0.42)
+        let fix = AutoWhiteBalance.estimate(averageColor: fluorescent)
+        XCTAssertGreaterThan(fix.tint, 0, "green cast pushes tint toward magenta")
+        let corrected = fix.applied(to: fluorescent)
+        XCTAssertEqual(corrected.g, (corrected.r + corrected.b) / 2, accuracy: 0.02)
+    }
+
+    func testDegenerateScenesReturnIdentity() {
+        XCTAssertTrue(AutoWhiteBalance.estimate(averageColor: RGB(0.001, 0.001, 0.001)).isIdentity,
+                      "black frame carries no evidence")
+        XCTAssertTrue(AutoWhiteBalance.estimate(averageColor: RGB(1, 1, 1)).isIdentity,
+                      "blown frame carries no evidence")
+        XCTAssertTrue(AutoWhiteBalance.estimate(frameAverages: []).isIdentity)
+    }
+
+    func testFrameAveragingMatchesSingleEstimate() {
+        let frames = [RGB(0.5, 0.45, 0.4), RGB(0.6, 0.45, 0.3), RGB(0.55, 0.45, 0.35)]
+        let combined = AutoWhiteBalance.estimate(frameAverages: frames)
+        let direct = AutoWhiteBalance.estimate(averageColor: RGB(0.55, 0.45, 0.35))
+        XCTAssertEqual(combined.temperature, direct.temperature, accuracy: 1e-9)
+        XCTAssertEqual(combined.tint, direct.tint, accuracy: 1e-9)
+    }
+
     func testIdentityAdjustmentsAreIdentity() throws {
         XCTAssertTrue(ColorAdjustments().isIdentity)
         let lut = try ColorAdjustments().lut(size: 9)
