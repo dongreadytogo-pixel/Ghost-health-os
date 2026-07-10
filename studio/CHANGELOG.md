@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- `MediaExtraction` (GhostlyExport) + `ghostly extract-audio` — deterministic
+  ffmpeg recipes for the *input* direction: pull a mono 16 kHz 16-bit WAV (or
+  downscaled grayscale frames for scene analysis) out of any video, printed as
+  a shell-quoted command so nothing assumes ffmpeg is installed. Completes the
+  no-Mac-required bridge: `extract-audio` → `edit --wav` → FCPXML.
 - `ghostly edit --wav clip.wav` — auto-edit **real recordings**:
   `EditPipeline.AudioInput` decodes WAV audio, finds speech with the
   `SilenceDetector`, tempo with the `BeatDetector`, and needs no transcript

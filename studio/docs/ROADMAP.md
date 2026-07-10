@@ -69,7 +69,10 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
   `AudioFixture` synthesis (silence/tones/noise/beat clicks) feeding
   `SilenceDetector`/`BeatDetector`; `ghostly analyze-audio` + `demo-audio`
   commands, CI-smoke-tested end-to-end on generated WAV bytes
-- 🔜 FFmpeg command recipes for extracting WAV/frames from video on CI
+- ✅ FFmpeg extraction recipes: `MediaExtraction` — deterministic, shell-quoted
+  ffmpeg commands for analysis WAV (mono/16 kHz/PCM16) and downscaled grayscale
+  frames; `ghostly extract-audio` prints the exact bridge command
+  (video → WAV → `edit --wav`)
 - ✅ `ghostly edit` CLI command: `EditPipeline` — transcript (SRT/VTT) +
   declared duration + natural-language command → auto-edit → Thai captions →
   validated FCPXML (cue timings double as speech ranges, so the whole chain

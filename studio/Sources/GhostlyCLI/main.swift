@@ -53,6 +53,7 @@ guard let command = arguments.first else {
       ghostly export <input> --preset <name> --out <output> [--title T] [--artist A]
       ghostly presets
       ghostly analyze-audio <file.wav>          Speech ranges + beats/BPM from a WAV file
+      ghostly extract-audio <video> [--out file.wav] [--rate 16000]   Print the ffmpeg command that produces an analysis WAV
       ghostly demo-audio [--out file.wav]       Write a deterministic demo WAV (speech + 120 BPM beats)
       ghostly demo-thai [--out file.fcpxml]
       ghostly transcribe <audio> --model <ggml.bin> [--lang th] [--out subs.srt] [--whisper path]
@@ -255,6 +256,14 @@ case "analyze-audio":
     } catch {
         fail(error.localizedDescription)
     }
+
+case "extract-audio":
+    guard arguments.count >= 2 else { fail("usage: ghostly extract-audio <video> [--out file.wav]") }
+    let input = arguments[1]
+    let output = option("out", in: arguments) ?? ((input as NSString).deletingPathExtension + ".wav")
+    let rate = option("rate", in: arguments).flatMap(Int.init) ?? 16_000
+    // Print the command; the studio does not assume ffmpeg is present.
+    print(MediaExtraction().audioCommandLine(input: input, output: output, sampleRate: rate))
 
 case "demo-audio":
     let fixture = AudioFixture.demo()
