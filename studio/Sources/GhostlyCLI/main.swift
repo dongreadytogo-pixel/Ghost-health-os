@@ -52,6 +52,7 @@ guard let command = arguments.first else {
       ghostly styles
       ghostly export <input> --preset <name> --out <output> [--title T] [--artist A]
       ghostly presets
+      ghostly workflow --wav <clip.wav> --command "<editing command>" [<subs.srt>] [--diarize] [--preset name] [--out file.fcpxml]   Full chain: analyze → edit → captions → export command
       ghostly analyze-audio <file.wav> [--diarize]   Speech ranges + beats/BPM (+ speakers) from a WAV file
       ghostly extract-audio <video> [--out file.wav] [--rate 16000]   Print the ffmpeg command that produces an analysis WAV
       ghostly demo-audio [--out file.wav]       Write a deterministic demo WAV (speech + 120 BPM beats)
@@ -235,6 +236,48 @@ case "transcribe":
         fail(error.localizedDescription)
     }
 
+case "workflow":
+    // Agent mode: analyze → edit → captions → FCPXML → export command.
+    guard let editCommand = option("command", in: arguments) else {
+        fail("--command \"<editing command>\" is required")
+    }
+    let subtitlePath: String? = arguments.count >= 2 && !arguments[1].hasPrefix("--") ? arguments[1] : nil
+    do {
+        var request = Workflow.Request(
+            command: editCommand,
+            language: option("lang", in: arguments) ?? "th",
+            diarize: arguments.contains("--diarize"),
+            projectName: option("project", in: arguments) ?? "AI Edit",
+            exportPresetName: option("preset", in: arguments))
+        if let wavPath = option("wav", in: arguments) {
+            request.audio = try WAV.decode(contentsOf: URL(fileURLWithPath: wavPath))
+            request.clipName = option("name", in: arguments) ?? (wavPath as NSString).lastPathComponent
+        } else if let subtitlePath {
+            guard let seconds = option("duration", in: arguments).flatMap(Double.init) else {
+                fail("--duration <seconds> is required without --wav")
+            }
+            request.durationSeconds = seconds
+            request.clipName = option("name", in: arguments) ?? (subtitlePath as NSString).lastPathComponent
+        } else {
+            fail("provide --wav <clip.wav> or a subtitle file with --duration")
+        }
+        request.subtitles = subtitlePath.map(readFile)
+
+        let result = try Workflow.run(request)
+        let outPath = option("out", in: arguments) ?? "edit.fcpxml"
+        try result.edit.fcpxml.write(toFile: outPath, atomically: true, encoding: .utf8)
+        for step in result.steps { print("• \(step)") }
+        print("fcpxml: \(outPath)")
+        print("preset: \(result.exportPresetName)")
+        print("export: \(result.exportCommand)")
+        if !result.edit.isValid {
+            for issue in result.edit.issues { FileHandle.standardError.write(Data("\(issue)\n".utf8)) }
+            exit(2)
+        }
+    } catch {
+        fail(error.localizedDescription)
+    }
+
 case "analyze-audio":
     guard arguments.count >= 2 else { fail("usage: ghostly analyze-audio <file.wav>") }
     do {
@@ -261,8 +304,9 @@ case "analyze-audio":
                                                 speechRanges: speech.map(\.range))
             print("speakers: \(SpeakerDiarizer.speakerCount(turns))")
             for turn in turns {
-                print(String(format: "  %.2fs – %.2fs  %@",
-                             turn.range.start.seconds, turn.range.end.seconds, turn.speaker))
+                let start = String(format: "%.2f", turn.range.start.seconds)
+                let end = String(format: "%.2f", turn.range.end.seconds)
+                print("  \(start)s – \(end)s  \(turn.speaker)")
             }
         }
     } catch {

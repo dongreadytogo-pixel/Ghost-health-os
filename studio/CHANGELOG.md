@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- **Agent mode**: `Workflow` (GhostlyDirector) chains the whole delivery in
+  one deterministic call — analyze (WAV or transcript) → auto-edit → captions
+  → validated FCPXML → render-preset selection (inferred from the edit's
+  format unless named) → the exact ffmpeg export command — and reports a
+  human-readable step trace. Exposed as `ghostly workflow` (CLI) and
+  `run_workflow` (MCP, 15 tools now). GhostlyDirector now depends on
+  GhostlyExport for preset/command building.
 - MCP audio tools: `analyze_audio` (WAV → speech ranges, beats/BPM, optional
   speaker turns) and `edit_from_audio` (WAV + command [+ transcript] →
   validated FCPXML with Thai-default captions and optional speaker tagging) —

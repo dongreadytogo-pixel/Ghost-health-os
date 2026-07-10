@@ -106,5 +106,7 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 
 - 🗺️ Plugin SDK: manifest, sandboxed lifecycle, tool/profile registration
 - 🗺️ Marketplace client: packages, licensing, offline cache
-- 🗺️ Agent mode: multi-step workflows (edit → caption → render → export)
+- ✅ Agent mode (engine): `Workflow` chains analyze → edit → caption →
+  preset → export command in one call (`ghostly workflow` / `run_workflow`);
+  🗺️ remaining: multi-turn agent sessions and actual render execution
 - 🗺️ Premiere Pro / Resolve exporters over the same domain model

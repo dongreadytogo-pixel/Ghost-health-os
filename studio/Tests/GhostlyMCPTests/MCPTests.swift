@@ -61,7 +61,7 @@ final class MCPTests: XCTestCase {
                                     "validate_fcpxml", "analyze_timeline", "find_highlights",
                                     "search_assets", "export_command", "list_export_presets",
                                     "validate_plugin_manifest", "list_caption_styles", "recommend",
-                                    "analyze_audio", "edit_from_audio"])
+                                    "analyze_audio", "edit_from_audio", "run_workflow"])
         for tool in tools {
             XCTAssertNotNil(tool["description"]?.stringValue)
             XCTAssertNotNil(tool["inputSchema"]?["type"])
@@ -196,6 +196,20 @@ final class MCPTests: XCTestCase {
         XCTAssertTrue(text.contains("captionFormat=ITT.th"),
                       "default language must be Thai: \(text.prefix(400))")
         XCTAssertTrue(text.contains("สวัสดีครับ"))
+    }
+
+    func testRunWorkflowToolChainsToExportCommand() async throws {
+        let server = try await makeServer()
+        let path = try writeInterviewWAV()
+        let call = """
+        {"jsonrpc":"2.0","id":53,"method":"tools/call","params":{"name":"run_workflow",
+            "arguments":{"audioPath":"\(path)","command":"create a tiktok, remove silence"}}}
+        """
+        let (text, isError) = try toolText(await send(server, call))
+        XCTAssertFalse(isError, text)
+        XCTAssertTrue(text.contains("\"exportPreset\":\"TikTok\""), String(text.prefix(300)))
+        XCTAssertTrue(text.contains("scale=1080:1920"), "export command must be included")
+        XCTAssertTrue(text.contains("\"steps\""))
     }
 
     func testParseCommandTool() async throws {

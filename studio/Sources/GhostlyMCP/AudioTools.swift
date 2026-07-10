@@ -65,6 +65,72 @@ public struct AnalyzeAudioTool: MCPTool {
     }
 }
 
+/// `run_workflow`: the full agent-mode chain in one call — analyze → edit →
+/// captions → FCPXML → render preset → ffmpeg export command, with a trace.
+public struct RunWorkflowTool: MCPTool {
+    public let name = "run_workflow"
+    public let description = """
+    Run the whole delivery chain in one call: analyze a WAV recording (or \
+    transcript timings), auto-edit with a natural-language command, attach \
+    captions (default language Thai), pick a render preset (inferred from \
+    the format unless given), and return validated FCPXML plus the exact \
+    ffmpeg export command and a step-by-step trace.
+    """
+    public let inputSchema: JSONValue = .object([
+        "type": "object",
+        "properties": .object([
+            "audioPath": .object(["type": "string", "description": "path to a .wav file (preferred input)"]),
+            "transcriptSRT": .object(["type": "string", "description": "SRT/VTT content; required if audioPath is omitted"]),
+            "durationSeconds": .object(["type": "number", "description": "clip length; required if audioPath is omitted"]),
+            "command": .object(["type": "string", "description": "natural-language editing instruction"]),
+            "language": .object(["type": "string", "description": "caption language (BCP-47); default 'th'"]),
+            "diarize": .object(["type": "boolean"]),
+            "projectName": .object(["type": "string"]),
+            "exportPreset": .object(["type": "string", "description": "render preset name; inferred when omitted"]),
+        ]),
+        "required": .array(["command"]),
+    ])
+
+    public init() {}
+
+    public func call(arguments: JSONValue) async throws -> JSONValue {
+        guard let command = arguments["command"]?.stringValue, !command.isEmpty else {
+            throw StudioError.invalidInput(field: "command", reason: "required")
+        }
+        var request = Workflow.Request(
+            command: command,
+            language: arguments["language"]?.stringValue ?? "th",
+            diarize: arguments["diarize"]?.boolValue ?? false,
+            projectName: arguments["projectName"]?.stringValue ?? "AI Edit",
+            exportPresetName: arguments["exportPreset"]?.stringValue)
+        if let path = arguments["audioPath"]?.stringValue, !path.isEmpty {
+            request.audio = try WAV.decode(contentsOf: URL(fileURLWithPath: path))
+            request.clipName = (path as NSString).lastPathComponent
+        }
+        request.subtitles = arguments["transcriptSRT"]?.stringValue
+        if case .number(let seconds)? = arguments["durationSeconds"] {
+            request.durationSeconds = seconds
+        }
+
+        let result = try Workflow.run(request)
+        guard result.edit.isValid else {
+            throw StudioError.validationFailure(detail: result.edit.issues.joined(separator: "; "))
+        }
+        return .object([
+            "fcpxml": .string(result.edit.fcpxml),
+            "exportPreset": .string(result.exportPresetName),
+            "exportCommand": .string(result.exportCommand),
+            "steps": .array(result.steps.map(JSONValue.string)),
+            "clips": .number(Double(result.edit.storylineClipCount)),
+            "captions": .number(Double(result.edit.captionCount)),
+            "durationSeconds": .number(result.edit.durationSeconds),
+            "vertical": .bool(result.edit.isVertical),
+            "language": .string(result.edit.language),
+            "speakerCount": result.edit.speakerCount.map { .number(Double($0)) } ?? .null,
+        ])
+    }
+}
+
 /// `edit_from_audio`: WAV file + command (+ optional transcript) → FCPXML.
 public struct EditFromAudioTool: MCPTool {
     public let name = "edit_from_audio"

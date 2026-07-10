@@ -37,6 +37,7 @@ let package = Package(
         .target(name: "GhostlyTranscription", dependencies: ["GhostlyCore", "GhostlySubtitles"]),
         .target(name: "GhostlyDirector", dependencies: [
             "GhostlyCore", "GhostlyDomain", "GhostlyDetection", "GhostlyFCPXML", "GhostlySubtitles",
+            "GhostlyExport",
         ]),
         .target(name: "GhostlyAI", dependencies: ["GhostlyCore", "GhostlyDomain"]),
         .target(name: "GhostlyLearning", dependencies: ["GhostlyCore", "GhostlyDomain"]),

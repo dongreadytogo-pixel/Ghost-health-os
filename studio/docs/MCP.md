@@ -130,6 +130,14 @@ real recording end-to-end (speech detection → plan → captions → validated
 FCPXML). `language` defaults to `th`; `diarize` tags caption cues with
 speakers. Returns the FCPXML plus clip/caption/BPM/speaker metadata.
 
+### `run_workflow`
+`{ "audioPath": "/path/clip.wav", "command": "create a tiktok with captions",
+"transcriptSRT": "…", "diarize": true, "exportPreset": "TikTok" }` → the whole
+delivery chain in one call: analyze → auto-edit → captions (default `th`) →
+validated FCPXML → render preset (inferred from the edit's format when
+omitted) → the exact ffmpeg export command, plus a step-by-step `steps`
+trace. Accepts `transcriptSRT` + `durationSeconds` instead of `audioPath`.
+
 ### `recommend`
 `{ "category": "transition", "limit": 5 }` → the user's learned favorites for
 `font`, `captionStyle`, `transition`, `effect`, `lut`, `exportPreset`,
