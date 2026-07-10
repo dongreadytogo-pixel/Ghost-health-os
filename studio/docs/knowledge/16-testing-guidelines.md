@@ -3,9 +3,10 @@
 How this repository is tested today and the bar for every new feature.
 
 ## Current state
-~230 XCTest functions across 11 suites; every module ships with its suite;
+~314 XCTest functions across 14 suites; every module ships with its suite;
 CI runs Linux (`swift:6.0` container) + macOS on every push touching
-`studio/**`, plus release-build smoke tests of the CLI and a live MCP
+`studio/**`, plus release-build smoke tests of the CLI (including the
+end-to-end Thai `edit` and generated-WAV audio paths) and a live MCP
 handshake.
 
 ## Test taxonomy

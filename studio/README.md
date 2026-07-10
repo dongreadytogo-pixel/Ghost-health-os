@@ -28,7 +28,13 @@ layer activates on macOS.
 | Project persistence, version-history snapshots, autosave/recovery | `GhostlyStorage` | ✅ tested |
 | Plugin manifest + lifecycle + registry (SDK groundwork) | `GhostlyPlugin` | ✅ tested |
 | Undo/redo command system + domain events | `GhostlyDomain` | ✅ tested |
-| MCP server with 8 studio tools | `GhostlyMCP` | ✅ tested |
+| **Thai-first captions**: spaceless-script wrapping, `ITT.th` role, numeral verbalization | `GhostlySubtitles` | ✅ tested |
+| Whisper transcription seam (whisper.cpp full-JSON → word-timed track) | `GhostlyTranscription` | ✅ tested |
+| WAV codec + deterministic audio fixtures (real-audio analysis, no media in repo) | `GhostlyDetection` | ✅ tested |
+| Speaker diarization (pitch clustering → S1/S2 caption tags) | `GhostlyDetection` | ✅ tested |
+| End-to-end `edit` pipeline: SRT and/or WAV + command → validated FCPXML | `GhostlyDirector` | ✅ tested |
+| FFmpeg extraction recipes (video → analysis WAV / frames) | `GhostlyExport` | ✅ tested |
+| MCP server with 14 studio tools | `GhostlyMCP` | ✅ tested |
 | Multi-AI router (Claude, OpenAI-compatible, Gemini, Ollama, LM Studio) | `GhostlyAI` | ✅ tested |
 | Local learning system (preferences, usage, recommendations) | `GhostlyLearning` | ✅ tested |
 | `ghostly` CLI | `GhostlyCLI` | ✅ CI smoke-tested |
@@ -64,6 +70,16 @@ ghostly styles
 ghostly demo-thai --out thai-short.fcpxml   # end-to-end Thai vertical short
 ```
 
+Edit a real recording end-to-end (Thai-first — ภาษาไทยเป็นค่าเริ่มต้น):
+
+```sh
+ghostly extract-audio คลิป.mp4                 # prints the ffmpeg command → คลิป.wav
+ghostly transcribe คลิป.wav --model ggml-large-v3.bin --lang th --out ซับ.srt
+ghostly edit ซับ.srt --wav คลิป.wav --diarize \
+    --command "create a tiktok with captions, remove silence" --out ตัดต่อ.fcpxml
+ghostly analyze-audio คลิป.wav --diarize       # or just inspect: speech/beats/speakers
+```
+
 ### Drive it from an AI agent (MCP)
 
 Add to your MCP client config (Claude Code shown):
@@ -76,10 +92,11 @@ Add to your MCP client config (Claude Code shown):
 }
 ```
 
-Exposed tools: `auto_edit`, `parse_edit_command`, `generate_captions`,
-`validate_fcpxml`, `analyze_timeline`, `find_highlights`, `search_assets`,
-`export_command`, `list_export_presets`, `validate_plugin_manifest`,
-`list_caption_styles`, `recommend`.
+Exposed tools: `auto_edit`, `edit_from_audio`, `analyze_audio`,
+`parse_edit_command`, `generate_captions`, `validate_fcpxml`,
+`analyze_timeline`, `find_highlights`, `search_assets`, `export_command`,
+`list_export_presets`, `validate_plugin_manifest`, `list_caption_styles`,
+`recommend`.
 See [docs/MCP.md](docs/MCP.md) for schemas and examples.
 
 ### As a library
