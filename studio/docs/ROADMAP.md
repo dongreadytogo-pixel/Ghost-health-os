@@ -103,7 +103,10 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
   trilinear sampling + `ColorAdjustments` (exposure/contrast/saturation/
   temperature/tint) baked to LUTs; `ghostly lut` / `lut-info` commands;
   🗺️ remaining: auto white balance via frame histograms
-- 🗺️ Audio engine: loudness normalization, music ducking envelopes
+- ✅ Audio engine core: `GhostlyAudio` — RMS/peak loudness (dBFS), peak-safe
+  normalization (`ghostly normalize-audio`), and speech-driven music-ducking
+  envelopes (merge-gap + linear ramps → keyframes / rendered samples);
+  🗺️ remaining: FCPXML volume-keyframe emission, true LUFS weighting
 
 ## M4 — Ecosystem 🗺️
 

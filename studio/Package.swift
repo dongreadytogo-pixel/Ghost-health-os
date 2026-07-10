@@ -16,6 +16,7 @@ let package = Package(
         .library(name: "GhostlyPlugin", targets: ["GhostlyPlugin"]),
         .library(name: "GhostlyTranscription", targets: ["GhostlyTranscription"]),
         .library(name: "GhostlyColor", targets: ["GhostlyColor"]),
+        .library(name: "GhostlyAudio", targets: ["GhostlyAudio"]),
         .library(name: "GhostlyDirector", targets: ["GhostlyDirector"]),
         .library(name: "GhostlyAI", targets: ["GhostlyAI"]),
         .library(name: "GhostlyLearning", targets: ["GhostlyLearning"]),
@@ -37,6 +38,7 @@ let package = Package(
         .target(name: "GhostlyPlugin", dependencies: ["GhostlyCore"]),
         .target(name: "GhostlyTranscription", dependencies: ["GhostlyCore", "GhostlySubtitles"]),
         .target(name: "GhostlyColor", dependencies: ["GhostlyCore"]),
+        .target(name: "GhostlyAudio", dependencies: ["GhostlyCore"]),
         .target(name: "GhostlyDirector", dependencies: [
             "GhostlyCore", "GhostlyDomain", "GhostlyDetection", "GhostlyFCPXML", "GhostlySubtitles",
             "GhostlyExport",
@@ -57,7 +59,7 @@ let package = Package(
         .executableTarget(name: "GhostlyCLI", dependencies: [
             "GhostlyCore", "GhostlyDomain", "GhostlyFCPXML", "GhostlySubtitles",
             "GhostlyDirector", "GhostlyDetection", "GhostlyLearning", "GhostlyExport",
-            "GhostlyTranscription", "GhostlyColor",
+            "GhostlyTranscription", "GhostlyColor", "GhostlyAudio",
         ]),
         .executableTarget(name: "GhostlyMCPServer", dependencies: ["GhostlyMCP"]),
         // MARK: Tests
@@ -74,6 +76,9 @@ let package = Package(
             "GhostlyTranscription", "GhostlySubtitles", "GhostlyCore",
         ]),
         .testTarget(name: "GhostlyColorTests", dependencies: ["GhostlyColor", "GhostlyCore"]),
+        .testTarget(name: "GhostlyAudioTests", dependencies: [
+            "GhostlyAudio", "GhostlyDetection", "GhostlyCore",
+        ]),
         .testTarget(name: "GhostlyDirectorTests", dependencies: [
             "GhostlyDirector", "GhostlyDetection", "GhostlySubtitles", "GhostlyDomain", "GhostlyCore",
         ]),

@@ -9,6 +9,7 @@ import GhostlyLearning
 import GhostlyExport
 import GhostlyTranscription
 import GhostlyColor
+import GhostlyAudio
 
 /// `ghostly` — command-line access to the studio engines.
 ///
@@ -61,6 +62,7 @@ guard let command = arguments.first else {
       ghostly transcribe <audio> --model <ggml.bin> [--lang th] [--out subs.srt] [--whisper path]
       ghostly lut [--exposure EV] [--contrast x] [--saturation x] [--temperature -1..1] [--tint -1..1] [--size 33] [--title name] [--out grade.cube]
       ghostly lut-info <file.cube>              Inspect/validate a .cube LUT
+      ghostly normalize-audio <in.wav> [--target -16] [--peak -1] [--out out.wav]   Level a voice/music track (RMS dBFS, peak-safe)
       ghostly version
     """)
     exit(0)
@@ -312,6 +314,26 @@ case "analyze-audio":
                 print("  \(start)s – \(end)s  \(turn.speaker)")
             }
         }
+    } catch {
+        fail(error.localizedDescription)
+    }
+
+case "normalize-audio":
+    guard arguments.count >= 2 else { fail("usage: ghostly normalize-audio <in.wav> [--target -16]") }
+    do {
+        let audio = try WAV.decode(contentsOf: URL(fileURLWithPath: arguments[1]))
+        let target = option("target", in: arguments).flatMap(Double.init) ?? -16
+        let ceiling = option("peak", in: arguments).flatMap(Double.init) ?? -1
+        let before = Loudness.rmsDBFS(of: audio.samples)
+        let leveled = Loudness.normalized(audio.samples, targetDBFS: target, peakCeilingDBFS: ceiling)
+        let after = Loudness.rmsDBFS(of: leveled)
+        let outPath = option("out", in: arguments)
+            ?? ((arguments[1] as NSString).deletingPathExtension + "-normalized.wav")
+        try WAV.encode(WAV.Audio(samples: leveled, sampleRate: audio.sampleRate))
+            .write(to: URL(fileURLWithPath: outPath))
+        func db(_ v: Double?) -> String { v.map { String(format: "%.1f dBFS", $0) } ?? "silence" }
+        print("wrote \(outPath)")
+        print("rms: \(db(before)) → \(db(after)) (target \(String(format: "%.1f", target)), peak ceiling \(String(format: "%.1f", ceiling)))")
     } catch {
         fail(error.localizedDescription)
     }

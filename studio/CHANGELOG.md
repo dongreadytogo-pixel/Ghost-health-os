@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- Audio engine core: new `GhostlyAudio` module — `Loudness` (RMS/peak in
+  dBFS, peak-ceiling-aware normalization gain; silence-safe) and
+  `MusicDucking` (speech ranges → piecewise-linear gain envelope with merge
+  gaps and edge-clamped fades, evaluated analytically so keyframes can never
+  contradict; applies to samples for rendering). CLI:
+  `ghostly normalize-audio` levels a track to a target RMS without clipping;
+  CI smoke normalizes and re-analyzes the generated demo WAV. Nine tests
+  pin known-sine math, target/ceiling behavior, duck/recover/merge shapes,
+  clip-start clamping, and rendered attenuation.
 - Color engine core: new `GhostlyColor` module — Adobe `.cube` 3D LUT
   parser/serializer with exact round-trip, trilinear sampling, identity
   generation, and `ColorAdjustments` (exposure EV, contrast pivoted at

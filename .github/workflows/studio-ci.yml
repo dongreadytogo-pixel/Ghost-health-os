@@ -78,6 +78,8 @@ jobs:
           "$BIN/ghostly" validate /tmp/wf.fcpxml
           "$BIN/ghostly" lut --exposure 0.3 --temperature 0.2 --out /tmp/warm.cube
           "$BIN/ghostly" lut-info /tmp/warm.cube | grep -q "valid 3D cube LUT"
+          "$BIN/ghostly" normalize-audio /tmp/demo.wav --target -16 --out /tmp/leveled.wav | grep -q "rms:"
+          "$BIN/ghostly" analyze-audio /tmp/leveled.wav | grep -q "speech:"
 
       - name: Smoke-test MCP server handshake
         run: |
