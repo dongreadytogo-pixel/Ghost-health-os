@@ -117,6 +117,19 @@ given, reports compatibility. Invalid manifests return `isError: true`.
 No arguments → the built-in caption presets with fonts, sizes, positions and
 animations.
 
+### `analyze_audio`
+`{ "audioPath": "/path/clip.wav", "diarize": true }` → duration, speech
+ranges, beat onsets + BPM from a real WAV file, and with `diarize` the
+speaker turns (`S1`, `S2`, …). Convert other formats first (see
+`ghostly extract-audio` for the ffmpeg recipe).
+
+### `edit_from_audio`
+`{ "audioPath": "/path/clip.wav", "command": "create a tiktok with captions",
+"transcriptSRT": "…", "language": "th", "diarize": true }` → auto-edits a
+real recording end-to-end (speech detection → plan → captions → validated
+FCPXML). `language` defaults to `th`; `diarize` tags caption cues with
+speakers. Returns the FCPXML plus clip/caption/BPM/speaker metadata.
+
 ### `recommend`
 `{ "category": "transition", "limit": 5 }` → the user's learned favorites for
 `font`, `captionStyle`, `transition`, `effect`, `lut`, `exportPreset`,

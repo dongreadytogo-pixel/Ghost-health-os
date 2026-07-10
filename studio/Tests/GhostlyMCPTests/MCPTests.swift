@@ -1,5 +1,6 @@
 import XCTest
 import GhostlyCore
+import GhostlyDetection
 @testable import GhostlyMCP
 
 final class MCPTests: XCTestCase {
@@ -59,7 +60,8 @@ final class MCPTests: XCTestCase {
         XCTAssertEqual(Set(names), ["auto_edit", "parse_edit_command", "generate_captions",
                                     "validate_fcpxml", "analyze_timeline", "find_highlights",
                                     "search_assets", "export_command", "list_export_presets",
-                                    "validate_plugin_manifest", "list_caption_styles", "recommend"])
+                                    "validate_plugin_manifest", "list_caption_styles", "recommend",
+                                    "analyze_audio", "edit_from_audio"])
         for tool in tools {
             XCTAssertNotNil(tool["description"]?.stringValue)
             XCTAssertNotNil(tool["inputSchema"]?["type"])
@@ -137,6 +139,62 @@ final class MCPTests: XCTestCase {
         let (text, isError) = try toolText(await send(server, call))
         XCTAssertFalse(isError, text)
         XCTAssertTrue(text.contains("captionFormat=ITT.th"), "Thai language must tag the caption role")
+        XCTAssertTrue(text.contains("สวัสดีครับ"))
+    }
+
+    // MARK: Audio tools (real-audio pipeline over MCP)
+
+    /// Writes a two-voice fixture WAV into the test directory.
+    private func writeInterviewWAV() throws -> String {
+        let fixture = AudioFixture(sampleRate: 16_000)
+            .silence(1.0).tone(frequency: 150, seconds: 1.5)
+            .silence(1.0).tone(frequency: 310, seconds: 2.0)
+            .silence(0.5)
+        try FileManager.default.createDirectory(at: preferencesDir,
+                                                withIntermediateDirectories: true)
+        let url = preferencesDir.appendingPathComponent("interview.wav")
+        try fixture.wavData().write(to: url)
+        return url.path
+    }
+
+    func testAnalyzeAudioTool() async throws {
+        let server = try await makeServer()
+        let path = try writeInterviewWAV()
+        let call = """
+        {"jsonrpc":"2.0","id":50,"method":"tools/call","params":{"name":"analyze_audio",
+            "arguments":{"audioPath":"\(path)","diarize":true}}}
+        """
+        let (text, isError) = try toolText(await send(server, call))
+        XCTAssertFalse(isError, text)
+        XCTAssertTrue(text.contains("speechRanges"))
+        XCTAssertTrue(text.contains("\"speakerCount\":2") || text.contains("\"speakerCount\": 2"),
+                      "two distinct voices expected: \(text)")
+    }
+
+    func testAnalyzeAudioToolMissingFileIsToolError() async throws {
+        let server = try await makeServer()
+        let call = """
+        {"jsonrpc":"2.0","id":51,"method":"tools/call","params":{"name":"analyze_audio",
+            "arguments":{"audioPath":"/nonexistent/file.wav"}}}
+        """
+        let (text, isError) = try toolText(await send(server, call))
+        XCTAssertTrue(isError, text)
+    }
+
+    func testEditFromAudioToolProducesThaiFCPXML() async throws {
+        let server = try await makeServer()
+        let path = try writeInterviewWAV()
+        let call = """
+        {"jsonrpc":"2.0","id":52,"method":"tools/call","params":{"name":"edit_from_audio",
+            "arguments":{"audioPath":"\(path)",
+            "command":"create a tiktok with captions",
+            "diarize":true,
+            "transcriptSRT":"1\\n00:00:01,000 --> 00:00:02,500\\nสวัสดีครับ\\n\\n2\\n00:00:03,500 --> 00:00:05,500\\nสบายดีค่ะ\\n"}}}
+        """
+        let (text, isError) = try toolText(await send(server, call))
+        XCTAssertFalse(isError, text)
+        XCTAssertTrue(text.contains("captionFormat=ITT.th"),
+                      "default language must be Thai: \(text.prefix(400))")
         XCTAssertTrue(text.contains("สวัสดีครับ"))
     }
 

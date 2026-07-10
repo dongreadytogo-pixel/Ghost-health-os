@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- MCP audio tools: `analyze_audio` (WAV → speech ranges, beats/BPM, optional
+  speaker turns) and `edit_from_audio` (WAV + command [+ transcript] →
+  validated FCPXML with Thai-default captions and optional speaker tagging) —
+  AI agents now drive the same real-audio pipeline as `ghostly analyze-audio`
+  and `ghostly edit --wav`. Server now exposes 14 tools.
 - Speaker diarization (GhostlyDetection): `SpeakerDiarizer` attributes each
   speech range to a voice by clustering autocorrelation pitch + energy
   features — pure, deterministic, capped speaker count, unvoiced ranges

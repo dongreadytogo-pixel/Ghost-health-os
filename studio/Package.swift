@@ -75,6 +75,6 @@ let package = Package(
         ]),
         .testTarget(name: "GhostlyAITests", dependencies: ["GhostlyAI", "GhostlyCore"]),
         .testTarget(name: "GhostlyLearningTests", dependencies: ["GhostlyLearning", "GhostlyCore"]),
-        .testTarget(name: "GhostlyMCPTests", dependencies: ["GhostlyMCP", "GhostlyCore"]),
+        .testTarget(name: "GhostlyMCPTests", dependencies: ["GhostlyMCP", "GhostlyCore", "GhostlyDetection"]),
     ]
 )
