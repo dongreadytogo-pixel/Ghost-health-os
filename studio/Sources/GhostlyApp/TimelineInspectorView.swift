@@ -2,6 +2,7 @@
 import SwiftUI
 import GhostlyCore
 import GhostlyDomain
+import GhostlyDirector
 import GhostlyViewModels
 
 /// Timeline inspector (M2): a dumb renderer over `TimelineViewModel` —
@@ -127,6 +128,28 @@ public struct TimelineInspectorView: View {
         case "effects": return .orange.opacity(0.8)
         case "dialogue": return .green.opacity(0.8)
         default: return .blue.opacity(0.8)
+        }
+    }
+}
+
+/// Sidebar demo: the Thai vertical-short fixture rendered live in the
+/// inspector, so the timeline view has real content before project loading
+/// arrives in M2.
+struct TimelineDemoPanel: View {
+    private let timeline = (try? ThaiShortsExample.build())?.timeline
+
+    var body: some View {
+        if let timeline {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("ตัวอย่าง: คลิปสั้นแนวตั้งภาษาไทย")
+                    .font(.title3.weight(.semibold))
+                Text("สร้างจากคำสั่ง “create a tiktok with captions, remove silence”")
+                    .font(.callout).foregroundStyle(.secondary)
+                TimelineInspectorView(timeline: timeline)
+            }
+            .padding()
+        } else {
+            Text("สร้างตัวอย่างไม่สำเร็จ").foregroundStyle(.secondary)
         }
     }
 }

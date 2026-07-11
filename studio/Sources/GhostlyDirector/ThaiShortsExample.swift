@@ -21,6 +21,8 @@ public enum ThaiShortsExample {
         public let captionCount: Int
         public let durationSeconds: Double
         public let isVertical: Bool
+        /// The planned timeline itself (drives the GUI inspector demo).
+        public let timeline: Timeline
     }
 
     /// A short Thai transcript (SRT) with timings, as an ASR step would yield.
@@ -78,6 +80,7 @@ public enum ThaiShortsExample {
             issues: issues.map(\.description),
             captionCount: timeline.captions.count,
             durationSeconds: timeline.duration.seconds,
-            isVertical: timeline.format.isVertical)
+            isVertical: timeline.format.isVertical,
+            timeline: timeline)
     }
 }

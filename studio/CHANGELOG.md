@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- The studio app gains a **"ไทม์ไลน์" sidebar section**: the Thai
+  vertical-short fixture renders live in the new inspector, so the GUI
+  shows a real auto-edited timeline (clips, ducked music, Thai captions,
+  markers) before project loading arrives. `ThaiShortsExample.Result` now
+  exposes the planned `timeline` for reuse.
 - `TimelineInspectorView` (GhostlyApp, macOS): SwiftUI renderer over
   `TimelineViewModel` — ruler with m:ss ticks and marker flags, role-colored
   lane rows with volume-automation badges, caption chips with speaker
