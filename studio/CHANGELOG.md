@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- `TimelineInspectorView` (GhostlyApp, macOS): SwiftUI renderer over
+  `TimelineViewModel` — ruler with m:ss ticks and marker flags, role-colored
+  lane rows with volume-automation badges, caption chips with speaker
+  prefixes; Thai-first labels ("แนวตั้ง 9:16", "ซับ … มาร์กเกอร์ …"). All
+  layout math lives in the CI-tested view model; the view only draws.
 - **M2 GUI groundwork**: new `GhostlyViewModels` module — `TimelineViewModel`
   turns a `Timeline` into pure presentation data (lanes of clip blocks with
   0…1 normalized geometry, caption chips with speaker/language, marker
