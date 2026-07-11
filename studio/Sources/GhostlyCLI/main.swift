@@ -59,7 +59,7 @@ guard let command = arguments.first else {
       ghostly extract-audio <video> [--out file.wav] [--rate 16000]   Print the ffmpeg command that produces an analysis WAV
       ghostly demo-audio [--out file.wav]       Write a deterministic demo WAV (speech + 120 BPM beats)
       ghostly demo-thai [--out file.fcpxml]
-      ghostly transcribe <audio> --model <ggml.bin> [--lang th] [--out subs.srt] [--whisper path]
+      ghostly transcribe <audio> --model <ggml.bin> [--lang th] [--sentences] [--out subs.srt] [--whisper path]   (--sentences = จัดกลุ่มเป็นประโยคธรรมชาติ)
       ghostly lut [--exposure EV] [--contrast x] [--saturation x] [--temperature -1..1] [--tint -1..1] [--neutralize "r g b"] [--size 33] [--title name] [--out grade.cube]
       ghostly lut-info <file.cube>              Inspect/validate a .cube LUT
       ghostly normalize-audio <in.wav> [--target -16] [--peak -1] [--out out.wav]   Level a voice/music track (RMS dBFS, peak-safe)
@@ -230,7 +230,11 @@ case "transcribe":
     let transcriber = WhisperCLITranscriber(executablePath: whisperPath, modelPath: modelPath)
     do {
         // Top-level await: main.swift supports an async entry point.
-        let track = try await transcriber.transcribe(audioURL, language: language)
+        var track = try await transcriber.transcribe(audioURL, language: language)
+        if arguments.contains("--sentences") {
+            // จัดกลุ่มคำจาก ASR เป็นประโยคธรรมชาติ (ช่วงหยุด + ครับ/ค่ะ).
+            track = track.groupedIntoSentences()
+        }
         let srt = SRT.serialize(track)
         if let outPath = option("out", in: arguments) {
             try srt.write(toFile: outPath, atomically: true, encoding: .utf8)

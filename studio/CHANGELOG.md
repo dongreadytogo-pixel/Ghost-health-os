@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- **Thai sentence grouping** (Workflow Constitution v5 — "Proper sentence
+  grouping"): `SubtitleTrack.groupedIntoSentences` merges word-fragment ASR
+  cues into natural sentence-sized subtitles using pauses and Thai
+  sentence-final particles — a breath (≥0.6 s) always splits, a particle
+  (ครับ/ค่ะ/คะ/จ้า/…) splits after a short beat (≥0.25 s) so mid-greeting
+  "สวัสดีครับทุกคน" stays whole, a readability cap splits run-on speech, and
+  a speaker change always splits. Thai fragments re-join without spaces,
+  mixed Thai-English keeps its space, word timings concatenate.
+  `ghostly transcribe --sentences` applies it after Whisper transcription.
 - **AI Audio Cleanup** (Workflow Constitution v5 — "ลดเสียงรบกวน"):
   `Biquad` RBJ filter sections (high-pass, narrow notch) and `AudioCleanup`,
   a pure-DSP chain of rumble high-pass (80 Hz), mains de-hum (50/60 Hz
