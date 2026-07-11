@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **M2 GUI groundwork**: new `GhostlyViewModels` module — `TimelineViewModel`
+  turns a `Timeline` into pure presentation data (lanes of clip blocks with
+  0…1 normalized geometry, caption chips with speaker/language, marker
+  flags, auto-scaled m:ss ruler ticks, volume-automation badges). No
+  SwiftUI/platform types, so the inspector's logic is CI-tested on Linux;
+  the macOS view layer just draws it.
 - **Thai date/time formatting** (Workflow Constitution v5): `ThaiDate` —
   Buddhist-era years (+543), Thai month/weekday names, four styles
   ("วันเสาร์ที่ 11 กรกฎาคม พ.ศ. 2569" → "11/07/2569"), 24-hour "น." clock

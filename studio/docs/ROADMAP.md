@@ -88,7 +88,9 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 
 ## M2 — App experience 🗺️
 
-- 🗺️ Timeline inspector view (render `Timeline` graphically)
+- ✅ Timeline inspector data layer: `GhostlyViewModels.TimelineViewModel` —
+  normalized lanes/blocks/caption chips/markers/ruler ticks, CI-tested;
+  🗺️ remaining: the SwiftUI view that renders it
 - 🗺️ Asset browser with auto-tagging (Vision + `GhostlyAI`)
 - 🗺️ Task queue running real analysis jobs with progress
 - 🗺️ Settings: provider API keys in Keychain, routing policy UI
