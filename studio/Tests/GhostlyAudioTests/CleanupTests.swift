@@ -17,6 +17,14 @@ final class CleanupTests: XCTestCase {
             .tone(frequency: hz, seconds: seconds, amplitude: amplitude).samples()
     }
 
+    /// Drops the first 0.5 s so IIR transients don't pollute the level
+    /// measurement (a notch rings before it bites — that's physics, and
+    /// exactly why the macOS CI run measured only −10 dB over a full-buffer
+    /// RMS at high Q).
+    private func steadyState(_ samples: [Float]) -> [Float] {
+        Array(samples.dropFirst(rate / 2))
+    }
+
     // MARK: Filters
 
     func testHighPassKillsRumbleKeepsVoice() {
@@ -29,9 +37,11 @@ final class CleanupTests: XCTestCase {
 
     func testNotchKillsHumKeepsVoice() {
         let filter = Biquad.notch(center: 50, sampleRate: rate)
-        let humDrop = rmsDB(filter.process(tone(50))) - rmsDB(tone(50))
+        let humDrop = rmsDB(steadyState(filter.process(tone(50))))
+            - rmsDB(steadyState(tone(50)))
         XCTAssertLessThan(humDrop, -20, "50 Hz hum must vanish, got \(humDrop) dB")
-        let voiceDrop = rmsDB(filter.process(tone(220))) - rmsDB(tone(220))
+        let voiceDrop = rmsDB(steadyState(filter.process(tone(220))))
+            - rmsDB(steadyState(tone(220)))
         XCTAssertGreaterThan(voiceDrop, -1.0, "voice must pass the narrow notch")
     }
 
@@ -71,14 +81,15 @@ final class CleanupTests: XCTestCase {
         let cleaned = AudioCleanup(highPassHz: 80, humHz: 50, gateThresholdDB: nil)
             .process(dirty, sampleRate: rate)
 
-        // Isolate what each stage removed by re-measuring the components.
+        // Isolate what each stage removed by re-measuring the components
+        // (steady state: IIR filters ring before they bite).
         let humResidue = Biquad.notch(center: 50, sampleRate: rate)
             .process(Biquad.highPass(cutoff: 80, sampleRate: rate).process(hum))
-        XCTAssertLessThan(rmsDB(humResidue) - rmsDB(hum), -20)
+        XCTAssertLessThan(rmsDB(steadyState(humResidue)) - rmsDB(steadyState(hum)), -20)
         // Voice level survives the chain.
         let voiceThrough = AudioCleanup(highPassHz: 80, humHz: 50, gateThresholdDB: nil)
             .process(voice, sampleRate: rate)
-        XCTAssertGreaterThan(rmsDB(voiceThrough) - rmsDB(voice), -1.5)
+        XCTAssertGreaterThan(rmsDB(steadyState(voiceThrough)) - rmsDB(steadyState(voice)), -1.5)
         // And the cleaned mix is quieter than the dirty one (junk removed).
         XCTAssertLessThan(rmsDB(cleaned), rmsDB(dirty))
     }

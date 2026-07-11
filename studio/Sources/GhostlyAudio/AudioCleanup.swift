@@ -25,9 +25,12 @@ public struct Biquad: Sendable {
     }
 
     /// Narrow notch at `center` Hz: kills mains hum without touching the
-    /// voice around it (higher Q = narrower).
+    /// voice around it. Q = 10 (≈5 Hz bandwidth at 50 Hz) bites within
+    /// ~60 ms and tolerates real-world mains drift; a much higher Q looks
+    /// better on paper but rings so long the hum passes through unattenuated
+    /// for hundreds of milliseconds.
     public static func notch(center: Double, sampleRate: Int,
-                             q: Double = 30) -> Biquad {
+                             q: Double = 10) -> Biquad {
         let w0 = 2 * Double.pi * center / Double(sampleRate)
         let alpha = sin(w0) / (2 * q)
         let cosw0 = cos(w0)
