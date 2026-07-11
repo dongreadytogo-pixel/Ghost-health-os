@@ -74,6 +74,15 @@ final class ThaiIntentTests: XCTestCase {
         XCTAssertTrue(output.fcpxml.contains("captionFormat=ITT.th"))
     }
 
+    func testAudioCleanupIntent() throws {
+        XCTAssertEqual(parser.parse("ลดเสียงรบกวน"), [.cleanAudio])
+        XCTAssertEqual(parser.parse("ช่วยแก้เสียงฮัมหน่อย"), [.cleanAudio])
+        XCTAssertEqual(parser.parse("clean up the audio"), [.cleanAudio])
+        XCTAssertEqual(parser.parse("remove background noise"), [.cleanAudio])
+        XCTAssertTrue(try Director().interpret("ลดเสียงรบกวน ทำเป็นติ๊กต๊อก").wantsAudioCleanup)
+        XCTAssertFalse(try Director().interpret("ทำเป็นติ๊กต๊อก").wantsAudioCleanup)
+    }
+
     func testEnglishVocabularyUnaffected() {
         XCTAssertEqual(parser.parse("create a tiktok with captions, remove silence"),
                        [.createDeliverable(.tiktok),

@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- **One-click audio cleanup in the edit chain**: the "ลดเสียงรบกวน" /
+  "clean audio" intent (new `EditIntent.cleanAudio`, Thai + English
+  vocabulary) makes `EditPipeline`/`Workflow` run `AudioCleanup` *before*
+  detection — constant hum otherwise reads as speech and masks every pause,
+  so silence removal couldn't bite. Also exposed explicitly as
+  `ghostly edit/workflow --clean` and `cleanAudio` on the
+  `edit_from_audio`/`run_workflow` MCP tools; the workflow step trace
+  reports the cleanup. Behavioral test: a hum-drenched two-burst recording
+  keeps its full length without cleanup and loses its silences with it.
 - **Thai sentence grouping** (Workflow Constitution v5 — "Proper sentence
   grouping"): `SubtitleTrack.groupedIntoSentences` merges word-fragment ASR
   cues into natural sentence-sized subtitles using pauses and Thai

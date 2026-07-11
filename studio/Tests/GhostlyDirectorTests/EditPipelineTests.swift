@@ -177,6 +177,31 @@ final class EditPipelineTests: XCTestCase {
         XCTAssertEqual(tagged.cues.map(\.speaker), ["S1", "S2"])
     }
 
+    func testThaiCleanupCommandUnmasksSilence() throws {
+        // Constant 50 Hz hum makes everything read as "speech" — the Thai
+        // cleanup intent must scrub it so the two real bursts separate.
+        let sampleRate = 16_000
+        let voice = AudioFixture(sampleRate: sampleRate)
+            .silence(1.0).speech(2.5).silence(1.5).speech(2.5).silence(1.0)
+            .samples()
+        let hum = AudioFixture(sampleRate: sampleRate)
+            .tone(frequency: 50, seconds: 8.5, amplitude: 0.05).samples()
+        let noisy = WAV.Audio(samples: zip(voice, hum).map(+), sampleRate: sampleRate)
+
+        let dirty = try EditPipeline.run(EditPipeline.AudioInput(
+            audio: noisy, command: "create a tiktok, remove silence"))
+        XCTAssertFalse(dirty.audioCleaned)
+        XCTAssertGreaterThan(dirty.durationSeconds, 7.5,
+                             "hum floor masks the pauses: nothing gets removed")
+
+        let cleaned = try EditPipeline.run(EditPipeline.AudioInput(
+            audio: noisy, command: "ทำเป็นติ๊กต๊อก ตัดช่วงเงียบออก ลดเสียงรบกวน"))
+        XCTAssertTrue(cleaned.audioCleaned)
+        XCTAssertLessThan(cleaned.durationSeconds, 6.5,
+                          "cleanup unmasks the pauses so silence removal bites")
+        XCTAssertTrue(cleaned.isValid, "issues: \(cleaned.issues)")
+    }
+
     func testAudioEditRejectsSilenceAndEmpty() {
         XCTAssertThrowsError(try EditPipeline.run(EditPipeline.AudioInput(
             audio: WAV.Audio(samples: [], sampleRate: 16_000),

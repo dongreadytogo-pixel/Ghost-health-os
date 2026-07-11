@@ -19,6 +19,9 @@ public enum Workflow {
         public var command: String
         public var language: String
         public var diarize: Bool
+        /// Clean the audio first; the command's "ลดเสียงรบกวน" intent also
+        /// enables this automatically.
+        public var cleanAudio: Bool
         public var clipName: String
         public var projectName: String
         /// Explicit render preset; nil infers one from the edit's format.
@@ -30,6 +33,7 @@ public enum Workflow {
                     command: String,
                     language: String = "th",
                     diarize: Bool = false,
+                    cleanAudio: Bool = false,
                     clipName: String = "clip",
                     projectName: String = "AI Edit",
                     exportPresetName: String? = nil) {
@@ -39,6 +43,7 @@ public enum Workflow {
             self.command = command
             self.language = language
             self.diarize = diarize
+            self.cleanAudio = cleanAudio
             self.clipName = clipName
             self.projectName = projectName
             self.exportPresetName = exportPresetName
@@ -68,7 +73,11 @@ public enum Workflow {
                 language: request.language,
                 clipName: request.clipName,
                 projectName: request.projectName,
-                diarize: request.diarize))
+                diarize: request.diarize,
+                cleanAudio: request.cleanAudio))
+            if edit.audioCleaned {
+                steps.append("cleaned audio (rumble high-pass + 50 Hz de-hum + noise gate)")
+            }
             steps.append(String(format: "analyzed %.1fs of audio", audio.duration.seconds))
             if let bpm = edit.detectedBPM {
                 steps.append(String(format: "detected tempo ≈ %.0f BPM", bpm))

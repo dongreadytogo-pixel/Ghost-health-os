@@ -47,7 +47,7 @@ guard let command = arguments.first else {
     Usage:
       ghostly intent "<editing command>"
       ghostly edit <subtitles.srt|.vtt> --duration <seconds> --command "<editing command>" [--lang th] [--name clip] [--project name] [--out file.fcpxml]
-      ghostly edit --wav <clip.wav> --command "<editing command>" [<subtitles.srt|.vtt>] [--diarize] [--lang th] [--name clip] [--project name] [--out file.fcpxml]
+      ghostly edit --wav <clip.wav> --command "<editing command>" [<subtitles.srt|.vtt>] [--diarize] [--clean] [--lang th] [--name clip] [--project name] [--out file.fcpxml]
       ghostly captions <subtitles.srt|.vtt> --style <TikTok|YouTube|Instagram|Broadcast> [--shift seconds] [--out file]
       ghostly validate <file.fcpxml>
       ghostly analyze <file.fcpxml>
@@ -115,7 +115,8 @@ case "edit":
                 language: language,
                 clipName: option("name", in: arguments) ?? (wavPath as NSString).lastPathComponent,
                 projectName: projectName,
-                diarize: arguments.contains("--diarize")))
+                diarize: arguments.contains("--diarize"),
+                cleanAudio: arguments.contains("--clean")))
         } else {
             guard let subtitlePath else {
                 fail("provide a subtitle file (with --duration) or --wav <clip.wav>")
@@ -257,6 +258,7 @@ case "workflow":
             command: editCommand,
             language: option("lang", in: arguments) ?? "th",
             diarize: arguments.contains("--diarize"),
+            cleanAudio: arguments.contains("--clean"),
             projectName: option("project", in: arguments) ?? "AI Edit",
             exportPresetName: option("preset", in: arguments))
         if let wavPath = option("wav", in: arguments) {

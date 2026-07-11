@@ -58,6 +58,9 @@ public enum EditPipeline {
         public var projectName: String
         /// Attribute captions to speakers by voice similarity (S1, S2, …).
         public var diarize: Bool
+        /// Clean the audio before detection; the command's "ลดเสียงรบกวน" /
+        /// "clean audio" intent enables this automatically.
+        public var cleanAudio: Bool
 
         public init(audio: WAV.Audio,
                     subtitles: String? = nil,
@@ -65,7 +68,8 @@ public enum EditPipeline {
                     language: String = "th",
                     clipName: String = "clip",
                     projectName: String = "AI Edit",
-                    diarize: Bool = false) {
+                    diarize: Bool = false,
+                    cleanAudio: Bool = false) {
             self.audio = audio
             self.subtitles = subtitles
             self.command = command
@@ -73,6 +77,7 @@ public enum EditPipeline {
             self.clipName = clipName
             self.projectName = projectName
             self.diarize = diarize
+            self.cleanAudio = cleanAudio
         }
     }
 
@@ -94,6 +99,8 @@ public enum EditPipeline {
         /// Caption style the profile attached (e.g. "TikTok"); nil when the
         /// edit carries no captions.
         public let captionStyleName: String?
+        /// True when audio cleanup ran before detection.
+        public let audioCleaned: Bool
     }
 
     public static func run(_ input: Input) throws -> Output {
@@ -117,7 +124,8 @@ public enum EditPipeline {
                            transcript: transcript,
                            clipName: input.clipName,
                            projectName: input.projectName,
-                           speakerCount: nil)
+                           speakerCount: nil,
+                           audioCleaned: false)
     }
 
     public static func run(_ input: AudioInput) throws -> Output {
@@ -125,19 +133,27 @@ public enum EditPipeline {
         guard !audio.samples.isEmpty, audio.sampleRate > 0 else {
             throw StudioError.invalidInput(field: "audio", reason: "no audio samples")
         }
-        let speech = SilenceDetector().speechRanges(samples: audio.samples,
+        // Cleanup before detection when the command asks ("ลดเสียงรบกวน") —
+        // hum/rumble otherwise reads as speech to the silence detector.
+        // 50 Hz mains: Thai-first default.
+        let wantsCleanup = input.cleanAudio
+            || (try? Director().interpret(input.command))?.wantsAudioCleanup == true
+        let samples = wantsCleanup
+            ? AudioCleanup(humHz: 50).process(audio.samples, sampleRate: audio.sampleRate)
+            : audio.samples
+        let speech = SilenceDetector().speechRanges(samples: samples,
                                                     sampleRate: audio.sampleRate)
         guard !speech.isEmpty else {
             throw StudioError.validationFailure(
                 detail: "no speech found in \(String(format: "%.1f", audio.duration.seconds))s of audio")
         }
-        let beats = BeatDetector().detect(samples: audio.samples, sampleRate: audio.sampleRate)
+        let beats = BeatDetector().detect(samples: samples, sampleRate: audio.sampleRate)
         var transcript = try input.subtitles.flatMap {
             try transcriptTrack(from: $0, language: input.language, clampedTo: audio.duration)
         }
         var speakerCount: Int?
         if input.diarize {
-            let turns = SpeakerDiarizer().turns(samples: audio.samples,
+            let turns = SpeakerDiarizer().turns(samples: samples,
                                                 sampleRate: audio.sampleRate,
                                                 speechRanges: speech)
             speakerCount = SpeakerDiarizer.speakerCount(turns)
@@ -152,7 +168,8 @@ public enum EditPipeline {
                            transcript: transcript,
                            clipName: input.clipName,
                            projectName: input.projectName,
-                           speakerCount: speakerCount)
+                           speakerCount: speakerCount,
+                           audioCleaned: wantsCleanup)
     }
 
     /// Tags each cue with the speaker whose turn overlaps it the most.
@@ -203,7 +220,8 @@ public enum EditPipeline {
                                 transcript: SubtitleTrack?,
                                 clipName: String,
                                 projectName: String,
-                                speakerCount: Int?) throws -> Output {
+                                speakerCount: Int?,
+                                audioCleaned: Bool) throws -> Output {
         let plan = try Director().interpret(command)
         let asset = Asset(
             name: clipName,
@@ -236,7 +254,8 @@ public enum EditPipeline {
             profileStyle: plan.profile.style.rawValue,
             detectedBPM: bpm,
             speakerCount: speakerCount,
-            captionStyleName: transcript == nil ? nil : plan.profile.captionStyleName)
+            captionStyleName: transcript == nil ? nil : plan.profile.captionStyleName,
+            audioCleaned: audioCleaned)
     }
 
     /// Merges overlapping/touching ranges so back-to-back cues form one

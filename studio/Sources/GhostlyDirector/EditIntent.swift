@@ -23,6 +23,8 @@ public enum EditIntent: Equatable, Sendable {
     case replaceMusic(query: String?)
     /// Add a transition style between all storyline cuts.
     case addTransitions(name: String)
+    /// Clean the audio before editing (rumble/hum/noise-floor removal).
+    case cleanAudio
 
     public enum Deliverable: String, Equatable, Sendable, CaseIterable {
         case tiktok, youtube, instagram, shorts, reel
@@ -98,6 +100,12 @@ public struct EditIntentParser: Sendable {
 
         if containsAny(lowered, ["cross dissolve", "crossfade", "dissolve between"]) {
             intents.append(.addTransitions(name: "Cross Dissolve"))
+        }
+
+        if containsAny(lowered, ["clean audio", "clean up the audio", "clean the audio",
+                                 "remove noise", "reduce noise", "denoise",
+                                 "remove background noise", "remove hum", "fix the audio"]) {
+            intents.append(.cleanAudio)
         }
 
         intents.append(contentsOf: thaiIntents(in: lowered))
@@ -196,6 +204,12 @@ public struct EditIntentParser: Sendable {
         // Transitions: "ใส่ทรานสิชั่น".
         if containsAny(command, ["ทรานสิชั่น", "ทรานซิชัน", "ครอสดิสโซลฟ์", "เฟดภาพ"]) {
             intents.append(.addTransitions(name: "Cross Dissolve"))
+        }
+
+        // Audio cleanup: "ลดเสียงรบกวน".
+        if containsAny(command, ["ลดเสียงรบกวน", "ตัดเสียงรบกวน", "เอาเสียงรบกวนออก",
+                                 "แก้เสียงฮัม", "ลบเสียงซ่า", "เสียงให้สะอาด"]) {
+            intents.append(.cleanAudio)
         }
 
         return intents

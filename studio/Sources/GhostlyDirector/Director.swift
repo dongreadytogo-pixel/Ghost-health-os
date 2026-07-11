@@ -17,6 +17,8 @@ public struct Director: Sendable {
         public var wantsCaptions: Bool
         public var wantsMusicReplacement: Bool
         public var musicQuery: String?
+        /// Clean the audio (rumble/hum/noise) before detection and editing.
+        public var wantsAudioCleanup: Bool
         /// Intents recognized from the command, in application order.
         public var intents: [EditIntent]
     }
@@ -39,6 +41,7 @@ public struct Director: Sendable {
         var wantsCaptions = profile.captionStyleName != nil
         var wantsMusic = false
         var musicQuery: String?
+        var wantsCleanup = false
 
         for intent in intents {
             switch intent {
@@ -71,10 +74,13 @@ public struct Director: Sendable {
             case .addTransitions(let name):
                 profile.transitionName = name
                 if profile.transitionDuration <= 0 { profile.transitionDuration = 1 }
+            case .cleanAudio:
+                wantsCleanup = true
             }
         }
         return Plan(profile: profile, wantsCaptions: wantsCaptions,
                     wantsMusicReplacement: wantsMusic, musicQuery: musicQuery,
+                    wantsAudioCleanup: wantsCleanup,
                     intents: intents)
     }
 }

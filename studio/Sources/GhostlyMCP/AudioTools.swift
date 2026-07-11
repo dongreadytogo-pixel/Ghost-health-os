@@ -86,6 +86,8 @@ public struct RunWorkflowTool: MCPTool {
             "command": .object(["type": "string", "description": "natural-language editing instruction"]),
             "language": .object(["type": "string", "description": "caption language (BCP-47); default 'th'"]),
             "diarize": .object(["type": "boolean"]),
+            "cleanAudio": .object(["type": "boolean",
+                "description": "clean rumble/hum/noise before detection (ลดเสียงรบกวน); the command intent also enables it"]),
             "projectName": .object(["type": "string"]),
             "exportPreset": .object(["type": "string", "description": "render preset name; inferred when omitted"]),
             "useMemory": .object(["type": "boolean",
@@ -108,6 +110,7 @@ public struct RunWorkflowTool: MCPTool {
             command: command,
             language: arguments["language"]?.stringValue ?? "th",
             diarize: arguments["diarize"]?.boolValue ?? false,
+            cleanAudio: arguments["cleanAudio"]?.boolValue ?? false,
             projectName: arguments["projectName"]?.stringValue ?? "AI Edit",
             exportPresetName: arguments["exportPreset"]?.stringValue)
         if let path = arguments["audioPath"]?.stringValue, !path.isEmpty {
@@ -160,6 +163,8 @@ public struct EditFromAudioTool: MCPTool {
             "transcriptSRT": .object(["type": "string", "description": "optional SRT/VTT content for captions"]),
             "language": .object(["type": "string", "description": "caption language (BCP-47); default 'th'"]),
             "diarize": .object(["type": "boolean", "description": "tag captions with speakers (S1, S2, …)"]),
+            "cleanAudio": .object(["type": "boolean",
+                "description": "clean rumble/hum/noise before detection (ลดเสียงรบกวน); the command intent also enables it"]),
             "projectName": .object(["type": "string"]),
         ]),
         "required": .array(["audioPath", "command"]),
@@ -182,7 +187,8 @@ public struct EditFromAudioTool: MCPTool {
             language: arguments["language"]?.stringValue ?? "th",
             clipName: (path as NSString).lastPathComponent,
             projectName: arguments["projectName"]?.stringValue ?? "AI Edit",
-            diarize: arguments["diarize"]?.boolValue ?? false))
+            diarize: arguments["diarize"]?.boolValue ?? false,
+            cleanAudio: arguments["cleanAudio"]?.boolValue ?? false))
         guard output.isValid else {
             throw StudioError.validationFailure(detail: output.issues.joined(separator: "; "))
         }
