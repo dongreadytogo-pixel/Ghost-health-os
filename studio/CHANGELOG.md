@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **AI Audio Cleanup** (Workflow Constitution v5 — "ลดเสียงรบกวน"):
+  `Biquad` RBJ filter sections (high-pass, narrow notch) and `AudioCleanup`,
+  a pure-DSP chain of rumble high-pass (80 Hz), mains de-hum (50/60 Hz
+  fundamental + 2 harmonics), and a cubic downward-expander noise gate with
+  peak-follower envelope and smoothed gain. `ghostly clean-audio` applies it
+  to WAVs and reports before/after RMS. Tests measure actual attenuation on
+  synthesized fixtures: rumble −17 dB, hum −20+ dB, floor noise −20+ dB,
+  voice band within 1.5 dB, plus determinism and Nyquist-safety edges.
 - **AI memory for the workflow** (Workflow Constitution v5 — "ใช้ค่าที่เคยใช้"):
   `Workflow.run(_:memory:)` pre-fills an unspecified export preset from the
   editor's learned favorites (falling back to format inference when the

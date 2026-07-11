@@ -106,9 +106,10 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
   frame-average seam (`FrameAverage` pure math + `AVFrameAverageProvider`
   sampling real video on Apple platforms → one-call `autoWhiteBalance(for:)`)
 - ✅ Audio engine core: `GhostlyAudio` — RMS/peak loudness (dBFS), peak-safe
-  normalization (`ghostly normalize-audio`), and speech-driven music-ducking
-  envelopes (merge-gap + linear ramps → keyframes / rendered samples);
-  🗺️ remaining: FCPXML volume-keyframe emission, true LUFS weighting
+  normalization (`ghostly normalize-audio`), speech-driven music-ducking
+  envelopes (emitted as FCPXML volume keyframes on auto-edit music beds),
+  and AI Audio Cleanup (`ghostly clean-audio`: rumble high-pass, mains
+  de-hum, expander gate); 🗺️ remaining: true LUFS weighting
 
 ## M4 — Ecosystem 🗺️
 

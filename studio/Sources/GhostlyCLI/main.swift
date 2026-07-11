@@ -63,6 +63,7 @@ guard let command = arguments.first else {
       ghostly lut [--exposure EV] [--contrast x] [--saturation x] [--temperature -1..1] [--tint -1..1] [--neutralize "r g b"] [--size 33] [--title name] [--out grade.cube]
       ghostly lut-info <file.cube>              Inspect/validate a .cube LUT
       ghostly normalize-audio <in.wav> [--target -16] [--peak -1] [--out out.wav]   Level a voice/music track (RMS dBFS, peak-safe)
+      ghostly clean-audio <in.wav> [--highpass 80] [--dehum 50] [--gate -45] [--out out.wav]   ลดเสียงรบกวน: rumble + mains hum + noise floor
       ghostly version
     """)
     exit(0)
@@ -346,6 +347,34 @@ case "normalize-audio":
         func db(_ v: Double?) -> String { v.map { String(format: "%.1f dBFS", $0) } ?? "silence" }
         print("wrote \(outPath)")
         print("rms: \(db(before)) → \(db(after)) (target \(String(format: "%.1f", target)), peak ceiling \(String(format: "%.1f", ceiling)))")
+    } catch {
+        fail(error.localizedDescription)
+    }
+
+case "clean-audio":
+    guard arguments.count >= 2 else {
+        fail("usage: ghostly clean-audio <in.wav> [--highpass 80] [--dehum 50|60] [--gate -45]")
+    }
+    do {
+        let audio = try WAV.decode(contentsOf: URL(fileURLWithPath: arguments[1]))
+        let value = { (name: String) in option(name, in: arguments).flatMap(Double.init) }
+        var cleanup = AudioCleanup()
+        if let hp = value("highpass") { cleanup.highPassHz = hp > 0 ? hp : nil }
+        cleanup.humHz = value("dehum")
+        if let gate = value("gate") { cleanup.gateThresholdDB = gate < 0 ? gate : nil }
+        let cleaned = cleanup.process(audio.samples, sampleRate: audio.sampleRate)
+        let outPath = option("out", in: arguments)
+            ?? ((arguments[1] as NSString).deletingPathExtension + "-clean.wav")
+        try WAV.encode(WAV.Audio(samples: cleaned, sampleRate: audio.sampleRate))
+            .write(to: URL(fileURLWithPath: outPath))
+        func db(_ v: Double?) -> String { v.map { String(format: "%.1f dBFS", $0) } ?? "silence" }
+        print("wrote \(outPath)")
+        print("rms: \(db(Loudness.rmsDBFS(of: audio.samples))) → \(db(Loudness.rmsDBFS(of: cleaned)))")
+        var stages: [String] = []
+        if let hp = cleanup.highPassHz { stages.append("high-pass \(Int(hp)) Hz") }
+        if let hum = cleanup.humHz { stages.append("de-hum \(Int(hum)) Hz ×3") }
+        if let gate = cleanup.gateThresholdDB { stages.append("gate \(String(format: "%.0f", gate)) dB") }
+        print("stages: \(stages.joined(separator: ", "))")
     } catch {
         fail(error.localizedDescription)
     }
