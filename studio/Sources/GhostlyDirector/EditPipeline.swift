@@ -4,6 +4,7 @@ import GhostlyDomain
 import GhostlyDetection
 import GhostlySubtitles
 import GhostlyFCPXML
+import GhostlyAudio
 
 /// The end-to-end "edit for me" pipeline: a transcript (SRT/WebVTT) plus a
 /// declared clip duration in, a validated FCPXML project out. This is the
