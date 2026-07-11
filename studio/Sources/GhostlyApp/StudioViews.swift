@@ -56,33 +56,34 @@ struct DirectorPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Tell the studio what to do")
+            Text("บอกสตูดิโอว่าอยากตัดต่อแบบไหน")
                 .font(.title2.weight(.semibold))
-            Text("Examples: “Edit this like Marvel” · “Create a TikTok with captions” · “Make the pacing faster”")
+            Text("ตัวอย่าง: “ตัดช่วงเงียบออก ทำเป็นติ๊กต๊อก ใส่ซับ” · “ลดเสียงรบกวน” · “Edit this like Marvel”")
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
             HStack {
-                TextField("Editing command", text: $model.prompt)
+                TextField("คำสั่งตัดต่อ (ไทยหรืออังกฤษ)", text: $model.prompt)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit { model.submitPrompt() }
-                    .accessibilityLabel("Editing command")
-                Button("Run") { model.submitPrompt() }
+                    .accessibilityLabel("คำสั่งตัดต่อ")
+                Button("รัน") { model.submitPrompt() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(model.prompt.trimmingCharacters(in: .whitespaces).isEmpty)
             }
 
             if let plan = model.lastPlan {
-                GroupBox("Latest plan") {
+                GroupBox("แผนล่าสุด") {
                     VStack(alignment: .leading, spacing: 6) {
-                        LabeledContent("Style", value: plan.profile.style.rawValue)
-                        LabeledContent("Format",
+                        LabeledContent("สไตล์", value: plan.profile.style.rawValue)
+                        LabeledContent("ขนาดภาพ",
                             value: "\(plan.profile.format.width)×\(plan.profile.format.height)")
-                        LabeledContent("Shot length",
-                            value: String(format: "%.1f–%.1f s",
+                        LabeledContent("ความยาวช็อต",
+                            value: String(format: "%.1f–%.1f วินาที",
                                           plan.profile.minShotLength, plan.profile.maxShotLength))
-                        LabeledContent("Cut on beats", value: plan.profile.cutOnBeats ? "Yes" : "No")
-                        LabeledContent("Captions", value: plan.profile.captionStyleName ?? "None")
+                        LabeledContent("ตัดตามจังหวะ", value: plan.profile.cutOnBeats ? "ใช่" : "ไม่")
+                        LabeledContent("คำบรรยาย", value: plan.profile.captionStyleName ?? "ไม่มี")
+                        LabeledContent("ลดเสียงรบกวน", value: plan.wantsAudioCleanup ? "ใช่" : "ไม่")
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(4)

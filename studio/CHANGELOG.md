@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- **Thai-first Director panel**: the app's prompt panel speaks Thai —
+  "บอกสตูดิโอว่าอยากตัดต่อแบบไหน", Thai example commands, Thai plan labels
+  (สไตล์/ขนาดภาพ/ความยาวช็อต/ตัดตามจังหวะ/คำบรรยาย) — and the plan readout
+  now shows the ลดเสียงรบกวน (audio cleanup) flag.
 - The studio app gains a **"ไทม์ไลน์" sidebar section**: the Thai
   vertical-short fixture renders live in the new inspector, so the GUI
   shows a real auto-edited timeline (clips, ducked music, Thai captions,
