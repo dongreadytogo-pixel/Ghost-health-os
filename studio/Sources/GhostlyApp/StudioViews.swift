@@ -7,6 +7,7 @@ import GhostlyDirector
 enum StudioSection: String, CaseIterable, Identifiable {
     case director = "AI Director"
     case timeline = "ไทม์ไลน์"
+    case assets = "คลังคลิป"
     case captions = "Caption Styles"
     case queue = "Task Queue"
     case logs = "Logs"
@@ -17,6 +18,7 @@ enum StudioSection: String, CaseIterable, Identifiable {
         switch self {
         case .director: return "wand.and.stars"
         case .timeline: return "film.stack"
+        case .assets: return "photo.on.rectangle.angled"
         case .captions: return "captions.bubble"
         case .queue: return "list.bullet.rectangle"
         case .logs: return "terminal"
@@ -41,6 +43,7 @@ public struct StudioRootView: View {
             switch selection ?? .director {
             case .director: DirectorPanel(model: model)
             case .timeline: TimelineDemoPanel()
+            case .assets: AssetBrowserPanel()
             case .captions: CaptionStylesPanel()
             case .queue: TaskQueuePanel(model: model)
             case .logs: LogsPanel(model: model)

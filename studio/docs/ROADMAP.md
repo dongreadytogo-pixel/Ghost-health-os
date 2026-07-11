@@ -91,7 +91,9 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 - ✅ Timeline inspector data layer: `GhostlyViewModels.TimelineViewModel` —
   normalized lanes/blocks/caption chips/markers/ruler ticks, CI-tested;
   🗺️ remaining: the SwiftUI view that renders it
-- 🗺️ Asset browser with auto-tagging (Vision + `GhostlyAI`)
+- ✅ Asset browser data layer + "คลังคลิป" panel (Thai NL search over the
+  library via `AssetBrowserViewModel`); 🗺️ remaining: real library loading
+  and Vision auto-tagging
 - 🗺️ Task queue running real analysis jobs with progress
 - 🗺️ Settings: provider API keys in Keychain, routing policy UI
 - 🗺️ Undo/redo command stack over timeline edits

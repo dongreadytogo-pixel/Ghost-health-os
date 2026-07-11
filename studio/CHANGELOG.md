@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **Asset browser (M2)**: `AssetBrowserViewModel` ranks the library with the
+  Thai-aware `AssetQuery` (synonym-bridged Thai search, favorite-first
+  ranking, Thai kind labels วิดีโอ/เสียง/รูปภาพ, m:ss durations, Thai result
+  summaries) — pure and CI-tested — plus a "คลังคลิป" sidebar panel with a
+  Thai search field over a demo library until project loading arrives.
+  ROADMAP M2 asset-browser data layer done.
 - **Thai-first Director panel**: the app's prompt panel speaks Thai —
   "บอกสตูดิโอว่าอยากตัดต่อแบบไหน", Thai example commands, Thai plan labels
   (สไตล์/ขนาดภาพ/ความยาวช็อต/ตัดตามจังหวะ/คำบรรยาย) — and the plan readout

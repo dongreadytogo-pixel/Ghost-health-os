@@ -40,7 +40,9 @@ let package = Package(
         .target(name: "GhostlyTranscription", dependencies: ["GhostlyCore", "GhostlySubtitles"]),
         .target(name: "GhostlyColor", dependencies: ["GhostlyCore"]),
         .target(name: "GhostlyAudio", dependencies: ["GhostlyCore"]),
-        .target(name: "GhostlyViewModels", dependencies: ["GhostlyCore", "GhostlyDomain"]),
+        .target(name: "GhostlyViewModels", dependencies: [
+            "GhostlyCore", "GhostlyDomain", "GhostlyAssets",
+        ]),
         .target(name: "GhostlyDirector", dependencies: [
             "GhostlyCore", "GhostlyDomain", "GhostlyDetection", "GhostlyFCPXML", "GhostlySubtitles",
             "GhostlyExport", "GhostlyAudio", "GhostlyLearning",
@@ -82,7 +84,7 @@ let package = Package(
             "GhostlyAudio", "GhostlyDetection", "GhostlyCore",
         ]),
         .testTarget(name: "GhostlyViewModelsTests", dependencies: [
-            "GhostlyViewModels", "GhostlyDomain", "GhostlyCore",
+            "GhostlyViewModels", "GhostlyDomain", "GhostlyCore", "GhostlyAssets",
         ]),
         .testTarget(name: "GhostlyDirectorTests", dependencies: [
             "GhostlyDirector", "GhostlyDetection", "GhostlySubtitles", "GhostlyDomain", "GhostlyCore",
