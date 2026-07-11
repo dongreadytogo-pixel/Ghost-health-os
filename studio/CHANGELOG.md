@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- **Thai date/time formatting** (Workflow Constitution v5): `ThaiDate` —
+  Buddhist-era years (+543), Thai month/weekday names, four styles
+  ("วันเสาร์ที่ 11 กรกฎาคม พ.ศ. 2569" → "11/07/2569"), 24-hour "น." clock
+  time, and a log/notification timestamp; Asia/Bangkok default with
+  explicit-timezone support. Pure component math + hardcoded names — no
+  ICU/locale differences between platforms; tested including timezone
+  boundaries and a leap day.
 - **One-click audio cleanup in the edit chain**: the "ลดเสียงรบกวน" /
   "clean audio" intent (new `EditIntent.cleanAudio`, Thai + English
   vocabulary) makes `EditPipeline`/`Workflow` run `AudioCleanup` *before*
