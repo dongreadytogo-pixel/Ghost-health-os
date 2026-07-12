@@ -1,5 +1,6 @@
 #if canImport(SwiftUI)
 import SwiftUI
+import GhostlyCore
 import GhostlyViewModels
 
 /// Settings panel (M2): AI provider API keys, stored in the macOS Keychain
