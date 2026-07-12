@@ -8,9 +8,9 @@ enum StudioSection: String, CaseIterable, Identifiable {
     case director = "AI Director"
     case timeline = "ไทม์ไลน์"
     case assets = "คลังคลิป"
-    case captions = "Caption Styles"
-    case queue = "Task Queue"
-    case logs = "Logs"
+    case captions = "สไตล์คำบรรยาย"
+    case queue = "คิวงาน"
+    case logs = "บันทึกการทำงาน"
 
     var id: String { rawValue }
 
@@ -111,7 +111,7 @@ struct CaptionStylesPanel: View {
             .padding(.vertical, 4)
             .accessibilityElement(children: .combine)
         }
-        .navigationSubtitle("Caption Styles")
+        .navigationSubtitle("สไตล์คำบรรยาย")
     }
 }
 
@@ -122,9 +122,9 @@ struct TaskQueuePanel: View {
     var body: some View {
         Group {
             if model.tasks.isEmpty {
-                ContentUnavailableView("No tasks yet",
+                ContentUnavailableView("ยังไม่มีงาน",
                                        systemImage: "tray",
-                                       description: Text("Commands you run appear here."))
+                                       description: Text("คำสั่งที่รันจะแสดงที่นี่"))
             } else {
                 List(model.tasks) { task in
                     HStack(alignment: .top, spacing: 10) {
@@ -141,7 +141,7 @@ struct TaskQueuePanel: View {
                 }
             }
         }
-        .navigationSubtitle("Task Queue")
+        .navigationSubtitle("คิวงาน")
     }
 
     @ViewBuilder
@@ -171,7 +171,7 @@ struct LogsPanel: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
         }
-        .navigationSubtitle("Logs")
+        .navigationSubtitle("บันทึกการทำงาน")
     }
 }
 

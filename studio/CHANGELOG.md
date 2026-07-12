@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- **Thai UI across the whole app shell**: sidebar sections and remaining
+  panels now read in Thai — สไตล์คำบรรยาย, คิวงาน ("ยังไม่มีงาน /
+  คำสั่งที่รันจะแสดงที่นี่"), บันทึกการทำงาน — completing the
+  Constitution v5 Thai-UI requirement for every existing panel.
 - **Asset browser (M2)**: `AssetBrowserViewModel` ranks the library with the
   Thai-aware `AssetQuery` (synonym-bridged Thai search, favorite-first
   ranking, Thai kind labels วิดีโอ/เสียง/รูปภาพ, m:ss durations, Thai result
