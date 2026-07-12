@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **Settings + Keychain (M2)**: `SecretsStoring` port with a macOS
+  `KeychainStore` (generic-password items) and an `InMemorySecretsStore`
+  for CI; `SettingsViewModel` validates keys (trim, reject whitespace),
+  masks them ("••••1234"), and lists AI providers (Anthropic, OpenAI-
+  compatible, Gemini, Ollama) with Thai status labels. New "การตั้งค่า"
+  panel edits keys — stored in the Keychain only, never files or
+  preferences (per the Constitution). Eight tests cover save/mask/validate/
+  remove against the in-memory store.
 - **Thai UI across the whole app shell**: sidebar sections and remaining
   panels now read in Thai — สไตล์คำบรรยาย, คิวงาน ("ยังไม่มีงาน /
   คำสั่งที่รันจะแสดงที่นี่"), บันทึกการทำงาน — completing the

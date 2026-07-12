@@ -11,6 +11,7 @@ enum StudioSection: String, CaseIterable, Identifiable {
     case captions = "สไตล์คำบรรยาย"
     case queue = "คิวงาน"
     case logs = "บันทึกการทำงาน"
+    case settings = "การตั้งค่า"
 
     var id: String { rawValue }
 
@@ -22,6 +23,7 @@ enum StudioSection: String, CaseIterable, Identifiable {
         case .captions: return "captions.bubble"
         case .queue: return "list.bullet.rectangle"
         case .logs: return "terminal"
+        case .settings: return "gearshape"
         }
     }
 }
@@ -47,6 +49,7 @@ public struct StudioRootView: View {
             case .captions: CaptionStylesPanel()
             case .queue: TaskQueuePanel(model: model)
             case .logs: LogsPanel(model: model)
+            case .settings: SettingsPanel()
             }
         }
         .navigationTitle("Ghostly Studio")

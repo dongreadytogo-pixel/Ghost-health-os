@@ -95,7 +95,9 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
   library via `AssetBrowserViewModel`); 🗺️ remaining: real library loading
   and Vision auto-tagging
 - 🗺️ Task queue running real analysis jobs with progress
-- 🗺️ Settings: provider API keys in Keychain, routing policy UI
+- ✅ Settings: provider API keys in the macOS Keychain
+  (`SecretsStoring`/`KeychainStore`, `SettingsViewModel`, "การตั้งค่า"
+  panel); 🗺️ remaining: routing policy UI
 - 🗺️ Undo/redo command stack over timeline edits
 
 ## M3 — Deep FCP integration 🗺️
