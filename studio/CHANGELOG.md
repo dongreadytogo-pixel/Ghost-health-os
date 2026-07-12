@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **Task queue runs real Workflow jobs (M2)**: the Director panel gains a
+  WAV file picker and "รันเวิร์กโฟลว์" button — `StudioModel.runWorkflow()`
+  decodes the file and runs the actual `Workflow.run(_:memory:)` chain
+  (analyze → auto-edit → captions → export command) off the main thread,
+  with AI memory when the local preference store is available. The task
+  queue shows live progress: queued → running (ProgressView) → done (clip/
+  caption/duration/preset summary) or failed (error detail), and the
+  workflow's step trace is written to the log panel.
 - **Settings + Keychain (M2)**: `SecretsStoring` port with a macOS
   `KeychainStore` (generic-password items) and an `InMemorySecretsStore`
   for CI; `SettingsViewModel` validates keys (trim, reject whitespace),

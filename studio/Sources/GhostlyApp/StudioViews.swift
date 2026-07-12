@@ -1,5 +1,6 @@
 #if canImport(SwiftUI)
 import SwiftUI
+import UniformTypeIdentifiers
 import GhostlySubtitles
 import GhostlyDirector
 
@@ -59,6 +60,7 @@ public struct StudioRootView: View {
 /// Prompt panel: natural-language commands in, edit plans out.
 struct DirectorPanel: View {
     @ObservedObject var model: StudioModel
+    @State private var showingAudioPicker = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -76,6 +78,30 @@ struct DirectorPanel: View {
                 Button("รัน") { model.submitPrompt() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(model.prompt.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+
+            GroupBox("รันเวิร์กโฟลว์จริงจากไฟล์เสียง (WAV)") {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        TextField("เส้นทางไฟล์ .wav", text: $model.audioPath)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityLabel("เส้นทางไฟล์เสียง")
+                        Button("เลือกไฟล์…") { showingAudioPicker = true }
+                    }
+                    Button("รันเวิร์กโฟลว์ (วิเคราะห์ → ตัดต่อ → ซับ → คำสั่ง export)") {
+                        model.runWorkflow()
+                    }
+                    .disabled(model.prompt.trimmingCharacters(in: .whitespaces).isEmpty
+                              || model.audioPath.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(4)
+            }
+            .fileImporter(isPresented: $showingAudioPicker,
+                          allowedContentTypes: [UTType(filenameExtension: "wav") ?? .audio]) { result in
+                if case .success(let url) = result {
+                    model.audioPath = url.path
+                }
             }
 
             if let plan = model.lastPlan {

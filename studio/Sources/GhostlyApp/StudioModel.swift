@@ -4,6 +4,7 @@ import SwiftUI
 import GhostlyCore
 import GhostlyDomain
 import GhostlyDirector
+import GhostlyDetection
 import GhostlyLearning
 
 /// One unit of work visible in the task queue panel.
@@ -32,6 +33,9 @@ public final class StudioModel: ObservableObject {
     @Published public private(set) var logEntries: [String] = []
     @Published public private(set) var lastPlan: Director.Plan?
     @Published public var prompt: String = ""
+    /// Path to a WAV recording; when set, "รันเวิร์กโฟลว์" runs the real
+    /// analyze → edit → captions → export chain instead of just parsing intent.
+    @Published public var audioPath: String = ""
 
     private let director = Director()
     private let preferences: PreferenceStore?
@@ -68,6 +72,62 @@ public final class StudioModel: ObservableObject {
                                     detail: error.localizedDescription))
             log("could not interpret '\(command)': \(error.localizedDescription)")
         }
+    }
+
+    /// Runs the real end-to-end `Workflow` (analyze → edit → captions →
+    /// export command) against `audioPath`, with AI memory when available.
+    /// Progress is visible in the task queue: queued → running → done/failed.
+    public func runWorkflow() {
+        let command = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let path = audioPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !command.isEmpty, !path.isEmpty else { return }
+        prompt = ""
+
+        let task = StudioTask(title: "เวิร์กโฟลว์: \(command)", status: .running,
+                              detail: "กำลังวิเคราะห์ \((path as NSString).lastPathComponent)…")
+        let taskID = task.id
+        append(task: task)
+        log("เริ่มเวิร์กโฟลว์ '\(command)' บน \(path)")
+
+        let store = preferences
+        Task.detached { [weak self] in
+            do {
+                let audio = try WAV.decode(contentsOf: URL(fileURLWithPath: path))
+                let request = Workflow.Request(audio: audio, command: command)
+                let result: Workflow.Result
+                if let store {
+                    result = try await Workflow.run(request, memory: store)
+                } else {
+                    result = try Workflow.run(request)
+                }
+                await self?.completeWorkflowTask(id: taskID, result: result)
+            } catch {
+                await self?.failWorkflowTask(id: taskID, error: error)
+            }
+        }
+    }
+
+    private func completeWorkflowTask(id: UUID, result: Workflow.Result) {
+        updateTask(id: id) { task in
+            task.status = .done
+            task.detail = "คลิป \(result.edit.storylineClipCount) · ซับ \(result.edit.captionCount) · " +
+                String(format: "%.1f วินาที", result.edit.durationSeconds) +
+                " · เพรเซ็ต \(result.exportPresetName)"
+        }
+        log("เวิร์กโฟลว์เสร็จ: " + result.steps.joined(separator: " → "))
+    }
+
+    private func failWorkflowTask(id: UUID, error: Error) {
+        updateTask(id: id) { task in
+            task.status = .failed
+            task.detail = error.localizedDescription
+        }
+        log("เวิร์กโฟลว์ล้มเหลว: \(error.localizedDescription)")
+    }
+
+    private func updateTask(id: UUID, _ mutate: (inout StudioTask) -> Void) {
+        guard let index = tasks.firstIndex(where: { $0.id == id }) else { return }
+        mutate(&tasks[index])
     }
 
     public func append(task: StudioTask) {

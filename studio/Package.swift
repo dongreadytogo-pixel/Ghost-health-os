@@ -58,6 +58,7 @@ let package = Package(
         .target(name: "GhostlyApp", dependencies: [
             "GhostlyCore", "GhostlyDomain", "GhostlyDirector", "GhostlySubtitles",
             "GhostlyMCP", "GhostlyLearning", "GhostlyAI", "GhostlyViewModels",
+            "GhostlyDetection", "GhostlyAudio",
         ]),
         // MARK: Executables
         .executableTarget(name: "GhostlyCLI", dependencies: [

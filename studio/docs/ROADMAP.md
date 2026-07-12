@@ -94,7 +94,9 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 - ✅ Asset browser data layer + "คลังคลิป" panel (Thai NL search over the
   library via `AssetBrowserViewModel`); 🗺️ remaining: real library loading
   and Vision auto-tagging
-- 🗺️ Task queue running real analysis jobs with progress
+- ✅ Task queue runs real `Workflow` jobs (WAV → analyze → edit → captions →
+  export command) off the main thread with AI memory, live queued/running/
+  done/failed status, and a step trace in the logs
 - ✅ Settings: provider API keys in the macOS Keychain
   (`SecretsStoring`/`KeychainStore`, `SettingsViewModel`, "การตั้งค่า"
   panel); 🗺️ remaining: routing policy UI
