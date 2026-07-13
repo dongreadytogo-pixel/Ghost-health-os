@@ -48,6 +48,7 @@ guard let command = arguments.first else {
       ghostly intent "<editing command>"
       ghostly edit <subtitles.srt|.vtt> --duration <seconds> --command "<editing command>" [--lang th] [--name clip] [--project name] [--out file.fcpxml]
       ghostly edit --wav <clip.wav> --command "<editing command>" [<subtitles.srt|.vtt>] [--diarize] [--clean] [--lang th] [--name clip] [--project name] [--out file.fcpxml]
+      ghostly chapters <subtitles.srt|.vtt> --duration <seconds> [--lang th] [--out chapters.txt]   YouTube chapter timestamps
       ghostly captions <subtitles.srt|.vtt> --style <TikTok|YouTube|Instagram|Broadcast> [--shift seconds] [--out file]
       ghostly validate <file.fcpxml>
       ghostly analyze <file.fcpxml>
@@ -179,6 +180,41 @@ case "edit":
         if !output.isValid {
             for issue in output.issues { FileHandle.standardError.write(Data("\(issue)\n".utf8)) }
             exit(2)
+        }
+    } catch {
+        fail(error.localizedDescription)
+    }
+
+case "chapters":
+    // YouTube chapter timestamps from a transcript's cue timings. Cues
+    // become speech ranges; HighlightPlanner derives chapter boundaries
+    // (using transcript titles as labels), ChapterExport formats them.
+    guard arguments.count >= 2 else {
+        fail("usage: ghostly chapters <subtitles.srt|.vtt> --duration <seconds> [--lang th] [--out chapters.txt]")
+    }
+    guard let durationText = option("duration", in: arguments),
+          let durationSeconds = Double(durationText) else {
+        fail("--duration <seconds> is required (length of the video)")
+    }
+    do {
+        let content = readFile(arguments[1])
+        let parsed = content.hasPrefix("WEBVTT") ? try WebVTT.parse(content) : try SRT.parse(content)
+        let transcript = SubtitleTrack(language: option("lang", in: arguments) ?? "th",
+                                       cues: parsed.cues)
+        let duration = RationalTime(seconds: durationSeconds, preferredTimescale: 3000)
+        let asset = Asset(name: "video", url: URL(fileURLWithPath: "/media/video"),
+                          duration: duration, kind: .video)
+        let analysis = MediaAnalysis(assetID: asset.id, duration: duration,
+                                     speechRanges: parsed.cues.map(\.range))
+        let markers = HighlightPlanner().chapters(from: analysis, transcript: transcript)
+        guard let description = ChapterExport.youTubeDescription(markers: markers, duration: duration) else {
+            fail("ไม่สามารถสร้าง chapter ได้ (YouTube ต้องมีอย่างน้อย 3 บท เริ่มที่ 0:00 และแต่ละบทยาว ≥ 10 วินาที)")
+        }
+        if let outPath = option("out", in: arguments) {
+            try description.write(toFile: outPath, atomically: true, encoding: .utf8)
+            print("wrote \(outPath)")
+        } else {
+            print(description)
         }
     } catch {
         fail(error.localizedDescription)

@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **`ghostly chapters`** — YouTube chapter timestamps from a transcript:
+  cue timings drive `HighlightPlanner.chapters` (Thai titles from the
+  transcript), and `ChapterExport.youTubeDescription` formats the
+  "0:00 บทนำ" block a creator pastes into a video description, enforcing
+  YouTube's rules (first chapter at 0:00, ≥3 chapters, each ≥10 s) and
+  returning a clear Thai error when they can't be met. Eight tests cover
+  formatting, h:mm:ss past an hour, every validity rule, non-chapter marker
+  filtering, and the end-to-end transcript path.
 - **`ghostly doctor`** (first-run readiness): checks whether the optional
   external media tools (`ffmpeg` for video→WAV/frames, `whisper-cli` for Thai
   ASR) are installed and prints Thai install guidance for whatever's missing,
