@@ -3,6 +3,19 @@
 ## Unreleased
 
 ### Added
+- **K-weighted loudness (LUFS)** in `GhostlyAudio`: `Biquad.highShelf` (RBJ
+  cookbook, Q-parameterized) completes the ITU-R BS.1770 pre-filter
+  (high-shelf + RLB high-pass), coefficients derived at any sample rate
+  rather than hardcoded for 48 kHz. `Loudness.lufs` measures integrated
+  K-weighted loudness as a single ungated block — documented precisely as
+  that, not sold as full broadcast-gated LUFS (BS.1770-4's multi-block
+  silence/quiet-passage gating for long programs isn't implemented).
+  `lufsNormalizationGain`/`lufsNormalized` mirror the existing RMS API.
+  `ghostly normalize-audio --lufs` targets LUFS instead of flat RMS;
+  `ghostly analyze-audio` now reports both RMS and LUFS. Six tests verify
+  silence handling, determinism, that bass reads ≥10 LU quieter than
+  midrange at equal RMS (RLB rolloff) and presence reads louder (high-shelf
+  boost), and normalization/peak-ceiling behavior.
 - **Task queue runs real Workflow jobs (M2)**: the Director panel gains a
   WAV file picker and "รันเวิร์กโฟลว์" button — `StudioModel.runWorkflow()`
   decodes the file and runs the actual `Workflow.run(_:memory:)` chain

@@ -117,7 +117,11 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
   normalization (`ghostly normalize-audio`), speech-driven music-ducking
   envelopes (emitted as FCPXML volume keyframes on auto-edit music beds),
   and AI Audio Cleanup (`ghostly clean-audio`: rumble high-pass, mains
-  de-hum, expander gate); 🗺️ remaining: true LUFS weighting
+  de-hum, expander gate); ✅ K-weighted loudness (LUFS) — ITU-R BS.1770
+  pre-filter (high-shelf + RLB high-pass, sample-rate-derived coefficients)
+  + integrated single-block measurement, `lufsNormalized`/
+  `--lufs` normalization target; documented as ungated (no BS.1770-4
+  multi-block gating for long programs)
 
 ## M4 — Ecosystem 🗺️
 

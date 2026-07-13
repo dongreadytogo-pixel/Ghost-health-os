@@ -62,7 +62,7 @@ guard let command = arguments.first else {
       ghostly transcribe <audio> --model <ggml.bin> [--lang th] [--sentences] [--out subs.srt] [--whisper path]   (--sentences = จัดกลุ่มเป็นประโยคธรรมชาติ)
       ghostly lut [--exposure EV] [--contrast x] [--saturation x] [--temperature -1..1] [--tint -1..1] [--neutralize "r g b"] [--size 33] [--title name] [--out grade.cube]
       ghostly lut-info <file.cube>              Inspect/validate a .cube LUT
-      ghostly normalize-audio <in.wav> [--target -16] [--peak -1] [--out out.wav]   Level a voice/music track (RMS dBFS, peak-safe)
+      ghostly normalize-audio <in.wav> [--target -16] [--lufs] [--peak -1] [--out out.wav]   Level a voice/music track (RMS dBFS or K-weighted LUFS, peak-safe)
       ghostly clean-audio <in.wav> [--highpass 80] [--dehum 50] [--gate -45] [--out out.wav]   ลดเสียงรบกวน: rumble + mains hum + noise floor
       ghostly version
     """)
@@ -307,6 +307,12 @@ case "analyze-audio":
     do {
         let audio = try WAV.decode(contentsOf: URL(fileURLWithPath: arguments[1]))
         print("duration: \(String(format: "%.2f", audio.duration.seconds))s @ \(audio.sampleRate)Hz")
+        let rms = Loudness.rmsDBFS(of: audio.samples)
+        let lufs = Loudness.lufs(of: audio.samples, sampleRate: audio.sampleRate)
+        func db(_ v: Double?, _ unit: String) -> String {
+            v.map { String(format: "%.1f \(unit)", $0) } ?? "silence"
+        }
+        print("loudness: \(db(rms, "dBFS")) (RMS), \(db(lufs, "LUFS")) (K-weighted)")
         let segments = SilenceDetector().segments(samples: audio.samples,
                                                   sampleRate: audio.sampleRate)
         let speech = segments.filter(\.isSpeech)
@@ -338,21 +344,35 @@ case "analyze-audio":
     }
 
 case "normalize-audio":
-    guard arguments.count >= 2 else { fail("usage: ghostly normalize-audio <in.wav> [--target -16]") }
+    guard arguments.count >= 2 else {
+        fail("usage: ghostly normalize-audio <in.wav> [--target -16] [--lufs] [--peak -1]")
+    }
     do {
         let audio = try WAV.decode(contentsOf: URL(fileURLWithPath: arguments[1]))
         let target = option("target", in: arguments).flatMap(Double.init) ?? -16
         let ceiling = option("peak", in: arguments).flatMap(Double.init) ?? -1
-        let before = Loudness.rmsDBFS(of: audio.samples)
-        let leveled = Loudness.normalized(audio.samples, targetDBFS: target, peakCeilingDBFS: ceiling)
-        let after = Loudness.rmsDBFS(of: leveled)
         let outPath = option("out", in: arguments)
             ?? ((arguments[1] as NSString).deletingPathExtension + "-normalized.wav")
+        func db(_ v: Double?, _ unit: String) -> String {
+            v.map { String(format: "%.1f \(unit)", $0) } ?? "silence"
+        }
+        let leveled: [Float]
+        if arguments.contains("--lufs") {
+            // K-weighted (perceptual) target — ใช้ LUFS แทน RMS แบบเรียบ ๆ.
+            let before = Loudness.lufs(of: audio.samples, sampleRate: audio.sampleRate)
+            leveled = Loudness.lufsNormalized(audio.samples, sampleRate: audio.sampleRate,
+                                              targetLUFS: target, peakCeilingDBFS: ceiling)
+            let after = Loudness.lufs(of: leveled, sampleRate: audio.sampleRate)
+            print("lufs: \(db(before, "LUFS")) → \(db(after, "LUFS")) (target \(String(format: "%.1f", target)), peak ceiling \(String(format: "%.1f", ceiling)))")
+        } else {
+            let before = Loudness.rmsDBFS(of: audio.samples)
+            leveled = Loudness.normalized(audio.samples, targetDBFS: target, peakCeilingDBFS: ceiling)
+            let after = Loudness.rmsDBFS(of: leveled)
+            print("rms: \(db(before, "dBFS")) → \(db(after, "dBFS")) (target \(String(format: "%.1f", target)), peak ceiling \(String(format: "%.1f", ceiling)))")
+        }
         try WAV.encode(WAV.Audio(samples: leveled, sampleRate: audio.sampleRate))
             .write(to: URL(fileURLWithPath: outPath))
-        func db(_ v: Double?) -> String { v.map { String(format: "%.1f dBFS", $0) } ?? "silence" }
         print("wrote \(outPath)")
-        print("rms: \(db(before)) → \(db(after)) (target \(String(format: "%.1f", target)), peak ceiling \(String(format: "%.1f", ceiling)))")
     } catch {
         fail(error.localizedDescription)
     }

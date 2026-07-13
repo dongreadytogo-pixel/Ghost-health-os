@@ -39,6 +39,73 @@ final class AudioEngineTests: XCTestCase {
         XCTAssertLessThanOrEqual(peak, -0.9, "peak must stay under the ceiling")
     }
 
+    // MARK: LUFS (K-weighted loudness)
+
+    /// Drops the first 0.5 s so the K-weighting filters' transient doesn't
+    /// pollute the measurement (same rationale as the de-hum notch tests:
+    /// an IIR filter rings before it settles).
+    private func steadyState(_ samples: [Float], sampleRate: Int = 16_000) -> [Float] {
+        Array(samples.dropFirst(sampleRate / 2))
+    }
+
+    func testLUFSSilenceIsNil() {
+        XCTAssertNil(Loudness.lufs(of: [], sampleRate: 16_000))
+        XCTAssertNil(Loudness.lufs(of: [Float](repeating: 0, count: 1000), sampleRate: 16_000))
+        XCTAssertNil(Loudness.lufsNormalizationGain(
+            for: [Float](repeating: 0, count: 1000), sampleRate: 16_000))
+    }
+
+    func testLUFSDeterministic() {
+        let samples = AudioFixture(sampleRate: 16_000)
+            .tone(frequency: 440, seconds: 1, amplitude: 0.3).samples()
+        XCTAssertEqual(Loudness.lufs(of: samples, sampleRate: 16_000),
+                       Loudness.lufs(of: samples, sampleRate: 16_000))
+    }
+
+    func testKWeightingDeEmphasizesBass() throws {
+        // Same amplitude, different frequency: the RLB high-pass rolls off
+        // bass hard, so a 30 Hz tone must read much quieter in LUFS than a
+        // 1 kHz tone despite identical RMS.
+        let bass = steadyState(AudioFixture(sampleRate: 16_000)
+            .tone(frequency: 30, seconds: 2, amplitude: 0.3).samples())
+        let mid = steadyState(AudioFixture(sampleRate: 16_000)
+            .tone(frequency: 1000, seconds: 2, amplitude: 0.3).samples())
+        let bassLUFS = try XCTUnwrap(Loudness.lufs(of: bass, sampleRate: 16_000))
+        let midLUFS = try XCTUnwrap(Loudness.lufs(of: mid, sampleRate: 16_000))
+        XCTAssertLessThan(bassLUFS, midLUFS - 10,
+                          "30 Hz must read at least 10 LU quieter than 1 kHz at equal RMS")
+    }
+
+    func testKWeightingEmphasizesPresence() throws {
+        // The high-shelf boosts ~+4 dB above ~1.7 kHz, so a tone in that
+        // band must read louder in LUFS than the flat midrange reference.
+        let presence = steadyState(AudioFixture(sampleRate: 16_000)
+            .tone(frequency: 3000, seconds: 2, amplitude: 0.3).samples())
+        let mid = steadyState(AudioFixture(sampleRate: 16_000)
+            .tone(frequency: 1000, seconds: 2, amplitude: 0.3).samples())
+        let presenceLUFS = try XCTUnwrap(Loudness.lufs(of: presence, sampleRate: 16_000))
+        let midLUFS = try XCTUnwrap(Loudness.lufs(of: mid, sampleRate: 16_000))
+        XCTAssertGreaterThan(presenceLUFS, midLUFS,
+                            "high-shelf boost must make the 3 kHz tone read louder")
+    }
+
+    func testLUFSNormalizationHitsTarget() throws {
+        let quiet = steadyState(AudioFixture(sampleRate: 16_000)
+            .tone(frequency: 1000, seconds: 2, amplitude: 0.05).samples())
+        let normalized = Loudness.lufsNormalized(quiet, sampleRate: 16_000, targetLUFS: -16)
+        let measured = try XCTUnwrap(Loudness.lufs(of: normalized, sampleRate: 16_000))
+        XCTAssertEqual(measured, -16, accuracy: 0.2)
+    }
+
+    func testLUFSNormalizationRespectsPeakCeiling() throws {
+        let loud = steadyState(AudioFixture(sampleRate: 16_000)
+            .tone(frequency: 1000, seconds: 2, amplitude: 0.5).samples())
+        let normalized = Loudness.lufsNormalized(loud, sampleRate: 16_000,
+                                                  targetLUFS: 0, peakCeilingDBFS: -1)
+        let peak = try XCTUnwrap(Loudness.peakDBFS(of: normalized))
+        XCTAssertLessThanOrEqual(peak, -0.9, "peak ceiling must win over the loudness target")
+    }
+
     // MARK: Ducking envelope
 
     private let speech = [

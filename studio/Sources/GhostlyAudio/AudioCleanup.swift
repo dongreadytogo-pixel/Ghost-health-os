@@ -42,6 +42,25 @@ public struct Biquad: Sendable {
                       a2: (1 - alpha) / a0)
     }
 
+    /// RBJ high-shelf: boosts (positive `gainDB`) or cuts frequencies above
+    /// `cutoff`. Used to build the ITU-R BS.1770 K-weighting pre-filter
+    /// (`Loudness.lufs`), parameterized by Q rather than shelf slope.
+    public static func highShelf(cutoff: Double, gainDB: Double, sampleRate: Int,
+                                 q: Double = 0.7071) -> Biquad {
+        let a = pow(10, gainDB / 40)
+        let w0 = 2 * Double.pi * cutoff / Double(sampleRate)
+        let cosw0 = cos(w0)
+        let alpha = sin(w0) / (2 * q)
+        let sqrtA = a.squareRoot()
+        let a0 = (a + 1) - (a - 1) * cosw0 + 2 * sqrtA * alpha
+        return Biquad(
+            b0: a * ((a + 1) + (a - 1) * cosw0 + 2 * sqrtA * alpha) / a0,
+            b1: -2 * a * ((a - 1) + (a + 1) * cosw0) / a0,
+            b2: a * ((a + 1) + (a - 1) * cosw0 - 2 * sqrtA * alpha) / a0,
+            a1: 2 * ((a - 1) - (a + 1) * cosw0) / a0,
+            a2: ((a + 1) - (a - 1) * cosw0 - 2 * sqrtA * alpha) / a0)
+    }
+
     /// Direct Form I over a whole buffer.
     public func process(_ samples: [Float]) -> [Float] {
         var x1 = 0.0, x2 = 0.0, y1 = 0.0, y2 = 0.0
