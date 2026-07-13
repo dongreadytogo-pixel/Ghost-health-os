@@ -9,8 +9,11 @@ final class ToolchainCheckTests: XCTestCase {
         XCTAssertTrue(report.coreReady)
         XCTAssertTrue(report.fullyEquipped)
         XCTAssertTrue(report.lines.contains { $0.contains("พร้อมใช้งานเต็มรูปแบบ") })
-        // Every tool line marked present.
-        XCTAssertEqual(report.lines.filter { $0.contains("✓ ") }.count, 2)
+        // Both tool lines marked present (indented "  ✓ <tool>"); the summary
+        // line also carries a ✓, so match the tool-line prefix specifically.
+        XCTAssertTrue(report.lines.contains { $0.hasPrefix("  ✓ ffmpeg") })
+        XCTAssertTrue(report.lines.contains { $0.hasPrefix("  ✓ whisper-cli") })
+        XCTAssertFalse(report.lines.contains { $0.contains("✗") }, "nothing missing")
     }
 
     func testMissingToolShowsInstallHintButCoreStillReady() {
