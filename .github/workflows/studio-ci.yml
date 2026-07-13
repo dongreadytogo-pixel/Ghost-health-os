@@ -85,6 +85,7 @@ jobs:
           "$BIN/ghostly" normalize-audio /tmp/demo.wav --target -16 --out /tmp/leveled.wav | grep -q "rms:"
           "$BIN/ghostly" normalize-audio /tmp/demo.wav --target -16 --lufs --out /tmp/leveled-lufs.wav | grep -q "lufs:"
           "$BIN/ghostly" analyze-audio /tmp/demo.wav | grep -q "LUFS"
+          "$BIN/ghostly" doctor | grep -q "เอนจินหลัก\|พร้อมใช้งานเต็มรูปแบบ"
           "$BIN/ghostly" clean-audio /tmp/demo.wav --dehum 50 --out /tmp/clean.wav | grep -q "de-hum 50"
           "$BIN/ghostly" analyze-audio /tmp/clean.wav | grep -q "speech:"
           "$BIN/ghostly" analyze-audio /tmp/leveled.wav | grep -q "speech:"

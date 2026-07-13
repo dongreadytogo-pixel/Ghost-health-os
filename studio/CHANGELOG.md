@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- **`ghostly doctor`** (first-run readiness): checks whether the optional
+  external media tools (`ffmpeg` for video→WAV/frames, `whisper-cli` for Thai
+  ASR) are installed and prints Thai install guidance for whatever's missing,
+  while making clear the edit/FCPXML/SRT-caption engine works without either.
+  `ToolchainCheck.report` (pure, tested) formats the report; the CLI probes
+  PATH. Four tests cover fully-equipped, one-missing, nothing-installed, and
+  Thai documentation of every tool.
 - **Vision/CoreImage `VisualDetecting` adapter**: `VisionDetectionProvider`
   (GhostlyDetection, macOS-gated) samples real video frames and runs
   genuine on-device detectors — no mocked or fabricated results. Faces come

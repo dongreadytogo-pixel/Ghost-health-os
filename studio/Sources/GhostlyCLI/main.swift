@@ -64,14 +64,44 @@ guard let command = arguments.first else {
       ghostly lut-info <file.cube>              Inspect/validate a .cube LUT
       ghostly normalize-audio <in.wav> [--target -16] [--lufs] [--peak -1] [--out out.wav]   Level a voice/music track (RMS dBFS or K-weighted LUFS, peak-safe)
       ghostly clean-audio <in.wav> [--highpass 80] [--dehum 50] [--gate -45] [--out out.wav]   ลดเสียงรบกวน: rumble + mains hum + noise floor
+      ghostly doctor                            ตรวจเครื่องมือภายนอก (ffmpeg/whisper) + วิธีติดตั้ง
       ghostly version
     """)
     exit(0)
 }
 
+/// Probes whether an external tool is on PATH (via `which`), for `doctor`.
+func toolOnPath(_ name: String) -> Bool {
+    #if os(macOS) || os(Linux)
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments = ["which", name]
+    process.standardOutput = Pipe()
+    process.standardError = Pipe()
+    do {
+        try process.run()
+        process.waitUntilExit()
+        return process.terminationStatus == 0
+    } catch {
+        return false
+    }
+    #else
+    return false
+    #endif
+}
+
 switch command {
 case "version":
     print(ghostlyVersion)
+
+case "doctor":
+    // First-run readiness check: which external media tools are installed,
+    // and how to install what's missing (Thai). Report formatting is the
+    // pure, tested ToolchainCheck.report; probing lives here.
+    var found: [String: Bool] = [:]
+    for tool in ToolchainCheck.tools { found[tool.name] = toolOnPath(tool.name) }
+    let report = ToolchainCheck.report(found: found)
+    for line in report.lines { print(line) }
 
 case "intent":
     guard arguments.count >= 2 else { fail("usage: ghostly intent \"<command>\"") }
