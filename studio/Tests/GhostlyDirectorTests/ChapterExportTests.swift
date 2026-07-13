@@ -1,6 +1,8 @@
 import XCTest
 import GhostlyCore
 import GhostlyDomain
+import GhostlyDetection
+import GhostlySubtitles
 @testable import GhostlyDirector
 
 /// YouTube chapter export: the timestamps a Thai creator pastes into a
