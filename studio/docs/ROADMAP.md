@@ -60,7 +60,13 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 - ✅ Frame-histogram seam: pure `LumaHistogram` binning (grayscale/RGB→luma,
   normalized) + platform-gated `AVFrameHistogramProvider` (samples + downscales
   frames on Apple platforms) feeding `SceneChangeDetector`
-- 🔜 Vision/CoreML `VisualDetecting` adapter (face/object/text on real frames)
+- ✅ Vision/CoreImage `VisualDetecting` adapter: `VisionDetectionProvider` —
+  real face detection with smile/eye-open cues (CoreImage `CIDetector`),
+  OCR + barcode/QR (Vision), cat/dog detection (`VNRecognizeAnimalsRequest`,
+  the only no-bundled-model Vision object detector); feeds the already
+  CI-tested `VisualDetectionAggregator`. Broader object detection needs a
+  bundled CoreML model — out of scope here, documented as such rather than
+  faked
 - ✅ Whisper seam: `GhostlyTranscription` — whisper.cpp full-JSON parser →
   word-timed `SubtitleTrack` (Thai-tested) + injectable CLI wrapper +
   `ghostly transcribe` (binary runs on user's machine; parser CI-tested)

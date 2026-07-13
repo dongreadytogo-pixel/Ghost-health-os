@@ -3,6 +3,22 @@
 ## Unreleased
 
 ### Added
+- **Vision/CoreImage `VisualDetecting` adapter**: `VisionDetectionProvider`
+  (GhostlyDetection, macOS-gated) samples real video frames and runs
+  genuine on-device detectors — no mocked or fabricated results. Faces come
+  from CoreImage's `CIDetector` (the only Apple framework exposing smile/
+  eye-blink features directly: `hasSmile`, `hasEyeContact` approximated as
+  "both eyes open" and documented as a coarse engagement proxy, not gaze
+  tracking); text/barcodes/QR come from Vision's `VNRecognizeTextRequest`/
+  `VNDetectBarcodesRequest`; cat/dog objects come from
+  `VNRecognizeAnimalsRequest` — Vision's only general-purpose object
+  detector that needs no bundled CoreML model. All coordinates convert from
+  each framework's bottom-left-origin normalization to the studio's
+  top-left `NormalizedRect`. Feeds directly into the existing, CI-tested
+  `VisualDetectionAggregator`. Matches the `AVFrameHistogramProvider`/
+  `AVAudioSampleProvider` precedent: platform-gated, no dedicated unit
+  test (no pure logic beyond OS framework calls + coordinate conversion),
+  covered by macOS CI compilation.
 - **K-weighted loudness (LUFS)** in `GhostlyAudio`: `Biquad.highShelf` (RBJ
   cookbook, Q-parameterized) completes the ITU-R BS.1770 pre-filter
   (high-shelf + RLB high-pass), coefficients derived at any sample rate
