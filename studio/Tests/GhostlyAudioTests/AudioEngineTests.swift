@@ -63,17 +63,22 @@ final class AudioEngineTests: XCTestCase {
     }
 
     func testKWeightingDeEmphasizesBass() throws {
-        // Same amplitude, different frequency: the RLB high-pass rolls off
-        // bass hard, so a 30 Hz tone must read much quieter in LUFS than a
-        // 1 kHz tone despite identical RMS.
+        // Same amplitude, different frequency: the RLB high-pass (cutoff
+        // ≈38 Hz, Q≈0.5) rolls off bass, so a tone well below the cutoff
+        // must read much quieter in LUFS than a 1 kHz tone despite
+        // identical RMS. 20 Hz sits far enough below the cutoff for ~14 LU
+        // of separation (verified against a reference filter simulation);
+        // 30 Hz is too close to the 38 Hz corner to clear a 10 LU margin
+        // reliably (~8.8 LU there, not a bug — just an under-attenuated
+        // test frequency).
         let bass = steadyState(AudioFixture(sampleRate: 16_000)
-            .tone(frequency: 30, seconds: 2, amplitude: 0.3).samples())
+            .tone(frequency: 20, seconds: 2, amplitude: 0.3).samples())
         let mid = steadyState(AudioFixture(sampleRate: 16_000)
             .tone(frequency: 1000, seconds: 2, amplitude: 0.3).samples())
         let bassLUFS = try XCTUnwrap(Loudness.lufs(of: bass, sampleRate: 16_000))
         let midLUFS = try XCTUnwrap(Loudness.lufs(of: mid, sampleRate: 16_000))
         XCTAssertLessThan(bassLUFS, midLUFS - 10,
-                          "30 Hz must read at least 10 LU quieter than 1 kHz at equal RMS")
+                          "20 Hz must read at least 10 LU quieter than 1 kHz at equal RMS")
     }
 
     func testKWeightingEmphasizesPresence() throws {
