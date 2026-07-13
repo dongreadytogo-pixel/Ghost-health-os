@@ -65,12 +65,23 @@ Binaries land in `.build/release/`:
 ### Natural-language editing (CLI)
 
 ```sh
+ghostly doctor                              # check ffmpeg/whisper + Thai setup guidance
 ghostly intent "edit this like marvel and cut to the beat"
 ghostly captions talk.srt --style TikTok --out styled.srt
 ghostly validate export.fcpxml
 ghostly analyze export.fcpxml
 ghostly styles
 ghostly demo-thai --out thai-short.fcpxml   # end-to-end Thai vertical short
+```
+
+One-command Thai workflow, colour, and audio cleanup:
+
+```sh
+ghostly workflow --wav คลิป.wav ซับ.srt \
+    --command "ลดเสียงรบกวน ตัดช่วงเงียบออก ทำเป็นติ๊กต๊อก ใส่ซับ" --remember
+ghostly clean-audio คลิป.wav --dehum 50       # rumble + mains hum + noise floor
+ghostly normalize-audio คลิป.wav --lufs       # K-weighted loudness target
+ghostly lut --temperature 0.2 --out warm.cube # bake a colour grade to a .cube LUT
 ```
 
 Edit a real recording end-to-end (Thai-first — ภาษาไทยเป็นค่าเริ่มต้น):
