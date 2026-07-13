@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- **`ghostly highlights`**: surfaces `HighlightPlanner`'s best-moment
+  detection (hook / highlight / CTA with 0…1 scores and transcript-derived
+  Thai labels) from a transcript + declared duration — "which beat should
+  the short lead with, which to keep". Complements `ghostly chapters`
+  (both now expose the previously engine-only planner). CI-smoke-tested.
 - **`ghostly chapters`** — YouTube chapter timestamps from a transcript:
   cue timings drive `HighlightPlanner.chapters` (Thai titles from the
   transcript), and `ChapterExport.youTubeDescription` formats the

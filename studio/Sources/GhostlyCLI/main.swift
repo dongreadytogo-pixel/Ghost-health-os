@@ -49,6 +49,7 @@ guard let command = arguments.first else {
       ghostly edit <subtitles.srt|.vtt> --duration <seconds> --command "<editing command>" [--lang th] [--name clip] [--project name] [--out file.fcpxml]
       ghostly edit --wav <clip.wav> --command "<editing command>" [<subtitles.srt|.vtt>] [--diarize] [--clean] [--lang th] [--name clip] [--project name] [--out file.fcpxml]
       ghostly chapters <subtitles.srt|.vtt> --duration <seconds> [--lang th] [--out chapters.txt]   YouTube chapter timestamps
+      ghostly highlights <subtitles.srt|.vtt> --duration <seconds> [--lang th] [--limit 5]   ช่วงเด่น (hook/highlight/CTA) + คะแนน
       ghostly captions <subtitles.srt|.vtt> --style <TikTok|YouTube|Instagram|Broadcast> [--shift seconds] [--out file]
       ghostly validate <file.fcpxml>
       ghostly analyze <file.fcpxml>
@@ -215,6 +216,41 @@ case "chapters":
             print("wrote \(outPath)")
         } else {
             print(description)
+        }
+    } catch {
+        fail(error.localizedDescription)
+    }
+
+case "highlights":
+    // Best moments (hook/highlight/CTA) from a transcript's cue timings —
+    // what a short should lead with and which beats to keep. Prints each
+    // with its timestamp, kind, and 0…1 score.
+    guard arguments.count >= 2 else {
+        fail("usage: ghostly highlights <subtitles.srt|.vtt> --duration <seconds> [--lang th] [--limit 5]")
+    }
+    guard let durationText = option("duration", in: arguments),
+          let durationSeconds = Double(durationText) else {
+        fail("--duration <seconds> is required (length of the video)")
+    }
+    do {
+        let content = readFile(arguments[1])
+        let parsed = content.hasPrefix("WEBVTT") ? try WebVTT.parse(content) : try SRT.parse(content)
+        let transcript = SubtitleTrack(language: option("lang", in: arguments) ?? "th",
+                                       cues: parsed.cues)
+        let duration = RationalTime(seconds: durationSeconds, preferredTimescale: 3000)
+        let asset = Asset(name: "video", url: URL(fileURLWithPath: "/media/video"),
+                          duration: duration, kind: .video)
+        let analysis = MediaAnalysis(assetID: asset.id, duration: duration,
+                                     speechRanges: parsed.cues.map(\.range))
+        let limit = option("limit", in: arguments).flatMap(Int.init) ?? 5
+        let highlights = HighlightPlanner().highlights(
+            from: analysis, transcript: transcript, limit: limit)
+        guard !highlights.isEmpty else {
+            fail("ไม่พบช่วงเด่น (ต้องมีช่วงเสียงพูดในไฟล์ซับ)")
+        }
+        for h in highlights {
+            let start = ChapterExport.timestamp(h.range.start.seconds)
+            print("\(start)  [\(h.kind.rawValue)] \(String(format: "%.2f", h.score))  \(h.label)")
         }
     } catch {
         fail(error.localizedDescription)
