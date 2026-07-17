@@ -142,3 +142,23 @@ jobs:
 
       - name: Test
         run: swift test --parallel
+
+      - name: Package clickable app folder (Ghostly790K-AI-Studio)
+        run: |
+          bash -n dist/Ghostly790K-AI-Studio/*.command
+          swift build -c release --product ghostly
+          BIN=$(swift build -c release --show-bin-path)
+          PKG=/tmp/pkg/Ghostly790K-AI-Studio
+          mkdir -p "$PKG/bin"
+          cp -R dist/Ghostly790K-AI-Studio/. "$PKG/"
+          cp "$BIN/ghostly" "$PKG/bin/"
+          chmod +x "$PKG"/*.command "$PKG/bin/ghostly"
+          "$PKG/bin/ghostly" version
+          ls -la "$PKG"
+
+      - name: Upload clickable app folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ghostly790K-AI-Studio
+          path: /tmp/pkg
+          if-no-files-found: error

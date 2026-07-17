@@ -84,6 +84,11 @@ ghostly normalize-audio คลิป.wav --lufs       # K-weighted loudness targ
 ghostly lut --temperature 0.2 --out warm.cube # bake a colour grade to a .cube LUT
 ```
 
+ไม่ถนัด Terminal? ใช้แพ็กเกจคลิกได้เลย: ดาวน์โหลด artifact
+**Ghostly790K-AI-Studio** จากแท็บ Actions (แพ็กโดย CI ทุกครั้ง) หรือใช้โฟลเดอร์
+`dist/Ghostly790K-AI-Studio/` — ดับเบิลคลิก `ติดตั้งครั้งแรก.command` หนึ่งครั้ง
+แล้วใช้ `Ghostly790K.command` ตัดต่อได้ทันที (รายละเอียดใน `อ่านก่อนใช้.txt`)
+
 One-click from a real video file (คลิกเดียวจบ — ต้องมี ffmpeg; ใส่ `--model`
 เพื่อถอดเสียงซับไทยด้วย whisper.cpp):
 

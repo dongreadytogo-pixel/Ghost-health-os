@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Added
+- **Clickable app package (`dist/Ghostly790K-AI-Studio/`)**: a Finder-first
+  distribution for non-terminal users — `Ghostly790K.command` (double-click →
+  Thai file-picker + command dialogs → `ghostly auto --remember` → offer to
+  open the result in Final Cut Pro), `ติดตั้งครั้งแรก.command` (one-time
+  setup: quarantine unlock, ffmpeg via Homebrew with guidance when brew is
+  missing, prebuilt-binary check with build-from-source fallback),
+  `อ่านก่อนใช้.txt`, and a `models/` drop-in folder that auto-enables Thai
+  whisper subtitles. The macOS CI job packages the folder with a prebuilt
+  release `ghostly` binary and uploads it as the `Ghostly790K-AI-Studio`
+  artifact (scripts syntax-checked and the binary smoke-run during
+  packaging).
 - **`ghostly auto <video>` — one-click video → FCPXML (FCP-first)**: the
   studio now *runs* the full chain on a real video file instead of printing
   recipes: ffmpeg extracts the analysis WAV (temp file, cleaned up), an
