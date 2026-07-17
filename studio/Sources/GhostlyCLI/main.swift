@@ -45,9 +45,10 @@ guard let command = arguments.first else {
     ghostly \(ghostlyVersion) — AI Final Cut Studio toolbox
 
     Usage:
+      ghostly auto <video> [--command "..."] [--model ggml.bin] [--preset name] [--remember] [--diarize] [--clean] [--out file.fcpxml]   คลิกเดียวจบ: วิดีโอจริง → แตกเสียง (ffmpeg) → ซับ (whisper ถ้ามี --model) → ตัดต่อ → FCPXML เปิดใน FCP ได้ทันที
       ghostly intent "<editing command>"
-      ghostly edit <subtitles.srt|.vtt> --duration <seconds> --command "<editing command>" [--lang th] [--name clip] [--project name] [--out file.fcpxml]
-      ghostly edit --wav <clip.wav> --command "<editing command>" [<subtitles.srt|.vtt>] [--diarize] [--clean] [--lang th] [--name clip] [--project name] [--out file.fcpxml]
+      ghostly edit <subtitles.srt|.vtt> --duration <seconds> --command "<editing command>" [--media video.mp4] [--lang th] [--name clip] [--project name] [--out file.fcpxml]
+      ghostly edit --wav <clip.wav> --command "<editing command>" [<subtitles.srt|.vtt>] [--media video.mp4] [--diarize] [--clean] [--lang th] [--name clip] [--project name] [--out file.fcpxml]
       ghostly chapters <subtitles.srt|.vtt> --duration <seconds> [--lang th] [--out chapters.txt]   YouTube chapter timestamps
       ghostly highlights <subtitles.srt|.vtt> --duration <seconds> [--lang th] [--limit 5]   ช่วงเด่น (hook/highlight/CTA) + คะแนน
       ghostly captions <subtitles.srt|.vtt> --style <TikTok|YouTube|Instagram|Broadcast> [--shift seconds] [--out file]
@@ -56,9 +57,9 @@ guard let command = arguments.first else {
       ghostly styles
       ghostly export <input> --preset <name> --out <output> [--title T] [--artist A]
       ghostly presets
-      ghostly workflow --wav <clip.wav> --command "<editing command>" [<subs.srt>] [--diarize] [--preset name] [--remember] [--out file.fcpxml]   Full chain: analyze → edit → captions → export command (--remember = ใช้/จำค่าที่เคยใช้)
+      ghostly workflow --wav <clip.wav> --command "<editing command>" [<subs.srt>] [--media video.mp4] [--diarize] [--preset name] [--remember] [--out file.fcpxml]   Full chain: analyze → edit → captions → export command (--remember = ใช้/จำค่าที่เคยใช้)
       ghostly analyze-audio <file.wav> [--diarize]   Speech ranges + beats/BPM (+ speakers) from a WAV file
-      ghostly extract-audio <video> [--out file.wav] [--rate 16000]   Print the ffmpeg command that produces an analysis WAV
+      ghostly extract-audio <video> [--out file.wav] [--rate 16000] [--run]   The ffmpeg command that produces an analysis WAV (--run executes it)
       ghostly demo-audio [--out file.wav]       Write a deterministic demo WAV (speech + 120 BPM beats)
       ghostly demo-thai [--out file.fcpxml]
       ghostly transcribe <audio> --model <ggml.bin> [--lang th] [--sentences] [--out subs.srt] [--whisper path]   (--sentences = จัดกลุ่มเป็นประโยคธรรมชาติ)
@@ -70,6 +71,31 @@ guard let command = arguments.first else {
       ghostly version
     """)
     exit(0)
+}
+
+/// Runs an external tool to completion, throwing a Thai-facing error with the
+/// tool's last stderr lines on a non-zero exit.
+func runTool(_ name: String, _ args: [String]) throws {
+    #if os(macOS) || os(Linux)
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments = [name] + args
+    let stderrPipe = Pipe()
+    process.standardOutput = Pipe()
+    process.standardError = stderrPipe
+    try process.run()
+    // Drain stderr before waiting so a chatty tool can't deadlock the pipe.
+    let errData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+    process.waitUntilExit()
+    guard process.terminationStatus == 0 else {
+        let tail = String(data: errData, encoding: .utf8)?
+            .split(separator: "\n").suffix(5).joined(separator: "\n") ?? ""
+        throw StudioError.validationFailure(
+            detail: "\(name) ล้มเหลว (exit \(process.terminationStatus))\n\(tail)")
+    }
+    #else
+    throw StudioError.validationFailure(detail: "\(name) รันไม่ได้บนแพลตฟอร์มนี้")
+    #endif
 }
 
 /// Probes whether an external tool is on PATH (via `which`), for `doctor`.
@@ -423,6 +449,87 @@ case "workflow":
         fail(error.localizedDescription)
     }
 
+case "auto":
+    // One-click (คลิกเดียวจบ): real video in → ffmpeg extracts analysis
+    // audio → optional whisper Thai transcription → auto-edit → FCPXML that
+    // references the original footage, so it opens online in Final Cut Pro.
+    guard arguments.count >= 2, !arguments[1].hasPrefix("--") else {
+        fail("usage: ghostly auto <video> [--command \"...\"] [--model ggml.bin] [--whisper path] [--preset name] [--remember] [--diarize] [--clean] [--lang th] [--project name] [--out file.fcpxml]")
+    }
+    let videoPath = (arguments[1] as NSString).expandingTildeInPath
+    guard FileManager.default.fileExists(atPath: videoPath) else {
+        fail("ไม่พบไฟล์วิดีโอ '\(videoPath)'")
+    }
+    guard toolOnPath("ffmpeg") else {
+        fail("ต้องติดตั้ง ffmpeg ก่อน (ดูวิธีติดตั้งใน `ghostly doctor`)")
+    }
+    do {
+        let videoURL = URL(fileURLWithPath: videoPath).standardizedFileURL
+        let base = (videoURL.lastPathComponent as NSString).deletingPathExtension
+        let language = option("lang", in: arguments) ?? "th"
+
+        // 1. Analysis audio (mono 16 kHz WAV) out of the real footage.
+        print("• แตกเสียงจากวิดีโอด้วย ffmpeg")
+        let wavPath = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ghostly-auto-\(UUID().uuidString).wav").path
+        defer { try? FileManager.default.removeItem(atPath: wavPath) }
+        try runTool("ffmpeg", ["-hide_banner", "-loglevel", "error"]
+            + MediaExtraction().audioArguments(input: videoURL.path, output: wavPath))
+        let audio = try WAV.decode(contentsOf: URL(fileURLWithPath: wavPath))
+
+        // 2. Thai captions when a whisper.cpp model is provided.
+        var srtContent: String?
+        if let modelPath = option("model", in: arguments) {
+            let whisperPath = option("whisper", in: arguments) ?? "whisper-cli"
+            guard toolOnPath(whisperPath) else {
+                fail("ไม่พบ \(whisperPath) — ติดตั้ง whisper.cpp หรือระบุ --whisper <path> (ดู `ghostly doctor`)")
+            }
+            print("• ถอดเสียงเป็นคำบรรยายด้วย whisper (\(language))")
+            let transcriber = WhisperCLITranscriber(executablePath: whisperPath,
+                                                    modelPath: modelPath)
+            let track = try await transcriber.transcribe(
+                URL(fileURLWithPath: wavPath), language: language)
+            srtContent = SRT.serialize(track.groupedIntoSentences())
+        } else {
+            print("• ข้ามคำบรรยาย (ใส่ --model <ggml.bin> เพื่อถอดเสียงอัตโนมัติ)")
+        }
+
+        // 3–6. The full workflow, with the FCPXML pointing at the footage.
+        let request = Workflow.Request(
+            audio: audio,
+            subtitles: srtContent,
+            command: option("command", in: arguments) ?? "ตัดช่วงเงียบออก ใส่คำบรรยาย",
+            language: language,
+            diarize: arguments.contains("--diarize"),
+            cleanAudio: arguments.contains("--clean"),
+            clipName: videoURL.lastPathComponent,
+            projectName: option("project", in: arguments) ?? base,
+            exportPresetName: option("preset", in: arguments),
+            mediaURL: videoURL)
+        let result: Workflow.Result
+        if arguments.contains("--remember") {
+            let home = ProcessInfo.processInfo.environment["GHOSTLY_HOME"]
+                .map { URL(fileURLWithPath: $0) }
+                ?? FileManager.default.homeDirectoryForCurrentUser
+                    .appendingPathComponent(".ghostly")
+            result = try await Workflow.run(request, memory: PreferenceStore(directory: home))
+        } else {
+            result = try Workflow.run(request)
+        }
+        let outPath = option("out", in: arguments) ?? "\(base).fcpxml"
+        try result.edit.fcpxml.write(toFile: outPath, atomically: true, encoding: .utf8)
+        for step in result.steps { print("• \(step)") }
+        print("fcpxml: \(outPath) — นำเข้า Final Cut Pro ได้ทันที ฟุตเทจออนไลน์")
+        print("preset: \(result.exportPresetName)")
+        print("export: \(result.exportCommand)")
+        if !result.edit.isValid {
+            for issue in result.edit.issues { FileHandle.standardError.write(Data("\(issue)\n".utf8)) }
+            exit(2)
+        }
+    } catch {
+        fail(error.localizedDescription)
+    }
+
 case "analyze-audio":
     guard arguments.count >= 2 else { fail("usage: ghostly analyze-audio <file.wav>") }
     do {
@@ -527,12 +634,26 @@ case "clean-audio":
     }
 
 case "extract-audio":
-    guard arguments.count >= 2 else { fail("usage: ghostly extract-audio <video> [--out file.wav]") }
+    guard arguments.count >= 2 else { fail("usage: ghostly extract-audio <video> [--out file.wav] [--run]") }
     let input = arguments[1]
     let output = option("out", in: arguments) ?? ((input as NSString).deletingPathExtension + ".wav")
     let rate = option("rate", in: arguments).flatMap(Int.init) ?? 16_000
-    // Print the command; the studio does not assume ffmpeg is present.
-    print(MediaExtraction().audioCommandLine(input: input, output: output, sampleRate: rate))
+    if arguments.contains("--run") {
+        // Actually produce the WAV instead of printing the recipe.
+        guard toolOnPath("ffmpeg") else {
+            fail("ต้องติดตั้ง ffmpeg ก่อน (ดูวิธีติดตั้งใน `ghostly doctor`)")
+        }
+        do {
+            try runTool("ffmpeg", ["-hide_banner", "-loglevel", "error"]
+                + MediaExtraction().audioArguments(input: input, output: output, sampleRate: rate))
+            print("wrote \(output)")
+        } catch {
+            fail(error.localizedDescription)
+        }
+    } else {
+        // Default prints the command; the studio does not assume ffmpeg.
+        print(MediaExtraction().audioCommandLine(input: input, output: output, sampleRate: rate))
+    }
 
 case "demo-audio":
     let fixture = AudioFixture.demo()

@@ -84,10 +84,20 @@ ghostly normalize-audio คลิป.wav --lufs       # K-weighted loudness targ
 ghostly lut --temperature 0.2 --out warm.cube # bake a colour grade to a .cube LUT
 ```
 
-Edit a real recording end-to-end (Thai-first — ภาษาไทยเป็นค่าเริ่มต้น):
+One-click from a real video file (คลิกเดียวจบ — ต้องมี ffmpeg; ใส่ `--model`
+เพื่อถอดเสียงซับไทยด้วย whisper.cpp):
 
 ```sh
-ghostly extract-audio คลิป.mp4                 # prints the ffmpeg command → คลิป.wav
+ghostly auto คลิป.mp4 --command "ตัดช่วงเงียบออก ทำเป็นติ๊กต๊อก ใส่ซับ" \
+    --model ggml-large-v3.bin --remember
+# → แตกเสียง (ffmpeg) → ซับไทย (whisper) → ตัดต่อ → คลิป.fcpxml
+#   นำเข้า Final Cut Pro ได้ทันที ฟุตเทจออนไลน์ ไม่ต้อง relink
+```
+
+Or step by step (Thai-first — ภาษาไทยเป็นค่าเริ่มต้น):
+
+```sh
+ghostly extract-audio คลิป.mp4 --run           # runs ffmpeg → คลิป.wav (omit --run to just print)
 ghostly transcribe คลิป.wav --model ggml-large-v3.bin --lang th --out ซับ.srt
 ghostly edit ซับ.srt --wav คลิป.wav --media คลิป.mp4 --diarize \
     --command "create a tiktok with captions, remove silence" --out ตัดต่อ.fcpxml

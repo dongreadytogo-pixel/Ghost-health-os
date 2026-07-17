@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Added
+- **`ghostly auto <video>` — one-click video → FCPXML (FCP-first)**: the
+  studio now *runs* the full chain on a real video file instead of printing
+  recipes: ffmpeg extracts the analysis WAV (temp file, cleaned up), an
+  optional whisper.cpp model (`--model`) produces Thai sentence-grouped
+  captions, and the workflow emits validated FCPXML that references the
+  original footage — import opens in Final Cut Pro with media online.
+  Default command "ตัดช่วงเงียบออก ใส่คำบรรยาย"; supports `--preset`,
+  `--remember` (AI memory), `--diarize`, `--clean`, `--project`, `--out`.
+  Thai errors point at `ghostly doctor` when ffmpeg/whisper are missing.
+  `ghostly extract-audio` gains `--run` to execute its ffmpeg recipe.
+  CI installs ffmpeg, synthesizes a real .mp4 (testsrc + demo WAV), and
+  smoke-tests `extract-audio --run` and the whole `auto` chain end-to-end.
 - **Real media references — FCP opens footage online (FCP-first)**: the
   FCPXML asset `src` previously pointed at a fabricated `/media/<clip>`
   path, so every import showed offline media until manually relinked. Now

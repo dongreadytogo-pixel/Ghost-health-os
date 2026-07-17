@@ -40,6 +40,11 @@ jobs:
           swift build -c release --product ghostly
           swift build -c release --product ghostly-mcp-server
 
+      - name: Install ffmpeg (one-click auto smoke)
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ffmpeg
+
       - name: Smoke-test CLI
         run: |
           BIN=$(swift build -c release --show-bin-path)
@@ -80,6 +85,14 @@ jobs:
           grep -q 'src="file:///tmp/' /tmp/wf-media.fcpxml
           grep -qF "/tmp/คลิป.mov" /tmp/wf-media.txt
           "$BIN/ghostly" extract-audio "คลิป.mp4" | grep -q "pcm_s16le"
+          ffmpeg -y -hide_banner -loglevel error -f lavfi -i testsrc=duration=8:size=160x120:rate=10 -i /tmp/demo.wav -shortest -c:v mpeg4 -c:a aac "/tmp/คลิป.mp4"
+          "$BIN/ghostly" extract-audio "/tmp/คลิป.mp4" --run --out /tmp/extracted.wav | grep -q "wrote"
+          "$BIN/ghostly" analyze-audio /tmp/extracted.wav | grep -q "speech:"
+          "$BIN/ghostly" auto "/tmp/คลิป.mp4" --command "ตัดช่วงเงียบออก ทำเป็นติ๊กต๊อก" --out /tmp/auto.fcpxml | tee /tmp/auto.txt
+          grep -q 'src="file:///tmp/' /tmp/auto.fcpxml
+          grep -q "preset: TikTok" /tmp/auto.txt
+          grep -qF "/tmp/คลิป.mp4" /tmp/auto.txt
+          "$BIN/ghostly" validate /tmp/auto.fcpxml
           "$BIN/ghostly" analyze-audio /tmp/demo.wav --diarize | grep -q "speakers: 1"
           GHOSTLY_HOME=/tmp/ghostly-cli "$BIN/ghostly" workflow --wav /tmp/demo.wav --command "create a tiktok, remove silence" --remember --out /tmp/wf.fcpxml | tee /tmp/wf.txt
           grep -q "TikTok" /tmp/ghostly-cli/preferences.json

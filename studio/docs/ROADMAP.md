@@ -78,7 +78,12 @@ Legend: ✅ done · 🔜 next · 🗺️ planned
 - ✅ FFmpeg extraction recipes: `MediaExtraction` — deterministic, shell-quoted
   ffmpeg commands for analysis WAV (mono/16 kHz/PCM16) and downscaled grayscale
   frames; `ghostly extract-audio` prints the exact bridge command
-  (video → WAV → `edit --wav`)
+  (video → WAV → `edit --wav`), or executes it with `--run`
+- ✅ **`ghostly auto <video>` — one-click (คลิกเดียวจบ)**: runs ffmpeg
+  extraction + optional whisper.cpp Thai transcription + the full workflow
+  in one command; the FCPXML references the original footage (`--media`
+  semantics), so it imports into Final Cut Pro with media online.
+  CI smoke-tests the whole chain against a synthesized real .mp4
 - ✅ `ghostly edit` CLI command: `EditPipeline` — transcript (SRT/VTT) +
   declared duration + natural-language command → auto-edit → Thai captions →
   validated FCPXML (cue timings double as speech ranges, so the whole chain
