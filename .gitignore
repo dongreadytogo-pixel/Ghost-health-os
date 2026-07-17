@@ -4,6 +4,8 @@ node_modules/
 
 # Build outputs
 dist/
+# …but the studio's clickable app package is source, not build output
+!studio/dist/
 build/
 .next/
 out/
