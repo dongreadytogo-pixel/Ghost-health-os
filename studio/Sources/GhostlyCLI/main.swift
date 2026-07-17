@@ -460,22 +460,41 @@ case "auto":
     guard FileManager.default.fileExists(atPath: videoPath) else {
         fail("ไม่พบไฟล์วิดีโอ '\(videoPath)'")
     }
-    guard toolOnPath("ffmpeg") else {
-        fail("ต้องติดตั้ง ffmpeg ก่อน (ดูวิธีติดตั้งใน `ghostly doctor`)")
-    }
     do {
         let videoURL = URL(fileURLWithPath: videoPath).standardizedFileURL
         let base = (videoURL.lastPathComponent as NSString).deletingPathExtension
         let language = option("lang", in: arguments) ?? "th"
 
-        // 1. Analysis audio (mono 16 kHz WAV) out of the real footage.
-        print("• แตกเสียงจากวิดีโอด้วย ffmpeg")
-        let wavPath = FileManager.default.temporaryDirectory
+        // 1. Analysis audio straight off the real footage. Apple platforms
+        // decode natively via AVFoundation — zero external tools — with
+        // ffmpeg as the fallback (and the only path elsewhere). 16 kHz so
+        // the same samples can feed whisper.cpp.
+        var decodedAudio: WAV.Audio?
+        #if canImport(AVFoundation)
+        do {
+            print("• แตกเสียงจากวิดีโอด้วยเอนจิน macOS (ไม่ต้องติดตั้งอะไรเพิ่ม)")
+            let native = try await AVAudioSampleProvider(sampleRate: 16_000)
+                .monoSamples(for: videoURL)
+            decodedAudio = WAV.Audio(samples: native.samples, sampleRate: native.sampleRate)
+        } catch {
+            print("  เอนจิน macOS อ่านไฟล์นี้ไม่ได้ (\(error.localizedDescription)) — ลองใช้ ffmpeg แทน")
+        }
+        #endif
+        let tempWAV = FileManager.default.temporaryDirectory
             .appendingPathComponent("ghostly-auto-\(UUID().uuidString).wav").path
-        defer { try? FileManager.default.removeItem(atPath: wavPath) }
-        try runTool("ffmpeg", ["-hide_banner", "-loglevel", "error"]
-            + MediaExtraction().audioArguments(input: videoURL.path, output: wavPath))
-        let audio = try WAV.decode(contentsOf: URL(fileURLWithPath: wavPath))
+        defer { try? FileManager.default.removeItem(atPath: tempWAV) }
+        if decodedAudio == nil {
+            guard toolOnPath("ffmpeg") else {
+                fail("อ่านเสียงจากไฟล์นี้ไม่ได้ — ติดตั้ง ffmpeg แล้วลองใหม่ (ดูวิธีใน `ghostly doctor`)")
+            }
+            print("• แตกเสียงจากวิดีโอด้วย ffmpeg")
+            try runTool("ffmpeg", ["-hide_banner", "-loglevel", "error"]
+                + MediaExtraction().audioArguments(input: videoURL.path, output: tempWAV))
+            decodedAudio = try WAV.decode(contentsOf: URL(fileURLWithPath: tempWAV))
+        }
+        guard let audio = decodedAudio else {
+            fail("อ่านเสียงจากไฟล์นี้ไม่ได้")
+        }
 
         // 2. Thai captions when a whisper.cpp model is provided.
         var srtContent: String?
@@ -485,10 +504,15 @@ case "auto":
                 fail("ไม่พบ \(whisperPath) — ติดตั้ง whisper.cpp หรือระบุ --whisper <path> (ดู `ghostly doctor`)")
             }
             print("• ถอดเสียงเป็นคำบรรยายด้วย whisper (\(language))")
+            // whisper reads a WAV file; write one when the native decode
+            // skipped the ffmpeg temp file.
+            if !FileManager.default.fileExists(atPath: tempWAV) {
+                try WAV.encode(audio).write(to: URL(fileURLWithPath: tempWAV))
+            }
             let transcriber = WhisperCLITranscriber(executablePath: whisperPath,
                                                     modelPath: modelPath)
             let track = try await transcriber.transcribe(
-                URL(fileURLWithPath: wavPath), language: language)
+                URL(fileURLWithPath: tempWAV), language: language)
             srtContent = SRT.serialize(track.groupedIntoSentences())
         } else {
             print("• ข้ามคำบรรยาย (ใส่ --model <ggml.bin> เพื่อถอดเสียงอัตโนมัติ)")

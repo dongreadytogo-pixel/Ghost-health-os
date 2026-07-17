@@ -1,8 +1,11 @@
 #!/bin/bash
-# ติดตั้ง Ghostly790K AI Final Cut Studio ครั้งแรก (รันครั้งเดียว)
+# ติดตั้ง Ghostly790K AI Final Cut Studio (ปกติ *ไม่ต้องรัน* —
+# Ghostly790K.command จัดการตัวเองได้ ไฟล์นี้มีไว้กรณีตัวโปรแกรม
+# สำเร็จรูปใช้กับเครื่องไม่ได้ เช่น Mac ชิป Intel จะ build ให้ใหม่)
 # - ปลดล็อกไฟล์ที่ดาวน์โหลดมา (quarantine)
-# - ติดตั้ง ffmpeg (ผ่าน Homebrew)
 # - ถ้าไม่มีตัวโปรแกรมสำเร็จรูป จะ build จากซอร์สโค้ดให้อัตโนมัติ
+# - ติดตั้ง ffmpeg เพิ่ม "ถ้ามี Homebrew อยู่แล้ว" (ทางเลือก — ไม่จำเป็น
+#   เพราะโปรแกรมแตกเสียงด้วยเอนจิน macOS เองได้)
 set -u
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 cd "$(dirname "$0")"
@@ -13,18 +16,10 @@ echo "== Ghostly790K: ติดตั้งครั้งแรก =="
 xattr -dr com.apple.quarantine . 2>/dev/null || true
 chmod +x ./*.command bin/ghostly 2>/dev/null || true
 
-# 2) ffmpeg — ตัวแตกเสียงจากวิดีโอ (จำเป็น)
-if ! command -v ffmpeg >/dev/null 2>&1; then
-    if command -v brew >/dev/null 2>&1; then
-        echo "กำลังติดตั้ง ffmpeg ผ่าน Homebrew (รอสักครู่)..."
-        brew install ffmpeg
-    else
-        echo "ยังไม่มี Homebrew — เปิดเว็บ https://brew.sh ให้แล้ว"
-        echo "ติดตั้ง Homebrew ตามคำสั่งบรรทัดแรกในเว็บ เสร็จแล้วดับเบิลคลิกไฟล์นี้อีกครั้ง"
-        open "https://brew.sh" 2>/dev/null || true
-        osascript -e 'display dialog "ต้องติดตั้ง Homebrew ก่อน (เปิดเว็บ brew.sh ให้แล้ว)\nติดตั้งเสร็จแล้วดับเบิลคลิกไฟล์นี้อีกครั้งนะครับ" buttons {"ตกลง"} default button "ตกลง" with title "Ghostly790K"' >/dev/null 2>&1
-        exit 1
-    fi
+# 2) ffmpeg — ทางเลือกเสริมเท่านั้น (เอนจิน macOS แตกเสียงได้เองอยู่แล้ว)
+if ! command -v ffmpeg >/dev/null 2>&1 && command -v brew >/dev/null 2>&1; then
+    echo "กำลังติดตั้ง ffmpeg เสริมผ่าน Homebrew (ใช้เป็นตัวสำรอง)..."
+    brew install ffmpeg || echo "ข้าม ffmpeg — โปรแกรมทำงานได้โดยไม่ต้องมี"
 fi
 
 # 3) ตัวโปรแกรม ghostly — ใช้ตัวสำเร็จรูปใน bin/ ถ้ามี ไม่มีก็ build จากซอร์ส

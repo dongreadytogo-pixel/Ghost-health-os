@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Added
+- **Zero-setup `auto` (ไม่ต้องติดตั้งอะไรเลย)**: on Apple platforms
+  `ghostly auto` now decodes the video's audio natively through
+  `AVAudioSampleProvider` (AVFoundation, 16 kHz mono so the same samples
+  feed whisper) — no ffmpeg required; ffmpeg remains the automatic
+  fallback when the native decode can't read a file (and the only path on
+  Linux, still CI-tested). The whisper step writes its WAV via the
+  studio's own encoder when the ffmpeg temp file was never made. The
+  clickable launcher self-clears quarantine and no longer gates on
+  ffmpeg; the installer is now optional (Intel build-from-source +
+  optional ffmpeg via existing Homebrew only). macOS CI smoke-tests the
+  packaged binary end-to-end natively (demo WAV → auto → validated
+  FCPXML, asserting the native-engine path ran).
 - **Clickable app package (`dist/Ghostly790K-AI-Studio/`)**: a Finder-first
   distribution for non-terminal users — `Ghostly790K.command` (double-click →
   Thai file-picker + command dialogs → `ghostly auto --remember` → offer to

@@ -156,6 +156,15 @@ jobs:
           "$PKG/bin/ghostly" version
           ls -la "$PKG"
 
+      - name: Smoke-test zero-setup auto (native AVFoundation, no ffmpeg)
+        run: |
+          PKG=/tmp/pkg/Ghostly790K-AI-Studio
+          "$PKG/bin/ghostly" demo-audio --out "/tmp/คลิป.wav"
+          "$PKG/bin/ghostly" auto "/tmp/คลิป.wav" --command "ตัดช่วงเงียบออก ทำเป็นติ๊กต๊อก" --out /tmp/auto-native.fcpxml | tee /tmp/auto-native.txt
+          grep -q "เอนจิน macOS" /tmp/auto-native.txt
+          grep -q 'src="file:///tmp/' /tmp/auto-native.fcpxml
+          "$PKG/bin/ghostly" validate /tmp/auto-native.fcpxml
+
       - name: Upload clickable app folder
         uses: actions/upload-artifact@v4
         with:

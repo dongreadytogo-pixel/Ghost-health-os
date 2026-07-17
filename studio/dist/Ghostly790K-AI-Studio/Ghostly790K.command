@@ -2,17 +2,18 @@
 # Ghostly790K AI Final Cut Studio — โปรแกรมตัดต่อคลิกเดียวจบ
 # ดับเบิลคลิกไฟล์นี้ → เลือกวิดีโอ → พิมพ์คำสั่ง (ภาษาไทยได้) → ได้ .fcpxml
 # ที่เปิดใน Final Cut Pro ได้ทันที ฟุตเทจออนไลน์ ไม่ต้อง relink
+# ไม่ต้องติดตั้งอะไรเพิ่ม: โปรแกรมแตกเสียงจากวิดีโอด้วยเอนจิน macOS เอง
 set -u
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 cd "$(dirname "$0")"
 
+# ปลดล็อกไฟล์ที่ดาวน์โหลดมา (ทำเองอัตโนมัติ ไม่ต้องรันตัวติดตั้งก่อน)
+xattr -dr com.apple.quarantine . 2>/dev/null || true
+chmod +x bin/ghostly ./*.command 2>/dev/null || true
+
 BIN="./bin/ghostly"
-if [ ! -x "$BIN" ]; then
-    osascript -e 'display dialog "ยังไม่ได้ติดตั้ง — ดับเบิลคลิก \"ติดตั้งครั้งแรก.command\" ก่อนนะครับ" buttons {"ตกลง"} default button "ตกลง" with title "Ghostly790K"' >/dev/null 2>&1
-    exit 1
-fi
-if ! command -v ffmpeg >/dev/null 2>&1; then
-    osascript -e 'display dialog "ยังไม่มี ffmpeg — ดับเบิลคลิก \"ติดตั้งครั้งแรก.command\" ก่อนนะครับ" buttons {"ตกลง"} default button "ตกลง" with title "Ghostly790K"' >/dev/null 2>&1
+if [ ! -x "$BIN" ] || ! "$BIN" version >/dev/null 2>&1; then
+    osascript -e 'display dialog "ตัวโปรแกรมยังใช้กับเครื่องนี้ไม่ได้ — ดับเบิลคลิก \"ติดตั้งครั้งแรก.command\" หนึ่งครั้ง เดี๋ยวมันจัดการให้เองครับ" buttons {"ตกลง"} default button "ตกลง" with title "Ghostly790K"' >/dev/null 2>&1
     exit 1
 fi
 

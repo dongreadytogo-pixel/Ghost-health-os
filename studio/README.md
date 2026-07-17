@@ -89,8 +89,8 @@ ghostly lut --temperature 0.2 --out warm.cube # bake a colour grade to a .cube L
 `dist/Ghostly790K-AI-Studio/` — ดับเบิลคลิก `ติดตั้งครั้งแรก.command` หนึ่งครั้ง
 แล้วใช้ `Ghostly790K.command` ตัดต่อได้ทันที (รายละเอียดใน `อ่านก่อนใช้.txt`)
 
-One-click from a real video file (คลิกเดียวจบ — ต้องมี ffmpeg; ใส่ `--model`
-เพื่อถอดเสียงซับไทยด้วย whisper.cpp):
+One-click from a real video file (คลิกเดียวจบ — บน macOS ไม่ต้องมี ffmpeg:
+แตกเสียงด้วยเอนจินระบบเอง; ใส่ `--model` เพื่อถอดซับไทยด้วย whisper.cpp):
 
 ```sh
 ghostly auto คลิป.mp4 --command "ตัดช่วงเงียบออก ทำเป็นติ๊กต๊อก ใส่ซับ" \

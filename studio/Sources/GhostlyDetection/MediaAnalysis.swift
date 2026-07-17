@@ -80,7 +80,13 @@ import AVFoundation
 
 /// AVFoundation-backed audio decoder for Apple platforms.
 public struct AVAudioSampleProvider: AudioSampleProviding {
-    public init() {}
+    /// Output rate; 22.05 kHz default balances detector precision and size.
+    /// Use 16 kHz when the samples will also feed whisper.cpp.
+    public let sampleRate: Int
+
+    public init(sampleRate: Int = 22_050) {
+        self.sampleRate = sampleRate
+    }
 
     public func monoSamples(for url: URL) async throws -> (samples: [Float], sampleRate: Int) {
         let asset = AVURLAsset(url: url)
@@ -88,7 +94,6 @@ public struct AVAudioSampleProvider: AudioSampleProviding {
             throw StudioError.invalidInput(field: "url", reason: "no audio track in \(url.lastPathComponent)")
         }
         let reader = try AVAssetReader(asset: asset)
-        let sampleRate = 22_050
         let output = AVAssetReaderTrackOutput(track: track, outputSettings: [
             AVFormatIDKey: kAudioFormatLinearPCM,
             AVSampleRateKey: sampleRate,
