@@ -77,7 +77,7 @@ ghostly demo-thai --out thai-short.fcpxml   # end-to-end Thai vertical short
 One-command Thai workflow, colour, and audio cleanup:
 
 ```sh
-ghostly workflow --wav คลิป.wav ซับ.srt \
+ghostly workflow --wav คลิป.wav ซับ.srt --media ~/Movies/คลิป.mp4 \
     --command "ลดเสียงรบกวน ตัดช่วงเงียบออก ทำเป็นติ๊กต๊อก ใส่ซับ" --remember
 ghostly clean-audio คลิป.wav --dehum 50       # rumble + mains hum + noise floor
 ghostly normalize-audio คลิป.wav --lufs       # K-weighted loudness target
@@ -89,10 +89,14 @@ Edit a real recording end-to-end (Thai-first — ภาษาไทยเป็�
 ```sh
 ghostly extract-audio คลิป.mp4                 # prints the ffmpeg command → คลิป.wav
 ghostly transcribe คลิป.wav --model ggml-large-v3.bin --lang th --out ซับ.srt
-ghostly edit ซับ.srt --wav คลิป.wav --diarize \
+ghostly edit ซับ.srt --wav คลิป.wav --media คลิป.mp4 --diarize \
     --command "create a tiktok with captions, remove silence" --out ตัดต่อ.fcpxml
 ghostly analyze-audio คลิป.wav --diarize       # or just inspect: speech/beats/speakers
 ```
+
+`--media <ไฟล์วิดีโอต้นฉบับ>` makes the FCPXML reference the real footage, so
+importing `ตัดต่อ.fcpxml` opens in Final Cut Pro with the clip **online** —
+no relinking. Without it a placeholder path is written and FCP asks to relink.
 
 ### Drive it from an AI agent (MCP)
 

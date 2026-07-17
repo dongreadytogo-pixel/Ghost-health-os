@@ -81,6 +81,8 @@ public struct RunWorkflowTool: MCPTool {
         "type": "object",
         "properties": .object([
             "audioPath": .object(["type": "string", "description": "path to a .wav file (preferred input)"]),
+            "mediaPath": .object(["type": "string",
+                "description": "path to the original video file; the FCPXML references it so Final Cut Pro opens the footage online, and the ffmpeg export command reads from it"]),
             "transcriptSRT": .object(["type": "string", "description": "SRT/VTT content; required if audioPath is omitted"]),
             "durationSeconds": .object(["type": "number", "description": "clip length; required if audioPath is omitted"]),
             "command": .object(["type": "string", "description": "natural-language editing instruction"]),
@@ -116,6 +118,10 @@ public struct RunWorkflowTool: MCPTool {
         if let path = arguments["audioPath"]?.stringValue, !path.isEmpty {
             request.audio = try WAV.decode(contentsOf: URL(fileURLWithPath: path))
             request.clipName = (path as NSString).lastPathComponent
+        }
+        if let media = arguments["mediaPath"]?.stringValue, !media.isEmpty {
+            request.mediaURL = URL(fileURLWithPath: media).standardizedFileURL
+            request.clipName = (media as NSString).lastPathComponent
         }
         request.subtitles = arguments["transcriptSRT"]?.stringValue
         if case .number(let seconds)? = arguments["durationSeconds"] {
@@ -159,6 +165,8 @@ public struct EditFromAudioTool: MCPTool {
         "type": "object",
         "properties": .object([
             "audioPath": .object(["type": "string", "description": "path to a .wav file"]),
+            "mediaPath": .object(["type": "string",
+                "description": "path to the original video file; the FCPXML references it so Final Cut Pro opens the footage online"]),
             "command": .object(["type": "string", "description": "natural-language editing instruction"]),
             "transcriptSRT": .object(["type": "string", "description": "optional SRT/VTT content for captions"]),
             "language": .object(["type": "string", "description": "caption language (BCP-47); default 'th'"]),
@@ -180,15 +188,17 @@ public struct EditFromAudioTool: MCPTool {
             throw StudioError.invalidInput(field: "command", reason: "required")
         }
         let audio = try WAV.decode(contentsOf: URL(fileURLWithPath: path))
+        let mediaPath = arguments["mediaPath"]?.stringValue
         let output = try EditPipeline.run(EditPipeline.AudioInput(
             audio: audio,
             subtitles: arguments["transcriptSRT"]?.stringValue,
             command: command,
             language: arguments["language"]?.stringValue ?? "th",
-            clipName: (path as NSString).lastPathComponent,
+            clipName: ((mediaPath ?? path) as NSString).lastPathComponent,
             projectName: arguments["projectName"]?.stringValue ?? "AI Edit",
             diarize: arguments["diarize"]?.boolValue ?? false,
-            cleanAudio: arguments["cleanAudio"]?.boolValue ?? false))
+            cleanAudio: arguments["cleanAudio"]?.boolValue ?? false,
+            mediaURL: mediaPath.flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0).standardizedFileURL }))
         guard output.isValid else {
             throw StudioError.validationFailure(detail: output.issues.joined(separator: "; "))
         }

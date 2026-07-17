@@ -26,6 +26,10 @@ public enum Workflow {
         public var projectName: String
         /// Explicit render preset; nil infers one from the edit's format.
         public var exportPresetName: String?
+        /// The real source media file (the original video). The FCPXML asset
+        /// references it — so FCP opens the project with footage online —
+        /// and the ffmpeg export command reads from it.
+        public var mediaURL: URL?
 
         public init(audio: WAV.Audio? = nil,
                     subtitles: String? = nil,
@@ -36,7 +40,8 @@ public enum Workflow {
                     cleanAudio: Bool = false,
                     clipName: String = "clip",
                     projectName: String = "AI Edit",
-                    exportPresetName: String? = nil) {
+                    exportPresetName: String? = nil,
+                    mediaURL: URL? = nil) {
             self.audio = audio
             self.subtitles = subtitles
             self.durationSeconds = durationSeconds
@@ -47,6 +52,7 @@ public enum Workflow {
             self.clipName = clipName
             self.projectName = projectName
             self.exportPresetName = exportPresetName
+            self.mediaURL = mediaURL
         }
     }
 
@@ -74,7 +80,8 @@ public enum Workflow {
                 clipName: request.clipName,
                 projectName: request.projectName,
                 diarize: request.diarize,
-                cleanAudio: request.cleanAudio))
+                cleanAudio: request.cleanAudio,
+                mediaURL: request.mediaURL))
             if edit.audioCleaned {
                 steps.append("cleaned audio (rumble high-pass + 50 Hz de-hum + noise gate)")
             }
@@ -97,7 +104,8 @@ public enum Workflow {
                 command: request.command,
                 language: request.language,
                 clipName: request.clipName,
-                projectName: request.projectName))
+                projectName: request.projectName,
+                mediaURL: request.mediaURL))
             steps.append(String(format: "used transcript timings over a declared %.1fs clip", seconds))
         }
         steps.append("planned \(edit.storylineClipCount) clip(s) with the '\(edit.profileStyle)' profile")
@@ -106,6 +114,9 @@ public enum Workflow {
         }
         let shape = edit.isVertical ? "9:16 vertical" : "landscape"
         steps.append("emitted valid FCPXML (\(String(format: "%.2f", edit.durationSeconds))s, \(shape))")
+        if let media = request.mediaURL {
+            steps.append("referenced real media at \(media.path) (opens online in FCP)")
+        }
 
         // 5. Render preset: explicit or inferred from the edit's format.
         let preset: RenderPreset
@@ -120,11 +131,13 @@ public enum Workflow {
         }
         steps.append("selected render preset '\(preset.name)'")
 
-        // 6. The exact export command for the rendered master.
-        let base = (request.clipName as NSString).deletingPathExtension
+        // 6. The exact export command for the rendered master. With real
+        // media the command reads the actual file, so it runs as-is.
+        let exportInput = request.mediaURL?.path ?? request.clipName
+        let base = ((exportInput as NSString).lastPathComponent as NSString).deletingPathExtension
         let output = "\(base)-\(preset.name.replacingOccurrences(of: " ", with: "")).\(preset.container.rawValue)"
         let exportCommand = FFmpegCommandBuilder().commandLine(
-            input: request.clipName, output: output, preset: preset,
+            input: exportInput, output: output, preset: preset,
             metadata: ExportMetadata(title: request.projectName))
         steps.append("built ffmpeg export command → \(output)")
 

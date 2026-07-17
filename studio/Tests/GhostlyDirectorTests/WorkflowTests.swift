@@ -57,6 +57,25 @@ final class WorkflowTests: XCTestCase {
         }
     }
 
+    func testRealMediaDrivesFCPXMLAndExportCommand() throws {
+        // With --media the FCPXML must reference the actual footage (so FCP
+        // opens it online) and the ffmpeg export must read from that file.
+        let media = URL(fileURLWithPath: "/Users/editor/Footage/รีวิวกล้อง.mov")
+        let result = try Workflow.run(Workflow.Request(
+            audio: recording(),
+            command: "create a tiktok, remove silence",
+            mediaURL: media))
+        XCTAssertTrue(result.edit.isValid, "issues: \(result.edit.issues)")
+        XCTAssertTrue(result.edit.fcpxml.contains("src=\"\(media.absoluteString)\""),
+                      "asset src must be the real file URL")
+        XCTAssertFalse(result.edit.fcpxml.contains("file:///media/"))
+        XCTAssertTrue(result.exportCommand.contains(media.path),
+                      "export must read the real footage: \(result.exportCommand)")
+        XCTAssertTrue(result.exportCommand.contains("รีวิวกล้อง-TikTok.mp4"),
+                      "output name derives from the media filename: \(result.exportCommand)")
+        XCTAssertTrue(result.steps.contains { $0.contains("referenced real media") })
+    }
+
     func testRequiresSomeInput() {
         XCTAssertThrowsError(try Workflow.run(Workflow.Request(command: "create a tiktok")))
     }

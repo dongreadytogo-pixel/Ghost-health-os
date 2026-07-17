@@ -3,6 +3,20 @@
 ## Unreleased
 
 ### Added
+- **Real media references — FCP opens footage online (FCP-first)**: the
+  FCPXML asset `src` previously pointed at a fabricated `/media/<clip>`
+  path, so every import showed offline media until manually relinked. Now
+  `--media <ไฟล์วิดีโอต้นฉบับ>` on `ghostly edit`/`ghostly workflow`
+  (`mediaURL` on `EditPipeline.Input`/`AudioInput`/`Workflow.Request`,
+  `mediaPath` on the `edit_from_audio`/`run_workflow` MCP tools) threads the
+  original footage's file URL into the asset, so the exported project opens
+  in Final Cut Pro with the clip online. The workflow's ffmpeg export
+  command now also reads from the real file (runnable as-is), the clip name
+  defaults to the media filename, and `ghostly edit` prints a Thai hint
+  when no `--media` is given. Omitting it keeps the relinkable placeholder
+  (CI/transcript-only runs unchanged). Tests cover Thai filenames
+  (percent-encoded `file://` URLs) on both pipeline paths, placeholder
+  fallback, and the export command; CI smoke-tests both CLI flags.
 - **`ghostly highlights`**: surfaces `HighlightPlanner`'s best-moment
   detection (hook / highlight / CTA with 0…1 scores and transcript-derived
   Thai labels) from a transcript + declared duration — "which beat should

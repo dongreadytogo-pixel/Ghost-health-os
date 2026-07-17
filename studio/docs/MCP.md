@@ -129,6 +129,8 @@ speaker turns (`S1`, `S2`, …). Convert other formats first (see
 real recording end-to-end (speech detection → plan → captions → validated
 FCPXML). `language` defaults to `th`; `diarize` tags caption cues with
 speakers. Returns the FCPXML plus clip/caption/BPM/speaker metadata.
+Pass `mediaPath` (the original video file) so the FCPXML references the
+real footage and Final Cut Pro opens it online instead of asking to relink.
 
 ### `run_workflow`
 `{ "audioPath": "/path/clip.wav", "command": "create a tiktok with captions",
@@ -140,7 +142,8 @@ command, plus a step-by-step `steps` trace. Accepts `transcriptSRT` +
 `durationSeconds` instead of `audioPath`. With `useMemory` (ใช้ค่าที่เคยใช้)
 an unspecified preset is pre-filled from the editor's learned favorites and
 the used preset/caption/pacing styles are recorded for future
-recommendations.
+recommendations. Pass `mediaPath` (the original video) so the FCPXML opens
+online in Final Cut Pro and the ffmpeg export command reads the real file.
 
 ### `recommend`
 `{ "category": "transition", "limit": 5 }` → the user's learned favorites for

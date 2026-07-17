@@ -125,7 +125,7 @@ case "edit":
     // End-to-end: transcript (or real WAV audio) → auto-edit → FCPXML.
     // Thai-first: --lang defaults to "th".
     guard arguments.count >= 2 else {
-        fail("usage: ghostly edit <subtitles.srt|.vtt> --duration <seconds> --command \"...\"  |  ghostly edit --wav <clip.wav> --command \"...\"")
+        fail("usage: ghostly edit <subtitles.srt|.vtt> --duration <seconds> --command \"...\"  |  ghostly edit --wav <clip.wav> --command \"...\"  (add --media <clip.mov> so FCP opens the real footage)")
     }
     guard let editCommand = option("command", in: arguments) else {
         fail("--command \"<editing command>\" is required, e.g. --command \"create a tiktok with captions, remove silence\"")
@@ -135,7 +135,13 @@ case "edit":
     let wavPath = option("wav", in: arguments)
     let language = option("lang", in: arguments) ?? "th"
     let projectName = option("project", in: arguments) ?? "AI Edit"
+    // --media: the original footage the FCPXML must reference (absolute
+    // path recommended) so the project opens online in Final Cut Pro.
+    let mediaPath = option("media", in: arguments)
+    let mediaURL = mediaPath.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath).standardizedFileURL }
     do {
+        let clipName = option("name", in: arguments)
+            ?? ((mediaPath ?? wavPath ?? subtitlePath ?? "clip") as NSString).lastPathComponent
         let output: EditPipeline.Output
         if let wavPath {
             // Real audio: duration + speech ranges + tempo come from the WAV.
@@ -145,10 +151,11 @@ case "edit":
                 subtitles: subtitlePath.map(readFile),
                 command: editCommand,
                 language: language,
-                clipName: option("name", in: arguments) ?? (wavPath as NSString).lastPathComponent,
+                clipName: clipName,
                 projectName: projectName,
                 diarize: arguments.contains("--diarize"),
-                cleanAudio: arguments.contains("--clean")))
+                cleanAudio: arguments.contains("--clean"),
+                mediaURL: mediaURL))
         } else {
             guard let subtitlePath else {
                 fail("provide a subtitle file (with --duration) or --wav <clip.wav>")
@@ -162,8 +169,9 @@ case "edit":
                 durationSeconds: durationSeconds,
                 command: editCommand,
                 language: language,
-                clipName: option("name", in: arguments) ?? (subtitlePath as NSString).lastPathComponent,
-                projectName: projectName))
+                clipName: clipName,
+                projectName: projectName,
+                mediaURL: mediaURL))
         }
         if let outPath = option("out", in: arguments) {
             try output.fcpxml.write(toFile: outPath, atomically: true, encoding: .utf8)
@@ -173,9 +181,12 @@ case "edit":
         }
         let bpmNote = output.detectedBPM.map { String(format: ", tempo ≈ %.0f BPM", $0) } ?? ""
         let speakerNote = output.speakerCount.map { ", speakers: \($0)" } ?? ""
+        let mediaNote = mediaURL.map { "media: \($0.path)" }
+            ?? "media: placeholder — ใส่ --media <ไฟล์วิดีโอ> เพื่อให้ FCP เปิดฟุตเทจจริงได้ทันที"
         FileHandle.standardError.write(Data("""
         profile: \(output.profileStyle), language: \(output.language)\(bpmNote)\(speakerNote)
         clips: \(output.storylineClipCount), captions: \(output.captionCount), duration: \(String(format: "%.2f", output.durationSeconds))s, vertical: \(output.isVertical)
+        \(mediaNote)
         valid FCPXML: \(output.isValid)\n
         """.utf8))
         if !output.isValid {
@@ -363,15 +374,23 @@ case "workflow":
             cleanAudio: arguments.contains("--clean"),
             projectName: option("project", in: arguments) ?? "AI Edit",
             exportPresetName: option("preset", in: arguments))
+        // --media: the original footage — FCPXML references it (opens online
+        // in FCP) and the printed ffmpeg export command reads from it.
+        let workflowMediaPath = option("media", in: arguments)
+        request.mediaURL = workflowMediaPath.map {
+            URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath).standardizedFileURL
+        }
         if let wavPath = option("wav", in: arguments) {
             request.audio = try WAV.decode(contentsOf: URL(fileURLWithPath: wavPath))
-            request.clipName = option("name", in: arguments) ?? (wavPath as NSString).lastPathComponent
+            request.clipName = option("name", in: arguments)
+                ?? ((workflowMediaPath ?? wavPath) as NSString).lastPathComponent
         } else if let subtitlePath {
             guard let seconds = option("duration", in: arguments).flatMap(Double.init) else {
                 fail("--duration <seconds> is required without --wav")
             }
             request.durationSeconds = seconds
-            request.clipName = option("name", in: arguments) ?? (subtitlePath as NSString).lastPathComponent
+            request.clipName = option("name", in: arguments)
+                ?? ((workflowMediaPath ?? subtitlePath) as NSString).lastPathComponent
         } else {
             fail("provide --wav <clip.wav> or a subtitle file with --duration")
         }

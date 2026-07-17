@@ -28,19 +28,25 @@ public enum EditPipeline {
         public var language: String
         public var clipName: String
         public var projectName: String
+        /// The real source media file the FCPXML asset must reference so the
+        /// project opens in Final Cut Pro with the footage online. When nil,
+        /// a placeholder path is written and FCP will ask to relink.
+        public var mediaURL: URL?
 
         public init(subtitles: String,
                     durationSeconds: Double,
                     command: String,
                     language: String = "th",
                     clipName: String = "clip",
-                    projectName: String = "AI Edit") {
+                    projectName: String = "AI Edit",
+                    mediaURL: URL? = nil) {
             self.subtitles = subtitles
             self.durationSeconds = durationSeconds
             self.command = command
             self.language = language
             self.clipName = clipName
             self.projectName = projectName
+            self.mediaURL = mediaURL
         }
     }
 
@@ -62,6 +68,9 @@ public enum EditPipeline {
         /// Clean the audio before detection; the command's "ลดเสียงรบกวน" /
         /// "clean audio" intent enables this automatically.
         public var cleanAudio: Bool
+        /// The real source media file (the original video, not the analysis
+        /// WAV) the FCPXML asset must reference so FCP opens it online.
+        public var mediaURL: URL?
 
         public init(audio: WAV.Audio,
                     subtitles: String? = nil,
@@ -70,7 +79,8 @@ public enum EditPipeline {
                     clipName: String = "clip",
                     projectName: String = "AI Edit",
                     diarize: Bool = false,
-                    cleanAudio: Bool = false) {
+                    cleanAudio: Bool = false,
+                    mediaURL: URL? = nil) {
             self.audio = audio
             self.subtitles = subtitles
             self.command = command
@@ -79,6 +89,7 @@ public enum EditPipeline {
             self.projectName = projectName
             self.diarize = diarize
             self.cleanAudio = cleanAudio
+            self.mediaURL = mediaURL
         }
     }
 
@@ -125,6 +136,7 @@ public enum EditPipeline {
                            transcript: transcript,
                            clipName: input.clipName,
                            projectName: input.projectName,
+                           mediaURL: input.mediaURL,
                            speakerCount: nil,
                            audioCleaned: false)
     }
@@ -169,6 +181,7 @@ public enum EditPipeline {
                            transcript: transcript,
                            clipName: input.clipName,
                            projectName: input.projectName,
+                           mediaURL: input.mediaURL,
                            speakerCount: speakerCount,
                            audioCleaned: wantsCleanup)
     }
@@ -221,12 +234,16 @@ public enum EditPipeline {
                                 transcript: SubtitleTrack?,
                                 clipName: String,
                                 projectName: String,
+                                mediaURL: URL?,
                                 speakerCount: Int?,
                                 audioCleaned: Bool) throws -> Output {
         let plan = try Director().interpret(command)
+        // The asset URL is what FCP resolves on import: with a real media
+        // file it opens online immediately; the placeholder keeps the
+        // no-media (CI/transcript-only) path working but needs a relink.
         let asset = Asset(
             name: clipName,
-            url: URL(fileURLWithPath: "/media/\(clipName)"),
+            url: mediaURL ?? URL(fileURLWithPath: "/media/\(clipName)"),
             duration: duration,
             kind: .video, format: plan.profile.format)
         let analysis = MediaAnalysis(

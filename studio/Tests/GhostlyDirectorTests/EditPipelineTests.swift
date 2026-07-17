@@ -99,6 +99,40 @@ final class EditPipelineTests: XCTestCase {
             subtitles: "not a subtitle file", durationSeconds: 10, command: "add captions")))
     }
 
+    // MARK: Real media reference (FCP must open the footage online)
+
+    func testRealMediaURLLandsInAssetSrc() throws {
+        // Thai filename: absoluteString percent-encodes it, and that exact
+        // form must be what FCP reads back from the asset's src.
+        let media = URL(fileURLWithPath: "/Users/editor/Footage/คลิปรีวิว.mov")
+        let output = try EditPipeline.run(EditPipeline.Input(
+            subtitles: thaiSRT, durationSeconds: 12,
+            command: "create a tiktok with captions",
+            mediaURL: media))
+        XCTAssertTrue(output.isValid, "issues: \(output.issues)")
+        XCTAssertTrue(output.fcpxml.contains("src=\"\(media.absoluteString)\""),
+                      "FCPXML must reference the real footage, not a placeholder")
+        XCTAssertFalse(output.fcpxml.contains("file:///media/"),
+                       "placeholder path must be gone when real media is given")
+    }
+
+    func testWithoutMediaURLKeepsRelinkablePlaceholder() throws {
+        let output = try EditPipeline.run(EditPipeline.Input(
+            subtitles: thaiSRT, durationSeconds: 12, command: "add captions"))
+        XCTAssertTrue(output.fcpxml.contains("src=\"file:///media/"),
+                      "no-media (CI/transcript-only) runs keep the placeholder")
+    }
+
+    func testAudioEditCarriesRealMediaURL() throws {
+        let media = URL(fileURLWithPath: "/Volumes/SSD/สัมภาษณ์.mp4")
+        let output = try EditPipeline.run(EditPipeline.AudioInput(
+            audio: recordedClip(),
+            command: "remove silence",
+            mediaURL: media))
+        XCTAssertTrue(output.isValid, "issues: \(output.issues)")
+        XCTAssertTrue(output.fcpxml.contains("src=\"\(media.absoluteString)\""))
+    }
+
     // MARK: Real-audio path (WAV → detectors → edit)
 
     /// 12s "recording": narration-shaped tone bursts matching the Thai SRT.
