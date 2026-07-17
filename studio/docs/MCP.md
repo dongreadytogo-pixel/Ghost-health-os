@@ -145,6 +145,14 @@ the used preset/caption/pacing styles are recorded for future
 recommendations. Pass `mediaPath` (the original video) so the FCPXML opens
 online in Final Cut Pro and the ffmpeg export command reads the real file.
 
+### `export_chapters`
+`{ "transcriptSRT": "…", "durationSeconds": 300 }` → the YouTube chapter
+block for a video description ("0:00 บทนำ" lines, titles from the
+transcript), enforcing YouTube's rules (start at 0:00, ≥3 chapters, each
+≥10 s). Returns `valid:false` with a Thai reason when they can't be met.
+Same engine as `ghostly chapters`; `ghostly auto` also writes this block
+next to the FCPXML (`…-chapters.txt`) whenever a transcript is available.
+
 ### `recommend`
 `{ "category": "transition", "limit": 5 }` → the user's learned favorites for
 `font`, `captionStyle`, `transition`, `effect`, `lut`, `exportPreset`,

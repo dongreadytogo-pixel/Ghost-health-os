@@ -678,6 +678,7 @@ public enum GhostlyMCPFactory {
         await server.register(AnalyzeAudioTool())
         await server.register(EditFromAudioTool())
         await server.register(RunWorkflowTool(store: store))
+        await server.register(ExportChaptersTool())
         await server.register(RecommendTool(store: store))
         return server
     }

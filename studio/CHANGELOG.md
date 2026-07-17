@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **YouTube extras (deferred follow-up)**: new `export_chapters` MCP tool —
+  transcript + duration → the YouTube description chapter block, enforcing
+  YouTube's validity rules and returning a Thai reason when they can't be
+  met (16 tools total; tools/list test + call tests + CI handshake grep
+  updated). `ghostly auto` now also writes `…-chapters.txt` next to the
+  FCPXML whenever a whisper transcript exists and the chapter rules pass.
 - **Zero-setup `auto` (ไม่ต้องติดตั้งอะไรเลย)**: on Apple platforms
   `ghostly auto` now decodes the video's audio natively through
   `AVAudioSampleProvider` (AVFoundation, 16 kHz mono so the same samples

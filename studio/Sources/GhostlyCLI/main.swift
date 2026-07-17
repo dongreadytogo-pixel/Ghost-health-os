@@ -543,6 +543,21 @@ case "auto":
         let outPath = option("out", in: arguments) ?? "\(base).fcpxml"
         try result.edit.fcpxml.write(toFile: outPath, atomically: true, encoding: .utf8)
         for step in result.steps { print("• \(step)") }
+        // Bonus when a transcript exists: the YouTube chapter block, written
+        // next to the FCPXML whenever YouTube's validity rules are met.
+        if let srtContent {
+            let parsed = try SRT.parse(srtContent)
+            let transcript = SubtitleTrack(language: language, cues: parsed.cues)
+            let analysis = MediaAnalysis(assetID: AssetID(), duration: audio.duration,
+                                         speechRanges: parsed.cues.map(\.range))
+            let markers = HighlightPlanner().chapters(from: analysis, transcript: transcript)
+            if let chapters = ChapterExport.youTubeDescription(markers: markers,
+                                                               duration: audio.duration) {
+                let chaptersPath = (outPath as NSString).deletingPathExtension + "-chapters.txt"
+                try chapters.write(toFile: chaptersPath, atomically: true, encoding: .utf8)
+                print("• เขียน YouTube chapters → \(chaptersPath)")
+            }
+        }
         print("fcpxml: \(outPath) — นำเข้า Final Cut Pro ได้ทันที ฟุตเทจออนไลน์")
         print("preset: \(result.exportPresetName)")
         print("export: \(result.exportCommand)")

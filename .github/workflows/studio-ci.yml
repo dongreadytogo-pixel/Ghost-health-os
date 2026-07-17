@@ -124,6 +124,7 @@ jobs:
           echo "$OUT"
           echo "$OUT" | grep -q '"protocolVersion"'
           echo "$OUT" | grep -q '"auto_edit"'
+          echo "$OUT" | grep -q '"export_chapters"'
 
   macos-build:
     name: macOS build & test (full platform incl. SwiftUI)

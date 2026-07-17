@@ -61,7 +61,8 @@ final class MCPTests: XCTestCase {
                                     "validate_fcpxml", "analyze_timeline", "find_highlights",
                                     "search_assets", "export_command", "list_export_presets",
                                     "validate_plugin_manifest", "list_caption_styles", "recommend",
-                                    "analyze_audio", "edit_from_audio", "run_workflow"])
+                                    "analyze_audio", "edit_from_audio", "run_workflow",
+                                    "export_chapters"])
         for tool in tools {
             XCTAssertNotNil(tool["description"]?.stringValue)
             XCTAssertNotNil(tool["inputSchema"]?["type"])
@@ -112,6 +113,28 @@ final class MCPTests: XCTestCase {
         let (validation, vError) = try toolText(await server.handle(validate.encoded()))
         XCTAssertFalse(vError)
         XCTAssertTrue(validation.contains("\"valid\":true"), validation)
+    }
+
+    func testExportChaptersToolFormatsAndValidates() async throws {
+        let server = try await makeServer()
+        let srt = "1\\n00:00:01,000 --> 00:00:20,000\\nบทนำ\\n\\n2\\n00:00:40,000 --> 00:01:00,000\\nช่วงสอง\\n\\n3\\n00:01:20,000 --> 00:01:40,000\\nช่วงสาม\\n"
+        let call = """
+        {"jsonrpc":"2.0","id":50,"method":"tools/call","params":{"name":"export_chapters","arguments":{
+            "transcriptSRT":"\(srt)","durationSeconds":120}}}
+        """
+        let (text, isError) = try toolText(await send(server, call))
+        XCTAssertFalse(isError, text)
+        XCTAssertTrue(text.contains("\"valid\":true"), text)
+        XCTAssertTrue(text.contains("0:00 "), "chapters must start at 0:00: \(text)")
+
+        // Too short for YouTube's rules → valid=false with a Thai reason.
+        let short = """
+        {"jsonrpc":"2.0","id":51,"method":"tools/call","params":{"name":"export_chapters","arguments":{
+            "transcriptSRT":"1\\n00:00:01,000 --> 00:00:05,000\\nสั้น\\n","durationSeconds":12}}}
+        """
+        let (invalid, shortError) = try toolText(await send(server, short))
+        XCTAssertFalse(shortError, invalid)
+        XCTAssertTrue(invalid.contains("\"valid\":false"), invalid)
     }
 
     func testAutoEditToolReportsBadInputAsToolError() async throws {
