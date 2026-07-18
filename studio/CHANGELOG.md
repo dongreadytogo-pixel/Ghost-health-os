@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- **Drag & drop Thai app (`Ghostly790K.app`)**: the package now ships a real
+  droppable macOS app — drag mov/mp4 files onto the icon (or double-click to
+  pick one), type a Thai command in the dialog (default: the smart
+  "คัตเสียง…ไม่เกิน 3 นาที ใส่ซับไตเติ้ล"), and each file becomes an
+  FCPXML next to it with an "เปิดเลย" button into Final Cut Pro. Compiled
+  in CI from `dist/Ghostly790K-droplet.applescript` via `osacompile` with
+  `public.movie` document types registered so Finder accepts drops;
+  self-clears quarantine, auto-uses a whisper model from `models/`, and
+  reports errors in Thai. The `.command` launcher remains as a fallback
+  and now defaults to the same smart command.
 - **Smart Thai commands: length cap + highlight emphasis** (per the owner's
   program pivot — YouTube extras are now descoped): the parser understands
   "คัตเสียงคลิปนี้โดยเน้นประโยคสำคัญที่น่าสนใจ ความยาวเหลือไม่เกิน 3 นาที" —

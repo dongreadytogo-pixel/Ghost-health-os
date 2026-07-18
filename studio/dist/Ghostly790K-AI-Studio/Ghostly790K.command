@@ -22,7 +22,7 @@ VIDEO=$(osascript -e 'POSIX path of (choose file with prompt "เลือกไ
 [ -z "$VIDEO" ] && exit 0
 
 # 2) คำสั่งตัดต่อ (แก้ได้ในกล่องข้อความ)
-DEFAULT_CMD="ตัดช่วงเงียบออก ใส่คำบรรยาย"
+DEFAULT_CMD="คัตเสียงคลิปนี้โดยเน้นประโยคสำคัญที่น่าสนใจ ความยาวเหลือไม่เกิน 3 นาที ใส่ซับไตเติ้ล"
 EDIT_CMD=$(osascript -e "text returned of (display dialog \"คำสั่งตัดต่อ (พิมพ์ภาษาไทยได้เลย เช่น ทำเป็นติ๊กต๊อก / ลดเสียงรบกวน)\" default answer \"$DEFAULT_CMD\" with title \"Ghostly790K\")" 2>/dev/null) || exit 0
 [ -z "$EDIT_CMD" ] && EDIT_CMD="$DEFAULT_CMD"
 

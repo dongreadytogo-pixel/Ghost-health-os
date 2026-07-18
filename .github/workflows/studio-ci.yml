@@ -165,6 +165,21 @@ jobs:
           cp "$BIN/ghostly" "$PKG/bin/"
           chmod +x "$PKG"/*.command "$PKG/bin/ghostly"
           "$PKG/bin/ghostly" version
+          # Drag & drop app: compile the Thai droplet and register mov/mp4
+          # (plus any file) so Finder accepts drops on the icon.
+          osacompile -o "$PKG/Ghostly790K.app" dist/Ghostly790K-droplet.applescript
+          PLIST="$PKG/Ghostly790K.app/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleDocumentTypes" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundleDocumentTypes array" \
+            -c "Add :CFBundleDocumentTypes:0 dict" \
+            -c "Add :CFBundleDocumentTypes:0:CFBundleTypeName string 'Video'" \
+            -c "Add :CFBundleDocumentTypes:0:CFBundleTypeRole string Viewer" \
+            -c "Add :CFBundleDocumentTypes:0:LSItemContentTypes array" \
+            -c "Add :CFBundleDocumentTypes:0:LSItemContentTypes:0 string public.movie" \
+            -c "Add :CFBundleDocumentTypes:0:LSItemContentTypes:1 string public.item" \
+            "$PLIST"
+          plutil -lint "$PLIST"
           ls -la "$PKG"
 
       - name: Smoke-test zero-setup auto (native AVFoundation, no ffmpeg)
