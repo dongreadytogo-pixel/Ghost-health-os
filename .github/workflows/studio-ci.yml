@@ -51,6 +51,12 @@ jobs:
           "$BIN/ghostly" version
           "$BIN/ghostly" intent "edit this like marvel and add tiktok captions"
           "$BIN/ghostly" intent "ตัดช่วงเงียบออก ทำเป็นติ๊กต๊อก ใส่คำบรรยาย" | grep -q "removeSilence"
+          "$BIN/ghostly" intent "คัตเสียงคลิปนี้โดยเน้นประโยคสำคัญที่น่าสนใจ ความยาวเหลือไม่เกิน 3 นาที" | tee /tmp/smart.txt
+          grep -q "limitDuration" /tmp/smart.txt
+          grep -q "max duration: 180s" /tmp/smart.txt
+          grep -q "เน้นประโยคสำคัญ" /tmp/smart.txt
+          "$BIN/ghostly" edit /tmp/thai.srt --duration 8 --command "คัตเสียง เน้นประโยคสำคัญ ไม่เกิน 5 วินาที" > /tmp/smart.fcpxml
+          "$BIN/ghostly" validate /tmp/smart.fcpxml
           "$BIN/ghostly" styles
           "$BIN/ghostly" presets
           "$BIN/ghostly" export in.mov --preset TikTok --out out.mp4 | grep -q "scale=1080:1920"

@@ -19,6 +19,13 @@ public struct PacingProfile: Sendable, Codable, Equatable {
     public var format: VideoFormat
     /// Fraction of detected silence to remove (1 = all of it).
     public var silenceRemoval: Double
+    /// Cap on the finished edit's length in seconds (nil = no cap) —
+    /// "ความยาวเหลือไม่เกิน 3 นาที". The planner keeps the highest-scoring
+    /// segments that fit.
+    public var maxTotalDuration: Double?
+    /// Prefer the most interesting sentences when trimming
+    /// ("เน้นประโยคสำคัญที่น่าสนใจ") — boosts transcript emphasis in scoring.
+    public var emphasizeHighlights: Bool
 
     public enum Style: String, Sendable, Codable, CaseIterable {
         case marvel = "Marvel"
@@ -31,7 +38,8 @@ public struct PacingProfile: Sendable, Codable, Equatable {
 
     public init(style: Style, minShotLength: Double, maxShotLength: Double,
                 cutOnBeats: Bool, transitionName: String?, transitionDuration: Double,
-                captionStyleName: String?, format: VideoFormat, silenceRemoval: Double) {
+                captionStyleName: String?, format: VideoFormat, silenceRemoval: Double,
+                maxTotalDuration: Double? = nil, emphasizeHighlights: Bool = false) {
         precondition(minShotLength > 0 && maxShotLength >= minShotLength,
                      "shot length range must be positive and ordered")
         self.style = style
@@ -43,6 +51,31 @@ public struct PacingProfile: Sendable, Codable, Equatable {
         self.captionStyleName = captionStyleName
         self.format = format
         self.silenceRemoval = min(max(silenceRemoval, 0), 1)
+        self.maxTotalDuration = maxTotalDuration
+        self.emphasizeHighlights = emphasizeHighlights
+    }
+
+    // Tolerant decoding: profiles serialized before these fields existed
+    // (learning-system exports, saved plans) must keep loading.
+    private enum CodingKeys: String, CodingKey {
+        case style, minShotLength, maxShotLength, cutOnBeats, transitionName,
+             transitionDuration, captionStyleName, format, silenceRemoval,
+             maxTotalDuration, emphasizeHighlights
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.style = try c.decode(Style.self, forKey: .style)
+        self.minShotLength = try c.decode(Double.self, forKey: .minShotLength)
+        self.maxShotLength = try c.decode(Double.self, forKey: .maxShotLength)
+        self.cutOnBeats = try c.decode(Bool.self, forKey: .cutOnBeats)
+        self.transitionName = try c.decodeIfPresent(String.self, forKey: .transitionName)
+        self.transitionDuration = try c.decode(Double.self, forKey: .transitionDuration)
+        self.captionStyleName = try c.decodeIfPresent(String.self, forKey: .captionStyleName)
+        self.format = try c.decode(VideoFormat.self, forKey: .format)
+        self.silenceRemoval = try c.decode(Double.self, forKey: .silenceRemoval)
+        self.maxTotalDuration = try c.decodeIfPresent(Double.self, forKey: .maxTotalDuration)
+        self.emphasizeHighlights = try c.decodeIfPresent(Bool.self, forKey: .emphasizeHighlights) ?? false
     }
 
     public static func profile(for style: Style) -> PacingProfile {

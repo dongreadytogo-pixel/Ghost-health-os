@@ -3,6 +3,23 @@
 ## Unreleased
 
 ### Added
+- **Smart Thai commands: length cap + highlight emphasis** (per the owner's
+  program pivot — YouTube extras are now descoped): the parser understands
+  "คัตเสียงคลิปนี้โดยเน้นประโยคสำคัญที่น่าสนใจ ความยาวเหลือไม่เกิน 3 นาที" —
+  new intents `limitDuration(seconds:)` (ไม่เกิน/เหลือ/ภายใน N
+  นาที|วินาที|ชั่วโมง, Thai number words หนึ่ง–สิบ, decimals, and the
+  English equivalents) and `emphasizeHighlights` (เน้นประโยคสำคัญ/ไฮไลต์;
+  "คัตเสียง/คัทเสียง/ตัดเสียง" now reads as silence-cutting without
+  colliding with ตัดเสียงรบกวน = cleanup). `PacingProfile` carries
+  `maxTotalDuration`/`emphasizeHighlights` (tolerant decoding for old
+  saves); a cap implies full silence removal. `AutoEditPlanner` scores
+  every shot like a highlight (beats, scene activity, transcript emphasis —
+  weighted up under เน้นประโยคสำคัญ), keeps the best that fit the budget in
+  chronological order, and trims the single best shot when nothing fits.
+  `ghostly intent` prints the cap and emphasis. Tests cover the exact Thai
+  smart command, the cap vocabulary (Thai/English/decimals/spelled
+  numbers), profile resolution, budget enforcement end-to-end, and the
+  no-op case; CI smoke-tests both the intent and a capped edit.
 - **`ghostly shorts` — highlights → ready-to-run short-clip exports**:
   finds the best moments (hook/highlights, CTA excluded) in a transcript
   and prints one frame-accurate ffmpeg command per moment that cuts it

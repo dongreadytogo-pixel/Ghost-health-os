@@ -25,6 +25,11 @@ public enum EditIntent: Equatable, Sendable {
     case addTransitions(name: String)
     /// Clean the audio before editing (rumble/hum/noise-floor removal).
     case cleanAudio
+    /// Cap the finished edit's length ("ความยาวเหลือไม่เกิน 3 นาที").
+    case limitDuration(seconds: Double)
+    /// Keep the most interesting sentences when trimming
+    /// ("เน้นประโยคสำคัญที่น่าสนใจ").
+    case emphasizeHighlights
 
     public enum Deliverable: String, Equatable, Sendable, CaseIterable {
         case tiktok, youtube, instagram, shorts, reel
@@ -108,8 +113,48 @@ public struct EditIntentParser: Sendable {
             intents.append(.cleanAudio)
         }
 
+        if containsAny(lowered, ["best moments", "best parts", "most interesting",
+                                 "key sentences", "keep the highlights", "only the highlights"]) {
+            intents.append(.emphasizeHighlights)
+        }
+
+        if let seconds = durationLimit(in: lowered) {
+            intents.append(.limitDuration(seconds: seconds))
+        }
+
         intents.append(contentsOf: thaiIntents(in: lowered))
         return dedupe(intents)
+    }
+
+    /// Finds "ไม่เกิน 3 นาที" / "under 2 minutes" / "ภายใน 90 วินาที" …
+    /// Returns the cap in seconds, or nil when the command sets no length.
+    func durationLimit(in command: String) -> Double? {
+        let limitWords = "ไม่เกิน|เหลือ|ภายใน|ให้เหลือ|ยาวสุด|under|within|max|maximum|at most|no more than|no longer than"
+        let number = "[0-9]+(?:[.,][0-9]+)?|หนึ่ง|สอง|สาม|สี่|ห้า|หก|เจ็ด|แปด|เก้า|สิบ"
+        let unit = "ชั่วโมง|ชม\\.?|นาที|วินาที|วิ|hours?|hrs?|minutes?|mins?|min|seconds?|secs?|sec"
+        let pattern = "(?:\(limitWords))\\s*(\(number))\\s*(\(unit))"
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: command,
+                                           range: NSRange(command.startIndex..., in: command)),
+              let numberRange = Range(match.range(at: 1), in: command),
+              let unitRange = Range(match.range(at: 2), in: command) else { return nil }
+
+        let thaiNumbers: [String: Double] = ["หนึ่ง": 1, "สอง": 2, "สาม": 3, "สี่": 4, "ห้า": 5,
+                                             "หก": 6, "เจ็ด": 7, "แปด": 8, "เก้า": 9, "สิบ": 10]
+        let numberText = String(command[numberRange]).replacingOccurrences(of: ",", with: ".")
+        guard let value = Double(numberText) ?? thaiNumbers[numberText], value > 0 else { return nil }
+
+        let unitText = String(command[unitRange])
+        let multiplier: Double
+        if unitText.hasPrefix("ชั่วโมง") || unitText.hasPrefix("ชม")
+            || unitText.hasPrefix("hour") || unitText.hasPrefix("hr") {
+            multiplier = 3600
+        } else if unitText.hasPrefix("นาที") || unitText.hasPrefix("min") {
+            multiplier = 60
+        } else {
+            multiplier = 1
+        }
+        return value * multiplier
     }
 
     // MARK: Thai vocabulary (Thai-first per the Workflow Constitution)
@@ -183,10 +228,21 @@ public struct EditIntentParser: Sendable {
             intents.append(.generateCaptions(styleName: style.name))
         }
 
-        // Silence removal: "ตัดช่วงเงียบออก".
+        // Silence removal: "ตัดช่วงเงียบออก" — and the everyday editor
+        // phrasing "คัตเสียงคลิปนี้" (cut/tighten the talk track).
+        // "ตัดเสียง" alone counts too, but "ตัดเสียงรบกวน" is audio cleanup.
         if containsAny(command, ["ตัดช่วงเงียบ", "ตัดเงียบ", "ลบช่วงเงียบ",
-                                 "เอาช่วงเงียบออก", "ตัดช่วงที่ไม่พูด", "ตัดช่วงว่าง"]) {
+                                 "เอาช่วงเงียบออก", "ตัดช่วงที่ไม่พูด", "ตัดช่วงว่าง",
+                                 "คัตเสียง", "คัทเสียง"])
+            || (command.contains("ตัดเสียง") && !command.contains("ตัดเสียงรบกวน")) {
             intents.append(.removeSilence)
+        }
+
+        // Highlight emphasis: "เน้นประโยคสำคัญที่น่าสนใจ", "เอาเฉพาะช่วงเด่น".
+        if containsAny(command, ["เน้นประโยคสำคัญ", "ประโยคที่น่าสนใจ", "ประโยคสำคัญ",
+                                 "เน้นช่วงสำคัญ", "ช่วงที่น่าสนใจ", "เฉพาะช่วงเด่น",
+                                 "เน้นจุดสำคัญ", "ไฮไลต์", "ไฮไลท์", "ช่วงเด็ด"]) {
+            intents.append(.emphasizeHighlights)
         }
 
         // Beat cutting: "ตัดตามจังหวะเพลง".

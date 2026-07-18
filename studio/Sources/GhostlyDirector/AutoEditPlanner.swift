@@ -52,6 +52,16 @@ public struct AutoEditPlanner: Sendable {
             throw StudioError.validationFailure(detail: "no usable segments found in footage")
         }
 
+        // 2b. Length cap ("ความยาวเหลือไม่เกิน 3 นาที"): keep the
+        // highest-scoring shots that fit the budget, chronological order
+        // preserved. Scoring prefers interesting sentences when the command
+        // asked to (เน้นประโยคสำคัญ).
+        if let budget = profile.maxTotalDuration,
+           timeline.duration.seconds > budget {
+            applyDurationBudget(&timeline, budget: budget,
+                                footage: footage, transcript: transcript)
+        }
+
         // 3. Beat alignment: nudge cut points onto the nearest music beat.
         if profile.cutOnBeats, let music, !music.analysis.beats.isEmpty {
             alignCutsToBeats(&timeline, beats: music.analysis.beats, frameRate: frameRate)
@@ -153,6 +163,85 @@ public struct AutoEditPlanner: Sendable {
             cursor = cursor + d
         }
         return out
+    }
+
+    /// Keeps the best storyline shots that fit `budget` seconds: each shot is
+    /// scored like a highlight (beat energy, scene activity, transcript
+    /// emphasis — weighted higher with `emphasizeHighlights`), picked greedily
+    /// by score, then laid back down in chronological order. When even the
+    /// single best shot exceeds the budget it is trimmed to fit.
+    func applyDurationBudget(_ timeline: inout Timeline, budget: Double,
+                             footage: [(asset: Asset, analysis: MediaAnalysis)],
+                             transcript: SubtitleTrack?) {
+        let analyses = Dictionary(uniqueKeysWithValues: footage.map { ($0.asset.id, $0.analysis) })
+        let story = timeline.storyline
+        guard !story.isEmpty, budget > 0 else { return }
+
+        // Rank shots by score (ties → earlier shot wins, keeping the hook).
+        let scored = story.enumerated().map { index, clip in
+            (index: index, clip: clip,
+             score: shotScore(clip, analysis: analyses[clip.assetID], transcript: transcript))
+        }.sorted { $0.score == $1.score ? $0.index < $1.index : $0.score > $1.score }
+
+        var keptIndices: [Int] = []
+        var remaining = budget
+        for candidate in scored where candidate.clip.duration.seconds <= remaining {
+            keptIndices.append(candidate.index)
+            remaining -= candidate.clip.duration.seconds
+        }
+        if keptIndices.isEmpty, let best = scored.first {
+            // Nothing fits whole: trim the strongest shot to the budget.
+            var clip = best.clip
+            let trimmed = RationalTime(seconds: budget, preferredTimescale: 48_000)
+            clip.sourceRange = TimeRange(start: clip.sourceRange.start,
+                                         duration: min(clip.sourceRange.duration, trimmed))
+            keptIndices = [best.index]
+            timeline.clips = [clip] + timeline.connectedClips
+        } else {
+            let keep = Set(keptIndices)
+            timeline.clips = story.enumerated()
+                .filter { keep.contains($0.offset) }
+                .map(\.element) + timeline.connectedClips
+        }
+
+        // Re-lay the surviving shots back to back.
+        var cursor = RationalTime.zero
+        var relaid = timeline.storyline
+        for index in relaid.indices {
+            relaid[index].offset = cursor
+            cursor = cursor + relaid[index].duration
+        }
+        timeline.clips = relaid + timeline.connectedClips
+    }
+
+    /// Highlight-style score for one storyline shot, in its source timebase.
+    private func shotScore(_ clip: Clip, analysis: MediaAnalysis?,
+                           transcript: SubtitleTrack?) -> Double {
+        let window = clip.sourceRange
+        let length = window.duration.seconds
+        guard length > 0 else { return 0 }
+        var score = 0.0
+        if let analysis {
+            let beats = analysis.beats.filter { window.contains($0) }.count
+            score += min(1, Double(beats) / (length * 2)) * 0.3
+            if analysis.sceneCuts.contains(where: { window.contains($0) }) { score += 0.15 }
+        }
+        if let transcript {
+            let hits = transcript.cues.filter { $0.range.overlaps(window) }
+            let emphasisWeight = profile.emphasizeHighlights ? 0.6 : 0.25
+            if hits.contains(where: { $0.text.contains("!") || $0.text.contains("?") }) {
+                score += emphasisWeight
+            }
+            // Longer sentences over a shot ≈ denser narration: small boost,
+            // stronger when the command asked for the key sentences.
+            let coverage = hits.reduce(0.0) {
+                $0 + ($1.range.intersection(window)?.duration.seconds ?? 0)
+            } / length
+            score += min(1, coverage) * (profile.emphasizeHighlights ? 0.4 : 0.2)
+        }
+        // Slight early bonus keeps openings competitive on ties.
+        score += max(0, 0.1 - Double(clip.offset.seconds) * 0.001)
+        return score
     }
 
     /// Retimes storyline clips so each cut lands on the nearest beat, within

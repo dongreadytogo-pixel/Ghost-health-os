@@ -99,6 +99,31 @@ final class EditPipelineTests: XCTestCase {
             subtitles: "not a subtitle file", durationSeconds: 10, command: "add captions")))
     }
 
+    // MARK: Smart Thai command — length cap + highlight emphasis
+
+    func testThaiDurationCapKeepsBestWithinBudget() throws {
+        // 8.5 s of speech must shrink to the best ≤5 s selection.
+        let output = try EditPipeline.run(EditPipeline.Input(
+            subtitles: thaiSRT, durationSeconds: 12,
+            command: "คัตเสียงคลิปนี้โดยเน้นประโยคสำคัญที่น่าสนใจ ความยาวเหลือไม่เกิน 5 วินาที"))
+        XCTAssertTrue(output.isValid, "issues: \(output.issues)")
+        XCTAssertGreaterThan(output.storylineClipCount, 0)
+        XCTAssertGreaterThan(output.durationSeconds, 0)
+        XCTAssertLessThanOrEqual(output.durationSeconds, 5.01,
+                                 "ความยาวต้องไม่เกินงบ 5 วินาที")
+    }
+
+    func testDurationCapLooseEnoughIsANoOp() throws {
+        let capped = try EditPipeline.run(EditPipeline.Input(
+            subtitles: thaiSRT, durationSeconds: 12,
+            command: "ตัดช่วงเงียบออก ไม่เกิน 10 นาที"))
+        let plain = try EditPipeline.run(EditPipeline.Input(
+            subtitles: thaiSRT, durationSeconds: 12,
+            command: "ตัดช่วงเงียบออก"))
+        XCTAssertEqual(capped.durationSeconds, plain.durationSeconds, accuracy: 0.01,
+                       "a cap above the edit length must change nothing")
+    }
+
     // MARK: Real media reference (FCP must open the footage online)
 
     func testRealMediaURLLandsInAssetSrc() throws {

@@ -76,6 +76,12 @@ public struct Director: Sendable {
                 if profile.transitionDuration <= 0 { profile.transitionDuration = 1 }
             case .cleanAudio:
                 wantsCleanup = true
+            case .limitDuration(let seconds):
+                profile.maxTotalDuration = seconds
+                // A hard length cap implies tightening the talk track.
+                profile.silenceRemoval = 1
+            case .emphasizeHighlights:
+                profile.emphasizeHighlights = true
             }
         }
         return Plan(profile: profile, wantsCaptions: wantsCaptions,

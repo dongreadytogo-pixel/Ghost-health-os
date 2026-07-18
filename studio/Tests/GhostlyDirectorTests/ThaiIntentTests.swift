@@ -89,4 +89,40 @@ final class ThaiIntentTests: XCTestCase {
                         .generateCaptions(styleName: "TikTok"),
                         .removeSilence])
     }
+
+    // MARK: Smart command — "คัตเสียง เน้นประโยคสำคัญ ไม่เกิน 3 นาที"
+
+    func testSmartThaiCommandParsesAllThreeIntents() {
+        let intents = parser.parse(
+            "คัตเสียงคลิปนี้โดยเน้นประโยคสำคัญที่น่าสนใจ ความยาวเหลือไม่เกิน 3 นาที")
+        XCTAssertTrue(intents.contains(.removeSilence), "คัตเสียง → removeSilence")
+        XCTAssertTrue(intents.contains(.emphasizeHighlights))
+        XCTAssertTrue(intents.contains(.limitDuration(seconds: 180)))
+    }
+
+    func testDurationLimitVocabulary() {
+        XCTAssertEqual(parser.durationLimit(in: "ไม่เกิน 3 นาที"), 180)
+        XCTAssertEqual(parser.durationLimit(in: "เหลือไม่เกิน 90 วินาที"), 90)
+        XCTAssertEqual(parser.durationLimit(in: "ภายใน 1 ชั่วโมง"), 3600)
+        XCTAssertEqual(parser.durationLimit(in: "ไม่เกินสิบนาที"), 600)
+        XCTAssertEqual(parser.durationLimit(in: "under 2 minutes"), 120)
+        XCTAssertEqual(parser.durationLimit(in: "no more than 45 seconds"), 45)
+        XCTAssertEqual(parser.durationLimit(in: "ไม่เกิน 1.5 นาที"), 90)
+        XCTAssertNil(parser.durationLimit(in: "ตัดช่วงเงียบออก"), "no cap mentioned")
+        XCTAssertNil(parser.durationLimit(in: "3 นาที"), "a bare duration is not a cap")
+    }
+
+    func testCutAudioDoesNotCollideWithNoiseCleanup() {
+        XCTAssertEqual(parser.parse("ตัดเสียงรบกวน"), [.cleanAudio])
+        XCTAssertTrue(parser.parse("ตัดเสียงช่วงที่เงียบ").contains(.removeSilence))
+    }
+
+    func testLimitDurationResolvesIntoProfile() throws {
+        let plan = try Director().interpret(
+            "คัตเสียงคลิปนี้โดยเน้นประโยคสำคัญที่น่าสนใจ ความยาวเหลือไม่เกิน 3 นาที")
+        XCTAssertEqual(plan.profile.maxTotalDuration, 180)
+        XCTAssertTrue(plan.profile.emphasizeHighlights)
+        XCTAssertEqual(plan.profile.silenceRemoval, 1,
+                       "a length cap implies full silence removal")
+    }
 }

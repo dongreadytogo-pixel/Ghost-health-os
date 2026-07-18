@@ -144,6 +144,12 @@ case "intent":
         print("  format: \(plan.profile.format.width)x\(plan.profile.format.height)")
         print("  cut on beats: \(plan.profile.cutOnBeats)")
         print("  captions: \(plan.profile.captionStyleName ?? "none")")
+        if let cap = plan.profile.maxTotalDuration {
+            print("  max duration: \(String(format: "%.0f", cap))s")
+        }
+        if plan.profile.emphasizeHighlights {
+            print("  emphasis: best sentences (เน้นประโยคสำคัญ)")
+        }
     } catch {
         fail(error.localizedDescription)
     }
