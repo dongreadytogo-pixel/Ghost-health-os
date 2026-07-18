@@ -109,6 +109,14 @@ public struct AutoEditPlanner: Sendable {
             timeline.captions = styled
                 .captions(styleName: profile.captionStyleName)
                 .filter { $0.range.start < timeline.duration }
+
+            // 6b. Optional Custom Title subtitle layer (ซับแบบ Title): the
+            // same styled cues as Basic Title overlays on their own lane —
+            // fully stylable in FCP, separate from (and in addition to) the
+            // caption track, so the editor keeps whichever layer they like.
+            if profile.titleSubtitles {
+                timeline.titles += subtitleTitles(from: styled, within: timeline.duration)
+            }
         }
 
         return timeline
@@ -163,6 +171,32 @@ public struct AutoEditPlanner: Sendable {
             cursor = cursor + d
         }
         return out
+    }
+
+    /// Basic Title overlays mirroring the styled subtitle cues on lane 2 —
+    /// the "ซับแบบ Title" option. Font/size/position follow the caption
+    /// style so both layers read the same until restyled in FCP.
+    func subtitleTitles(from track: SubtitleTrack,
+                        within duration: RationalTime) -> [MotionTitle] {
+        let style = profile.captionStyleName.flatMap(CaptionStyle.named)
+        let position: MotionTitle.Position
+        switch style?.position {
+        case .top: position = .top
+        case .middle: position = .center
+        case .lowerThird: position = .lowerThird
+        default: position = .bottomCenter
+        }
+        return track.cues.filter { $0.range.start < duration }.map { cue in
+            MotionTitle(text: cue.text,
+                        range: cue.range,
+                        lane: 2,
+                        kind: .subtitle,
+                        templateName: "Basic Title",
+                        templateUID: ".../Titles.localized/Build In:Build Out.localized/Basic Title.localized/Basic Title.moti",
+                        fontName: style?.fontName ?? "Helvetica Neue",
+                        fontSize: style?.fontSize ?? 63,
+                        position: position)
+        }
     }
 
     /// Keeps the best storyline shots that fit `budget` seconds: each shot is

@@ -30,6 +30,10 @@ public enum EditIntent: Equatable, Sendable {
     /// Keep the most interesting sentences when trimming
     /// ("เน้นประโยคสำคัญที่น่าสนใจ").
     case emphasizeHighlights
+    /// Also lay the subtitles down as Custom Title overlays on their own
+    /// lane ("ซับแบบ Title") — fully stylable in FCP, alongside the
+    /// standard iTT caption track.
+    case titleSubtitles
 
     public enum Deliverable: String, Equatable, Sendable, CaseIterable {
         case tiktok, youtube, instagram, shorts, reel
@@ -116,6 +120,11 @@ public struct EditIntentParser: Sendable {
         if containsAny(lowered, ["best moments", "best parts", "most interesting",
                                  "key sentences", "keep the highlights", "only the highlights"]) {
             intents.append(.emphasizeHighlights)
+        }
+
+        if containsAny(lowered, ["subtitles as titles", "subs as titles", "title subtitles",
+                                 "custom title subs", "custom title subtitles"]) {
+            intents.append(.titleSubtitles)
         }
 
         if let seconds = durationLimit(in: lowered) {
@@ -236,6 +245,14 @@ public struct EditIntentParser: Sendable {
                                  "คัตเสียง", "คัทเสียง"])
             || (command.contains("ตัดเสียง") && !command.contains("ตัดเสียงรบกวน")) {
             intents.append(.removeSilence)
+        }
+
+        // Title-layer subtitles: "ซับแบบ title" / "ซับแบบไตเติ้ล" — an extra
+        // fully-stylable overlay lane on top of the standard caption track.
+        if containsAny(command, ["ซับแบบ title", "ซับแบบไตเติ้ล", "ซับแบบไตเติล",
+                                 "ซับเป็น title", "ซับเป็นไตเติ้ล", "custom title",
+                                 "ซับแบบแต่งได้", "ซับไตเติ้ลแบบแต่งได้"]) {
+            intents.append(.titleSubtitles)
         }
 
         // Highlight emphasis: "เน้นประโยคสำคัญที่น่าสนใจ", "เอาเฉพาะช่วงเด่น".

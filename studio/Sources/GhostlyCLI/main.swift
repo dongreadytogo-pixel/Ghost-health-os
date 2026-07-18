@@ -218,7 +218,7 @@ case "edit":
             ?? "media: placeholder — ใส่ --media <ไฟล์วิดีโอ> เพื่อให้ FCP เปิดฟุตเทจจริงได้ทันที"
         FileHandle.standardError.write(Data("""
         profile: \(output.profileStyle), language: \(output.language)\(bpmNote)\(speakerNote)
-        clips: \(output.storylineClipCount), captions: \(output.captionCount), duration: \(String(format: "%.2f", output.durationSeconds))s, vertical: \(output.isVertical)
+        clips: \(output.storylineClipCount), captions: \(output.captionCount)\(output.titleSubtitleCount > 0 ? ", title-subs: \(output.titleSubtitleCount)" : ""), duration: \(String(format: "%.2f", output.durationSeconds))s, vertical: \(output.isVertical)
         \(mediaNote)
         valid FCPXML: \(output.isValid)\n
         """.utf8))

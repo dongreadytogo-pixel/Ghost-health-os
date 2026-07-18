@@ -99,6 +99,34 @@ final class EditPipelineTests: XCTestCase {
             subtitles: "not a subtitle file", durationSeconds: 10, command: "add captions")))
     }
 
+    // MARK: Custom Title subtitle layer (ซับแบบ Title)
+
+    func testTitleSubtitleLayerIsSeparateAndAdditional() throws {
+        let output = try EditPipeline.run(EditPipeline.Input(
+            subtitles: thaiSRT, durationSeconds: 12,
+            command: "ทำเป็นติ๊กต๊อก ใส่ซับแบบ Title"))
+        XCTAssertTrue(output.isValid, "issues: \(output.issues)")
+        XCTAssertGreaterThanOrEqual(output.titleSubtitleCount, 3)
+        // Both layers exist: the standard Thai caption track AND the
+        // stylable Title overlays on their own lane.
+        XCTAssertTrue(output.fcpxml.contains("captionFormat=ITT.th"),
+                      "caption track must remain")
+        XCTAssertTrue(output.fcpxml.contains("<title "),
+                      "Title overlays must be emitted")
+        XCTAssertTrue(output.fcpxml.contains("lane=\"2\""),
+                      "Title subs live on their own lane")
+        XCTAssertTrue(output.fcpxml.contains("Basic Title"))
+    }
+
+    func testNoTitleLayerWithoutTheOption() throws {
+        let output = try EditPipeline.run(EditPipeline.Input(
+            subtitles: thaiSRT, durationSeconds: 12,
+            command: "ทำเป็นติ๊กต๊อก ใส่ซับ"))
+        XCTAssertEqual(output.titleSubtitleCount, 0)
+        XCTAssertFalse(output.fcpxml.contains("<title "),
+                       "no Title overlays unless asked")
+    }
+
     // MARK: Smart Thai command — length cap + highlight emphasis
 
     func testThaiDurationCapKeepsBestWithinBudget() throws {

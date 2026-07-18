@@ -112,6 +112,9 @@ public enum Workflow {
         if edit.captionCount > 0 {
             steps.append("attached \(edit.captionCount) '\(edit.language)' caption(s)")
         }
+        if edit.titleSubtitleCount > 0 {
+            steps.append("laid \(edit.titleSubtitleCount) Custom Title subtitle overlay(s) on lane 2 (ซับแบบ Title)")
+        }
         let shape = edit.isVertical ? "9:16 vertical" : "landscape"
         steps.append("emitted valid FCPXML (\(String(format: "%.2f", edit.durationSeconds))s, \(shape))")
         if let media = request.mediaURL {

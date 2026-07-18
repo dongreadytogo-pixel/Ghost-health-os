@@ -71,6 +71,11 @@ jobs:
           "$BIN/ghostly" edit /tmp/thai.srt --duration 8 --command "create a tiktok with captions, remove silence" > /tmp/edit.fcpxml
           "$BIN/ghostly" edit /tmp/thai.srt --duration 8 --command "คัตเสียง เน้นประโยคสำคัญ ไม่เกิน 5 วินาที" > /tmp/smart.fcpxml
           "$BIN/ghostly" validate /tmp/smart.fcpxml
+          "$BIN/ghostly" edit /tmp/thai.srt --duration 8 --command "ทำเป็นติ๊กต๊อก ใส่ซับแบบ Title" > /tmp/title-subs.fcpxml
+          grep -q "captionFormat=ITT.th" /tmp/title-subs.fcpxml
+          grep -q "<title " /tmp/title-subs.fcpxml
+          grep -q 'lane="2"' /tmp/title-subs.fcpxml
+          "$BIN/ghostly" validate /tmp/title-subs.fcpxml
           grep -q "<fcpxml" /tmp/edit.fcpxml
           grep -q "captionFormat=ITT.th" /tmp/edit.fcpxml
           "$BIN/ghostly" validate /tmp/edit.fcpxml

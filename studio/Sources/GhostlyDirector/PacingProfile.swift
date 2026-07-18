@@ -26,6 +26,9 @@ public struct PacingProfile: Sendable, Codable, Equatable {
     /// Prefer the most interesting sentences when trimming
     /// ("เน้นประโยคสำคัญที่น่าสนใจ") — boosts transcript emphasis in scoring.
     public var emphasizeHighlights: Bool
+    /// Also emit subtitles as Custom Title overlays on their own lane
+    /// ("ซับแบบ Title") — fully stylable in FCP, in addition to captions.
+    public var titleSubtitles: Bool
 
     public enum Style: String, Sendable, Codable, CaseIterable {
         case marvel = "Marvel"
@@ -39,7 +42,8 @@ public struct PacingProfile: Sendable, Codable, Equatable {
     public init(style: Style, minShotLength: Double, maxShotLength: Double,
                 cutOnBeats: Bool, transitionName: String?, transitionDuration: Double,
                 captionStyleName: String?, format: VideoFormat, silenceRemoval: Double,
-                maxTotalDuration: Double? = nil, emphasizeHighlights: Bool = false) {
+                maxTotalDuration: Double? = nil, emphasizeHighlights: Bool = false,
+                titleSubtitles: Bool = false) {
         precondition(minShotLength > 0 && maxShotLength >= minShotLength,
                      "shot length range must be positive and ordered")
         self.style = style
@@ -53,6 +57,7 @@ public struct PacingProfile: Sendable, Codable, Equatable {
         self.silenceRemoval = min(max(silenceRemoval, 0), 1)
         self.maxTotalDuration = maxTotalDuration
         self.emphasizeHighlights = emphasizeHighlights
+        self.titleSubtitles = titleSubtitles
     }
 
     // Tolerant decoding: profiles serialized before these fields existed
@@ -60,7 +65,7 @@ public struct PacingProfile: Sendable, Codable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case style, minShotLength, maxShotLength, cutOnBeats, transitionName,
              transitionDuration, captionStyleName, format, silenceRemoval,
-             maxTotalDuration, emphasizeHighlights
+             maxTotalDuration, emphasizeHighlights, titleSubtitles
     }
 
     public init(from decoder: Decoder) throws {
@@ -76,6 +81,7 @@ public struct PacingProfile: Sendable, Codable, Equatable {
         self.silenceRemoval = try c.decode(Double.self, forKey: .silenceRemoval)
         self.maxTotalDuration = try c.decodeIfPresent(Double.self, forKey: .maxTotalDuration)
         self.emphasizeHighlights = try c.decodeIfPresent(Bool.self, forKey: .emphasizeHighlights) ?? false
+        self.titleSubtitles = try c.decodeIfPresent(Bool.self, forKey: .titleSubtitles) ?? false
     }
 
     public static func profile(for style: Style) -> PacingProfile {

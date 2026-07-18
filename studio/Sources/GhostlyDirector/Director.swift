@@ -82,6 +82,9 @@ public struct Director: Sendable {
                 profile.silenceRemoval = 1
             case .emphasizeHighlights:
                 profile.emphasizeHighlights = true
+            case .titleSubtitles:
+                profile.titleSubtitles = true
+                wantsCaptions = true
             }
         }
         return Plan(profile: profile, wantsCaptions: wantsCaptions,

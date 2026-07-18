@@ -113,6 +113,9 @@ public enum EditPipeline {
         public let captionStyleName: String?
         /// True when audio cleanup ran before detection.
         public let audioCleaned: Bool
+        /// Custom Title subtitle overlays laid on lane 2 (ซับแบบ Title);
+        /// 0 unless the command asked for the Title layer.
+        public let titleSubtitleCount: Int
     }
 
     public static func run(_ input: Input) throws -> Output {
@@ -273,7 +276,8 @@ public enum EditPipeline {
             detectedBPM: bpm,
             speakerCount: speakerCount,
             captionStyleName: transcript == nil ? nil : plan.profile.captionStyleName,
-            audioCleaned: audioCleaned)
+            audioCleaned: audioCleaned,
+            titleSubtitleCount: timeline.titles.filter { $0.kind == .subtitle }.count)
     }
 
     /// Merges overlapping/touching ranges so back-to-back cues form one

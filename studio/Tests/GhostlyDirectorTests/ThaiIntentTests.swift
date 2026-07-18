@@ -117,6 +117,17 @@ final class ThaiIntentTests: XCTestCase {
         XCTAssertTrue(parser.parse("ตัดเสียงช่วงที่เงียบ").contains(.removeSilence))
     }
 
+    func testTitleSubtitlesVocabulary() throws {
+        XCTAssertTrue(parser.parse("ใส่ซับแบบ Title").contains(.titleSubtitles))
+        XCTAssertTrue(parser.parse("ซับแบบไตเติ้ล").contains(.titleSubtitles))
+        XCTAssertTrue(parser.parse("subtitles as titles please").contains(.titleSubtitles))
+        XCTAssertFalse(parser.parse("ใส่ซับ").contains(.titleSubtitles),
+                       "plain ใส่ซับ stays caption-only")
+        let plan = try Director().interpret("ทำเป็นติ๊กต๊อก ใส่ซับแบบ Title")
+        XCTAssertTrue(plan.profile.titleSubtitles)
+        XCTAssertTrue(plan.wantsCaptions, "the Title layer still needs the transcript")
+    }
+
     func testLimitDurationResolvesIntoProfile() throws {
         let plan = try Director().interpret(
             "คัตเสียงคลิปนี้โดยเน้นประโยคสำคัญที่น่าสนใจ ความยาวเหลือไม่เกิน 3 นาที")

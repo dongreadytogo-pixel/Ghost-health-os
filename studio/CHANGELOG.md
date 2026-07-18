@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Added
+- **Custom Title subtitle layer (ซับแบบ Title)**: saying "ใส่ซับแบบ Title" /
+  "subtitles as titles" lays the styled subtitle cues down a second time as
+  Basic Title overlays on their own lane (lane 2) — fully stylable in FCP
+  (font/color/animation), **in addition to** the standard iTT caption
+  track, so the editor keeps whichever layer they prefer and deletes the
+  other. Font/size/position mirror the chosen caption style; new
+  `.titleSubtitles` intent → `PacingProfile.titleSubtitles` (tolerant
+  decoding), `MotionTitle.Kind.subtitle`, `Output.titleSubtitleCount`, a
+  workflow trace step, and a CLI `title-subs:` note. Tests cover the
+  Thai/English vocabulary, both-layers emission (caption role + `<title>`
+  on lane 2), and the off-by-default path; CI smoke validates the FCPXML.
 - **Drag & drop Thai app (`Ghostly790K.app`)**: the package now ships a real
   droppable macOS app — drag mov/mp4 files onto the icon (or double-click to
   pick one), type a Thai command in the dialog (default: the smart

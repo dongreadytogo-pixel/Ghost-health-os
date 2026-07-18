@@ -180,6 +180,9 @@ public struct Caption: Hashable, Sendable, Codable {
 public struct MotionTitle: Hashable, Sendable, Codable {
     public enum Kind: String, Sendable, Codable, CaseIterable {
         case lowerThird, titleCard, callout, subscribe, progressBar
+        /// A subtitle cue rendered as a stylable Title overlay
+        /// ("ซับแบบ Title") instead of / alongside a closed caption.
+        case subtitle
     }
 
     public enum Position: String, Sendable, Codable, CaseIterable {
