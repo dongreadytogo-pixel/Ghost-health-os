@@ -178,10 +178,16 @@ public struct AutoEditPlanner: Sendable {
         guard !story.isEmpty, budget > 0 else { return }
 
         // Rank shots by score (ties → earlier shot wins, keeping the hook).
-        let scored = story.enumerated().map { index, clip in
-            (index: index, clip: clip,
-             score: shotScore(clip, analysis: analyses[clip.assetID], transcript: transcript))
-        }.sorted { $0.score == $1.score ? $0.index < $1.index : $0.score > $1.score }
+        var scored: [(index: Int, clip: Clip, score: Double)] = []
+        for (index, clip) in story.enumerated() {
+            let score = shotScore(clip, analysis: analyses[clip.assetID],
+                                  transcript: transcript)
+            scored.append((index: index, clip: clip, score: score))
+        }
+        scored.sort { lhs, rhs in
+            if lhs.score == rhs.score { return lhs.index < rhs.index }
+            return lhs.score > rhs.score
+        }
 
         var keptIndices: [Int] = []
         var remaining = budget
@@ -199,9 +205,11 @@ public struct AutoEditPlanner: Sendable {
             timeline.clips = [clip] + timeline.connectedClips
         } else {
             let keep = Set(keptIndices)
-            timeline.clips = story.enumerated()
-                .filter { keep.contains($0.offset) }
-                .map(\.element) + timeline.connectedClips
+            var kept: [Clip] = []
+            for (index, clip) in story.enumerated() where keep.contains(index) {
+                kept.append(clip)
+            }
+            timeline.clips = kept + timeline.connectedClips
         }
 
         // Re-lay the surviving shots back to back.
