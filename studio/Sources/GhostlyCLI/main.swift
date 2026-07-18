@@ -59,6 +59,7 @@ guard let command = arguments.first else {
       ghostly export <input> --preset <name> --out <output> [--title T] [--artist A]
       ghostly presets
       ghostly workflow --wav <clip.wav> --command "<editing command>" [<subs.srt>] [--media video.mp4] [--diarize] [--preset name] [--remember] [--out file.fcpxml]   Full chain: analyze → edit → captions → export command (--remember = ใช้/จำค่าที่เคยใช้)
+      ghostly sync <กล้อง1> <กล้อง2> [...] [--name มัลติแคม] [--vertical] [--out multicam.fcpxml]   ซิงก์มุมกล้องด้วยเสียง → FCP multicam clip
       ghostly analyze-audio <file.wav> [--diarize]   Speech ranges + beats/BPM (+ speakers) from a WAV file
       ghostly extract-audio <video> [--out file.wav] [--rate 16000] [--run]   The ffmpeg command that produces an analysis WAV (--run executes it)
       ghostly demo-audio [--out file.wav]       Write a deterministic demo WAV (speech + 120 BPM beats)
@@ -626,6 +627,84 @@ case "auto":
         fail(error.localizedDescription)
     }
 
+case "sync":
+    // ซิงก์มุมกล้อง (multicam): correlate every camera's audio against the
+    // first file, lay the angles out with their recovered delays, and emit
+    // a real FCP multicam clip — no clapboard needed.
+    var syncFiles: [String] = []
+    var syncIndex = 1
+    while syncIndex < arguments.count {
+        if arguments[syncIndex].hasPrefix("--") {
+            // Every sync option takes a value except boolean --vertical.
+            syncIndex += arguments[syncIndex] == "--vertical" ? 1 : 2
+        } else {
+            syncFiles.append(arguments[syncIndex])
+            syncIndex += 1
+        }
+    }
+    guard syncFiles.count >= 2 else {
+        fail("usage: ghostly sync <กล้อง1.mov> <กล้อง2.mov> [...] [--name มัลติแคม] [--vertical] [--out multicam.fcpxml]")
+    }
+    do {
+        // Each angle's audio: WAV decodes anywhere; other formats decode
+        // natively via AVFoundation on Apple platforms.
+        func angleAudio(_ path: String) async throws -> WAV.Audio {
+            if path.lowercased().hasSuffix(".wav") {
+                return try WAV.decode(contentsOf: URL(fileURLWithPath: path))
+            }
+            #if canImport(AVFoundation)
+            let native = try await AVAudioSampleProvider(sampleRate: 16_000)
+                .monoSamples(for: URL(fileURLWithPath: path))
+            return WAV.Audio(samples: native.samples, sampleRate: native.sampleRate)
+            #else
+            throw StudioError.invalidInput(
+                field: "file",
+                reason: "บน Linux รองรับเฉพาะ .wav — แปลงก่อนด้วย ghostly extract-audio '\(path)' --run")
+            #endif
+        }
+        var angleInputs: [(path: String, audio: WAV.Audio)] = []
+        for file in syncFiles {
+            let expanded = (file as NSString).expandingTildeInPath
+            guard FileManager.default.fileExists(atPath: expanded) else {
+                fail("ไม่พบไฟล์ '\(expanded)'")
+            }
+            angleInputs.append((expanded, try await angleAudio(expanded)))
+        }
+        let aligner = AudioAligner()
+        var offsets: [Double] = [0]
+        for item in angleInputs.dropFirst() {
+            offsets.append(aligner.offsetSeconds(reference: angleInputs[0].audio,
+                                                 other: item.audio))
+        }
+        let earliest = offsets.min() ?? 0
+        let format: VideoFormat = arguments.contains("--vertical") ? .vertical1080x1920p30 : .hd1080p30
+        var angles: [FCPXMLWriter.MulticamAngle] = []
+        for (index, item) in angleInputs.enumerated() {
+            let delay = offsets[index] - earliest
+            let url = URL(fileURLWithPath: item.path).standardizedFileURL
+            let asset = Asset(name: (item.path as NSString).lastPathComponent,
+                              url: url, duration: item.audio.duration,
+                              kind: .video, format: format)
+            angles.append(FCPXMLWriter.MulticamAngle(
+                asset: asset,
+                delay: RationalTime(seconds: delay, preferredTimescale: 48_000)))
+            print(String(format: "• %@: เริ่ม %+.2fs เทียบกล้องแรก → วางที่ %.2fs",
+                         asset.name, offsets[index], delay))
+        }
+        let name = option("name", in: arguments) ?? "มัลติแคม"
+        let document = try FCPXMLWriter().multicamDocument(name: name, angles: angles,
+                                                           format: format)
+        let issues = FCPXMLValidator().validate(document)
+        guard !issues.contains(where: { $0.severity == .error }) else {
+            fail(issues.map(\.description).joined(separator: "; "))
+        }
+        let outPath = option("out", in: arguments) ?? "multicam.fcpxml"
+        try document.write(toFile: outPath, atomically: true, encoding: .utf8)
+        print("fcpxml: \(outPath) — นำเข้า FCP ได้เลย ได้ multicam clip ที่ซิงก์แล้ว (\(angles.count) มุม)")
+    } catch {
+        fail(error.localizedDescription)
+    }
+
 case "analyze-audio":
     guard arguments.count >= 2 else { fail("usage: ghostly analyze-audio <file.wav>") }
     do {
@@ -755,7 +834,16 @@ case "demo-audio":
     let fixture = AudioFixture.demo()
     let outPath = option("out", in: arguments) ?? "ghostly-demo.wav"
     do {
-        try fixture.wavData().write(to: URL(fileURLWithPath: outPath))
+        var data = fixture.wavData()
+        // --lead-silence N: prepend N seconds of silence — a second "camera"
+        // that started earlier, for exercising `ghostly sync`.
+        if let lead = option("lead-silence", in: arguments).flatMap(Double.init), lead > 0 {
+            let audio = try WAV.decode(data)
+            let pad = [Float](repeating: 0, count: Int(lead * Double(audio.sampleRate)))
+            data = WAV.encode(WAV.Audio(samples: pad + audio.samples,
+                                        sampleRate: audio.sampleRate))
+        }
+        try data.write(to: URL(fileURLWithPath: outPath))
         print("wrote \(outPath) (\(String(format: "%.1f", fixture.durationSeconds))s: narration pattern + 120 BPM beats)")
     } catch {
         fail("cannot write '\(outPath)': \(error.localizedDescription)")

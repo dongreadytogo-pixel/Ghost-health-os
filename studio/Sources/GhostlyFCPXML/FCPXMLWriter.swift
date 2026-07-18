@@ -100,6 +100,14 @@ public struct FCPXMLWriter {
             return id
         }
 
+        /// Registers a compound `media` resource (e.g. a multicam) built by
+        /// the caller and returns its id for `mc-clip`/`ref-clip` references.
+        mutating func media(name: String, containing inner: XML) -> String {
+            let id = allocateID()
+            ordered.append(XML("media", [("id", id), ("name", name)]).child(inner))
+            return id
+        }
+
         func element() -> XML {
             XML("resources").appendingChildren(ordered)
         }
@@ -112,6 +120,77 @@ public struct FCPXMLWriter {
             case .rec2020PQ: return "9-16-9"
             }
         }
+    }
+
+    // MARK: Multicam
+
+    /// A synced camera angle for `multicamDocument`.
+    public struct MulticamAngle: Sendable {
+        public let asset: Asset
+        /// Placement delay on the shared multicam timeline (≥ 0): a camera
+        /// that started recording later carries a larger delay.
+        public let delay: RationalTime
+
+        public init(asset: Asset, delay: RationalTime) {
+            self.asset = asset
+            self.delay = delay
+        }
+    }
+
+    /// Emits a document holding a real FCP multicam: a `media/multicam`
+    /// resource whose angles are laid out with their sync delays, plus a
+    /// project whose spine is one `mc-clip` spanning the synced footage —
+    /// import into FCP and cut between angles as usual (ซิงก์มุมกล้อง).
+    public func multicamDocument(name: String,
+                                 angles: [MulticamAngle],
+                                 format: VideoFormat,
+                                 projectName: String? = nil,
+                                 eventName: String = "Ghostly") throws -> String {
+        guard !angles.isEmpty else {
+            throw StudioError.invalidInput(field: "angles", reason: "at least one camera angle required")
+        }
+        var resources = ResourceTable()
+        let formatID = resources.format(format)
+
+        let multicam = XML("multicam", [("format", formatID)])
+            .attr("tcStart", "0s")
+            .attr("tcFormat", "NDF")
+        var total = RationalTime.zero
+        for (index, angle) in angles.enumerated() {
+            let assetFormatID = angle.asset.format.map { fmt in resources.format(fmt) } ?? formatID
+            let assetID = resources.asset(angle.asset, formatID: assetFormatID)
+            let end = angle.delay + angle.asset.duration
+            if end > total { total = end }
+            multicam.child(
+                XML("mc-angle", [("name", angle.asset.name), ("angleID", "A\(index + 1)")])
+                    .child(XML("asset-clip", [("ref", assetID)])
+                        .attr("name", angle.asset.name)
+                        .attr("offset", angle.delay.description)
+                        .attr("duration", angle.asset.duration.description)
+                        .attr("format", assetFormatID)
+                        .attr("tcFormat", "NDF")))
+        }
+        let mediaID = resources.media(name: name, containing: multicam)
+
+        let snappedTotal = format.frameRate.snapped(total)
+        let sequence = XML("sequence")
+            .attr("format", formatID)
+            .attr("duration", snappedTotal.description)
+            .attr("tcStart", "0s")
+            .attr("tcFormat", "NDF")
+        sequence.child(XML("spine").child(
+            XML("mc-clip", [("ref", mediaID)])
+                .attr("offset", "0s")
+                .attr("name", name)
+                .attr("duration", snappedTotal.description)
+                .child(XML("mc-source", [("angleID", "A1"), ("srcEnable", "all")]))))
+
+        let root = XML("fcpxml", [("version", version)])
+        root.child(resources.element())
+        root.child(XML("library").child(
+            XML("event", [("name", eventName)]).child(
+                XML("project", [("name", projectName ?? name)]).child(sequence))))
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE fcpxml>\n" + root.serialized() + "\n"
     }
 
     // MARK: Structure

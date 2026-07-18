@@ -22,6 +22,25 @@ if ! command -v ffmpeg >/dev/null 2>&1 && command -v brew >/dev/null 2>&1; then
     brew install ffmpeg || echo "ข้าม ffmpeg — โปรแกรมทำงานได้โดยไม่ต้องมี"
 fi
 
+# 2.5) ซับไทยอัตโนมัติ: whisper + โมเดลถอดเสียง (แนะนำมาก — ถ้าข้ามขั้นนี้
+# โปรแกรมจะตัดต่อได้แต่ไม่มีซับ)
+if ! command -v whisper-cli >/dev/null 2>&1; then
+    if command -v brew >/dev/null 2>&1; then
+        echo "กำลังติดตั้งตัวถอดเสียง whisper..."
+        brew install whisper-cpp || echo "ติดตั้ง whisper ไม่สำเร็จ — ซับอัตโนมัติจะไม่ทำงาน"
+    else
+        echo "ไม่มี Homebrew — ข้ามการติดตั้ง whisper (ซับอัตโนมัติจะไม่ทำงาน)"
+        echo "ติดตั้ง Homebrew จาก https://brew.sh แล้วรันไฟล์นี้อีกครั้งเพื่อเปิดใช้ซับ"
+    fi
+fi
+mkdir -p models
+if command -v whisper-cli >/dev/null 2>&1 && ! ls models/*.bin >/dev/null 2>&1; then
+    echo "กำลังดาวน์โหลดโมเดลถอดเสียงไทย (~550MB — ใช้เวลาสักพัก ครั้งเดียวจบ)..."
+    curl -L --fail --progress-bar -o "models/ggml-large-v3-turbo-q5_0.bin" \
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin" \
+        || { rm -f "models/ggml-large-v3-turbo-q5_0.bin"; echo "ดาวน์โหลดโมเดลไม่สำเร็จ — ลองรันไฟล์นี้อีกครั้งเมื่อเน็ตพร้อม"; }
+fi
+
 # 3) ตัวโปรแกรม ghostly — ใช้ตัวสำเร็จรูปใน bin/ ถ้ามี ไม่มีก็ build จากซอร์ส
 if [ ! -x "bin/ghostly" ] || ! ./bin/ghostly version >/dev/null 2>&1; then
     echo "ตัวโปรแกรมสำเร็จรูปใช้ไม่ได้กับเครื่องนี้ — กำลัง build จากซอร์สโค้ด"

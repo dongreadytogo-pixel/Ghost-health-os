@@ -3,6 +3,27 @@
 ## Unreleased
 
 ### Added
+- **Multicam sync — ซิงก์มุมกล้องด้วยเสียง (no clapboard)**: new
+  `AudioAligner` recovers each camera's start offset by coarse-to-fine
+  normalized cross-correlation over mean-removed RMS envelopes (10 Hz
+  bracket → 100 Hz refine; level/codec differences don't matter), and
+  `FCPXMLWriter.multicamDocument` emits a real FCP multicam — a
+  `media/multicam` resource with sync-delayed `mc-angle`s plus one
+  `mc-clip` project spanning the footage. `ghostly sync กล้อง1 กล้อง2 …`
+  ties them together (WAV anywhere; mov/mp4 decode natively on macOS);
+  the drag & drop app now offers "ซิงก์มุมกล้อง (multicam)" when several
+  files are dropped at once. `demo-audio --lead-silence` synthesizes a
+  second camera for tests/CI. Tests cover ± offsets, fractional lags,
+  level differences, structure + validation, and span math; CI syncs two
+  generated WAVs end-to-end and validates the document.
+- **Subtitle honesty + big-file robustness in the app**: the droplet now
+  *tells* you when whisper/model are missing (Thai dialog with an install
+  pointer) instead of silently skipping subtitles, and
+  `ติดตั้งครั้งแรก.command` installs whisper-cpp and downloads the
+  large-v3-turbo model (~550 MB) into `models/` automatically. Long jobs
+  (multi-GB MOV/MP4) run under `caffeinate` (no sleep), with no
+  AppleScript timeout (24 h ceiling), a start notification, and stderr
+  captured to `logs/ghostly.log` whose tail is shown in error dialogs.
 - **Custom Title subtitle layer (ซับแบบ Title)**: saying "ใส่ซับแบบ Title" /
   "subtitles as titles" lays the styled subtitle cues down a second time as
   Basic Title overlays on their own lane (lane 2) — fully stylable in FCP

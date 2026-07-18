@@ -125,6 +125,13 @@ jobs:
           grep -q -- "-ss " /tmp/shorts.txt
           grep -q "short1.mp4" /tmp/shorts.txt
           grep -q "scale=1080:1920" /tmp/shorts.txt
+          "$BIN/ghostly" demo-audio --out /tmp/camA.wav
+          "$BIN/ghostly" demo-audio --out /tmp/camB.wav --lead-silence 2
+          "$BIN/ghostly" sync /tmp/camA.wav /tmp/camB.wav --out /tmp/mc.fcpxml | tee /tmp/sync.txt
+          grep -q "วางที่ 2.00s" /tmp/sync.txt
+          grep -q "mc-angle" /tmp/mc.fcpxml
+          grep -q "mc-clip" /tmp/mc.fcpxml
+          "$BIN/ghostly" validate /tmp/mc.fcpxml
           "$BIN/ghostly" clean-audio /tmp/demo.wav --dehum 50 --out /tmp/clean.wav | grep -q "de-hum 50"
           "$BIN/ghostly" analyze-audio /tmp/clean.wav | grep -q "speech:"
           "$BIN/ghostly" analyze-audio /tmp/leveled.wav | grep -q "speech:"
