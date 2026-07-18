@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **`ghostly shorts` — highlights → ready-to-run short-clip exports**:
+  finds the best moments (hook/highlights, CTA excluded) in a transcript
+  and prints one frame-accurate ffmpeg command per moment that cuts it
+  from the real footage with a platform preset (TikTok default) and the
+  highlight label as metadata title. `FFmpegCommandBuilder` gains an
+  optional `Trim` (output-side `-ss`/`-to`, canonical second formatting)
+  with tests for placement-after-`-i`, formatting, and the no-trim path;
+  CI smoke covers the command end-to-end.
 - **YouTube extras (deferred follow-up)**: new `export_chapters` MCP tool —
   transcript + duration → the YouTube description chapter block, enforcing
   YouTube's validity rules and returning a Thai reason when they can't be

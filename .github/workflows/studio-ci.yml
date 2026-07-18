@@ -110,6 +110,10 @@ jobs:
           printf '1\n00:00:01,000 --> 00:00:20,000\nบทนำ\n\n2\n00:00:40,000 --> 00:01:00,000\nช่วงสอง\n\n3\n00:01:20,000 --> 00:01:40,000\nช่วงสาม\n' > /tmp/ch.srt
           "$BIN/ghostly" chapters /tmp/ch.srt --duration 120 | grep -q "^0:00 "
           "$BIN/ghostly" highlights /tmp/ch.srt --duration 120 | grep -qE "\[(hook|highlight|cta)\]"
+          "$BIN/ghostly" shorts /tmp/ch.srt --duration 120 --media "/tmp/คลิป.mp4" | tee /tmp/shorts.txt
+          grep -q -- "-ss " /tmp/shorts.txt
+          grep -q "short1.mp4" /tmp/shorts.txt
+          grep -q "scale=1080:1920" /tmp/shorts.txt
           "$BIN/ghostly" clean-audio /tmp/demo.wav --dehum 50 --out /tmp/clean.wav | grep -q "de-hum 50"
           "$BIN/ghostly" analyze-audio /tmp/clean.wav | grep -q "speech:"
           "$BIN/ghostly" analyze-audio /tmp/leveled.wav | grep -q "speech:"

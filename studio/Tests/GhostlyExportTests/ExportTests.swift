@@ -92,6 +92,21 @@ final class ExportTests: XCTestCase {
         XCTAssertFalse(args.contains("-y"))
     }
 
+    func testTrimAddsAccurateOutputSideSeek() throws {
+        let args = FFmpegCommandBuilder().arguments(
+            input: "i.mov", output: "short1.mp4", preset: .tiktok,
+            trim: FFmpegCommandBuilder.Trim(startSeconds: 12.5, endSeconds: 20))
+        // Output-side seek: -ss/-to must come after -i for frame accuracy.
+        let inputIndex = try XCTUnwrap(args.firstIndex(of: "-i"))
+        let seekIndex = try XCTUnwrap(args.firstIndex(of: "-ss"))
+        XCTAssertGreaterThan(seekIndex, inputIndex)
+        XCTAssertTrue(contains(args, "-ss", "12.500"))
+        XCTAssertTrue(contains(args, "-to", "20"), "whole seconds stay integral")
+        // No trim → no seek flags (existing behavior untouched).
+        let plain = FFmpegCommandBuilder().arguments(input: "i", output: "o.mp4", preset: .tiktok)
+        XCTAssertFalse(plain.contains("-ss"))
+    }
+
     // MARK: Render queue
 
     /// Records jobs it is asked to render; can be told to fail specific ids.

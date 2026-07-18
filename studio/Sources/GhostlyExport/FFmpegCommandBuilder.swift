@@ -13,18 +13,35 @@ public struct FFmpegCommandBuilder: Sendable {
         self.executable = executable
     }
 
+    /// A cut to lift out of the source, in seconds (accurate, output-side
+    /// seeking — the segment is re-encoded by the preset anyway).
+    public struct Trim: Sendable, Equatable {
+        public let startSeconds: Double
+        public let endSeconds: Double
+
+        public init(startSeconds: Double, endSeconds: Double) {
+            self.startSeconds = startSeconds
+            self.endSeconds = endSeconds
+        }
+    }
+
     /// The argument vector (excluding the executable) for a single export.
     /// - Parameters:
     ///   - input/output: source and destination paths.
     ///   - preset: the render recipe.
     ///   - metadata: optional tags to embed.
+    ///   - trim: optional segment to cut (for highlight → short exports).
     ///   - overwrite: pass `-y` to overwrite an existing output.
     public func arguments(input: String, output: String, preset: RenderPreset,
                           metadata: ExportMetadata = ExportMetadata(),
+                          trim: Trim? = nil,
                           overwrite: Bool = true) -> [String] {
         var args: [String] = []
         if overwrite { args.append("-y") }
         args += ["-i", input]
+        if let trim {
+            args += ["-ss", seconds(trim.startSeconds), "-to", seconds(trim.endSeconds)]
+        }
 
         // Video codec + rate control.
         args += ["-c:v", videoCodecName(preset.videoCodec)]
@@ -65,12 +82,19 @@ public struct FFmpegCommandBuilder: Sendable {
 
     /// The full shell-display command (executable + args), shell-quoted.
     public func commandLine(input: String, output: String, preset: RenderPreset,
-                            metadata: ExportMetadata = ExportMetadata()) -> String {
-        let args = arguments(input: input, output: output, preset: preset, metadata: metadata)
+                            metadata: ExportMetadata = ExportMetadata(),
+                            trim: Trim? = nil) -> String {
+        let args = arguments(input: input, output: output, preset: preset,
+                             metadata: metadata, trim: trim)
         return ([executable] + args).map(Self.shellQuote).joined(separator: " ")
     }
 
     // MARK: Helpers
+
+    /// "12.5" / "8" — canonical seconds for -ss/-to.
+    private func seconds(_ value: Double) -> String {
+        value == value.rounded() ? String(Int(value)) : String(format: "%.3f", value)
+    }
 
     private func metadataArguments(_ metadata: ExportMetadata) -> [String] {
         var args: [String] = []

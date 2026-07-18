@@ -51,6 +51,7 @@ guard let command = arguments.first else {
       ghostly edit --wav <clip.wav> --command "<editing command>" [<subtitles.srt|.vtt>] [--media video.mp4] [--diarize] [--clean] [--lang th] [--name clip] [--project name] [--out file.fcpxml]
       ghostly chapters <subtitles.srt|.vtt> --duration <seconds> [--lang th] [--out chapters.txt]   YouTube chapter timestamps
       ghostly highlights <subtitles.srt|.vtt> --duration <seconds> [--lang th] [--limit 5]   ช่วงเด่น (hook/highlight/CTA) + คะแนน
+      ghostly shorts <subtitles.srt|.vtt> --duration <seconds> --media <video> [--preset TikTok] [--limit 3]   คำสั่ง ffmpeg ตัดช่วงเด่นเป็นคลิปสั้นจากไฟล์จริง
       ghostly captions <subtitles.srt|.vtt> --style <TikTok|YouTube|Instagram|Broadcast> [--shift seconds] [--out file]
       ghostly validate <file.fcpxml>
       ghostly analyze <file.fcpxml>
@@ -288,6 +289,56 @@ case "highlights":
         for h in highlights {
             let start = ChapterExport.timestamp(h.range.start.seconds)
             print("\(start)  [\(h.kind.rawValue)] \(String(format: "%.2f", h.score))  \(h.label)")
+        }
+    } catch {
+        fail(error.localizedDescription)
+    }
+
+case "shorts":
+    // Highlights → ready-to-run ffmpeg commands that cut each best moment
+    // out of the real footage as a platform-ready short (TikTok preset by
+    // default). The bridge from "find best moments" to actual short files.
+    guard arguments.count >= 2 else {
+        fail("usage: ghostly shorts <subtitles.srt|.vtt> --duration <seconds> --media <video> [--preset TikTok] [--limit 3] [--lang th]")
+    }
+    guard let durationText = option("duration", in: arguments),
+          let durationSeconds = Double(durationText) else {
+        fail("--duration <seconds> is required (length of the video)")
+    }
+    guard let mediaPath = option("media", in: arguments) else {
+        fail("--media <ไฟล์วิดีโอต้นฉบับ> is required (the file the shorts are cut from)")
+    }
+    do {
+        let content = readFile(arguments[1])
+        let parsed = content.hasPrefix("WEBVTT") ? try WebVTT.parse(content) : try SRT.parse(content)
+        let transcript = SubtitleTrack(language: option("lang", in: arguments) ?? "th",
+                                       cues: parsed.cues)
+        let duration = RationalTime(seconds: durationSeconds, preferredTimescale: 3000)
+        let analysis = MediaAnalysis(assetID: AssetID(), duration: duration,
+                                     speechRanges: parsed.cues.map(\.range))
+        let limit = option("limit", in: arguments).flatMap(Int.init) ?? 3
+        let highlights = HighlightPlanner().highlights(
+            from: analysis, transcript: transcript, limit: limit)
+            .filter { $0.kind != .cta }
+        guard !highlights.isEmpty else {
+            fail("ไม่พบช่วงเด่น (ต้องมีช่วงเสียงพูดในไฟล์ซับ)")
+        }
+        let presetName = option("preset", in: arguments) ?? "TikTok"
+        guard let preset = RenderPreset.named(presetName) else {
+            fail("unknown preset '\(presetName)'; try: \(RenderPreset.builtIn.map(\.name).joined(separator: ", "))")
+        }
+        let base = ((mediaPath as NSString).lastPathComponent as NSString).deletingPathExtension
+        let builder = FFmpegCommandBuilder()
+        for (index, h) in highlights.enumerated() {
+            let start = ChapterExport.timestamp(h.range.start.seconds)
+            print("# \(start)  [\(h.kind.rawValue)]  \(h.label)")
+            print(builder.commandLine(
+                input: mediaPath,
+                output: "\(base)-short\(index + 1).\(preset.container.rawValue)",
+                preset: preset,
+                metadata: ExportMetadata(title: h.label),
+                trim: FFmpegCommandBuilder.Trim(startSeconds: h.range.start.seconds,
+                                                endSeconds: h.range.end.seconds)))
         }
     } catch {
         fail(error.localizedDescription)
