@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Added
+- **Thai subtitles bundled — ไม่ต้องติดตั้ง whisper อีกต่อไป**: the macOS
+  CI job now builds `whisper-cli` from whisper.cpp (static, Metal shader
+  embedded, arm64) and downloads the large-v3-turbo model, packaging
+  both into the app folder (`bin/whisper-cli` + `models/…`). The app
+  prefers the bundled binary (`--whisper` path passed through; `ghostly
+  auto` accepts absolute whisper paths), so subtitles work on the very
+  first job with zero setup on Apple Silicon; Intel Macs keep the
+  in-app one-button installer. CI verifies the bundled binary really
+  transcribes (runs it on generated audio with the packaged model)
+  before uploading; build and model are cached so CI stays fast.
+
 ### Fixed
 - **Interview cutting is now content-aware (แก้ "คัตช็อตมั่ว ๆ")**: with
   "เน้นประโยคสำคัญ" and a transcript, keeps align to whole sentences

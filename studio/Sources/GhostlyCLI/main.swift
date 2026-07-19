@@ -560,7 +560,12 @@ case "auto":
         var srtContent: String?
         if let modelPath = option("model", in: arguments) {
             let whisperPath = option("whisper", in: arguments) ?? "whisper-cli"
-            guard toolOnPath(whisperPath) else {
+            // Absolute/relative paths (e.g. the bundled bin/whisper-cli) are
+            // checked directly; bare names probe PATH.
+            let whisperAvailable = whisperPath.contains("/")
+                ? FileManager.default.isExecutableFile(atPath: whisperPath)
+                : toolOnPath(whisperPath)
+            guard whisperAvailable else {
                 fail("ไม่พบ \(whisperPath) — ติดตั้ง whisper.cpp หรือระบุ --whisper <path> (ดู `ghostly doctor`)")
             }
             print("• ถอดเสียงเป็นคำบรรยายด้วย whisper (\(language))")

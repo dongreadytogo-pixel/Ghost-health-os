@@ -119,7 +119,7 @@ on doAutoEdit(pkgDir, droppedItems, editCommand)
 		set argsText to "auto " & quoted form of videoPath & " --command " & quoted form of editCommand & " --remember --out " & quoted form of outPath
 		if withSubs then
 			set modelPath to do shell script "ls " & quoted form of (pkgDir & "/models") & "/*.bin | head -1"
-			set argsText to argsText & " --model " & quoted form of modelPath
+			set argsText to argsText & " --model " & quoted form of modelPath & " --whisper " & quoted form of whisperPath(pkgDir)
 		end if
 		runGhostly(pkgDir, argsText)
 		set userChoice to button returned of (display dialog "เสร็จแล้ว ✅" & return & outPath & return & return & ¬
@@ -227,14 +227,26 @@ on installWhisper(pkgDir)
 	end try
 end installWhisper
 
+-- ซับพร้อมไหม: ตัวถอดเสียงที่แพ็กมากับโปรแกรม (bin/whisper-cli) มาก่อน
+-- แล้วค่อยดูของเครื่อง (brew) — โมเดลต้องอยู่ใน models/ เสมอ
 on whisperReady(pkgDir)
 	try
-		do shell script "export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"; command -v whisper-cli >/dev/null && ls " & quoted form of pkgDir & "/models/*.bin >/dev/null 2>&1"
+		do shell script "export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"; { [ -x " & quoted form of (pkgDir & "/bin/whisper-cli") & " ] || command -v whisper-cli >/dev/null; } && ls " & quoted form of pkgDir & "/models/*.bin >/dev/null 2>&1"
 		return true
 	on error
 		return false
 	end try
 end whisperReady
+
+-- path ตัวถอดเสียง: ของที่แพ็กมาก่อน ไม่มีก็ใช้ของเครื่อง
+on whisperPath(pkgDir)
+	try
+		do shell script "[ -x " & quoted form of (pkgDir & "/bin/whisper-cli") & " ]"
+		return pkgDir & "/bin/whisper-cli"
+	on error
+		return "whisper-cli"
+	end try
+end whisperPath
 
 -- "…/คลิป.mp4" → "…/คลิป.fcpxml"
 on fcpxmlPath(videoPath)
