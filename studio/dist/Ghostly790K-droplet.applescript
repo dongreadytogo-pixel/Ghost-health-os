@@ -1,30 +1,155 @@
--- Ghostly790K AI Final Cut Studio — แอปตัดต่ออัตโนมัติ (ภาษาไทย)
--- ลากไฟล์วิดีโอ (mov/mp4) มาวางบนไอคอนแอปนี้ หรือดับเบิลคลิกเพื่อเลือกไฟล์
---   • 1 ไฟล์  → ตัดต่ออัตโนมัติตามคำสั่งภาษาไทย
---   • หลายไฟล์ → เลือกได้: ซิงก์มุมกล้อง (multicam) หรือตัดต่อทีละไฟล์
--- ได้ไฟล์ .fcpxml ที่เปิดใน Final Cut Pro ได้ทันที ฟุตเทจออนไลน์
+-- Ghostly790K AI Final Cut Studio — เมนูคำสั่งภาษาไทย (วนใช้ซ้ำได้เรื่อย ๆ)
+-- เปิดแอป = เมนูปุ่มเลือกคำสั่ง | ลากไฟล์มาวาง = ใช้ไฟล์นั้นกับเมนูทันที
+-- ทุกงานให้ .fcpxml ที่เปิดใน Final Cut Pro ได้ทันที ฟุตเทจออนไลน์
 
-property defaultCommand : "คัตเสียงคลิปนี้โดยเน้นประโยคสำคัญที่น่าสนใจ ความยาวเหลือไม่เกิน 3 นาที ใส่ซับไตเติ้ล"
-
-on open theItems
-	if (count of theItems) is 1 then
-		processFiles(theItems)
-	else
-		set choice to button returned of (display dialog "ลากมา " & (count of theItems) & " ไฟล์ — ต้องการทำอะไร" buttons {"ยกเลิก", "ตัดต่อทีละไฟล์", "ซิงก์มุมกล้อง (multicam)"} default button "ซิงก์มุมกล้อง (multicam)" with title "Ghostly790K")
-		if choice is "ซิงก์มุมกล้อง (multicam)" then
-			syncMulticam(theItems)
-		else if choice is "ตัดต่อทีละไฟล์" then
-			processFiles(theItems)
-		end if
-	end if
-end open
+property menuSmart : "✂️ คัตเสียงอัจฉริยะ — เน้นประโยคสำคัญ ≤ 3 นาที + ซับ"
+property menuTikTok : "🎬 ทำคลิป TikTok — ตัดช่วงเงียบ + ซับ"
+property menuYouTube : "📺 ตัดต่อแบบ YouTube — ตัดช่วงเงียบ + คำบรรยาย"
+property menuClean : "🔇 ลดเสียงรบกวน + ตัดช่วงเงียบ + ซับ"
+property menuTitleSubs : "🧢 ซับแบบ Title — แต่งใน FCP ได้เต็มที่"
+property menuMulticam : "🎥 ซิงก์มุมกล้อง (multicam) — เลือกหลายไฟล์"
+property menuCover : "🌟 SUBTITLE Cover — ไฮไลต์ป๊อบอัพขาว/ส้มจากซับเดิม"
+property menuCustom : "✍️ พิมพ์คำสั่งเอง (ภาษาไทย)"
+property menuQuit : "❌ ปิดโปรแกรม"
 
 on run
-	set theFile to choose file with prompt "เลือกไฟล์วิดีโอที่จะตัดต่อ (mov / mp4)"
-	processFiles({theFile})
+	menuLoop({})
 end run
 
--- โฟลเดอร์แพ็กเกจ (มี bin/ghostly, models/, logs/) + ปลดล็อกครั้งแรก
+on open theItems
+	menuLoop(theItems)
+end open
+
+-- เมนูหลัก: เลือกคำสั่ง → ทำงาน → กลับมาที่เมนู จนกว่าจะกดปิด
+on menuLoop(droppedItems)
+	set pkgDir to packageDir()
+	repeat
+		set actions to {menuSmart, menuTikTok, menuYouTube, menuClean, menuTitleSubs, ¬
+			menuMulticam, menuCover, menuCustom, menuQuit}
+		set picked to choose from list actions with prompt ¬
+			"เลือกคำสั่ง (ทำเสร็จแล้วจะกลับมาที่เมนูนี้ ใช้ซ้ำได้เรื่อย ๆ)" ¬
+			default items {menuSmart} with title "Ghostly790K — AI Final Cut Studio"
+		if picked is false then return
+		set action to item 1 of picked
+		if action is menuQuit then return
+
+		try
+			if action is menuMulticam then
+				doMulticam(pkgDir, droppedItems)
+			else if action is menuCover then
+				doCover(pkgDir)
+			else
+				set editCommand to commandFor(action)
+				if editCommand is "" then
+					set dlg to display dialog "พิมพ์คำสั่งตัดต่อ (ภาษาไทยได้เลย)" default answer ¬
+						"คัตเสียงคลิปนี้โดยเน้นประโยคสำคัญที่น่าสนใจ ความยาวเหลือไม่เกิน 3 นาที ใส่ซับไตเติ้ล" ¬
+						buttons {"ยกเลิก", "ตกลง"} default button "ตกลง" with title "Ghostly790K"
+					if button returned of dlg is "ยกเลิก" then set editCommand to "-"
+					if editCommand is not "-" then set editCommand to text returned of dlg
+				end if
+				if editCommand is not "-" and editCommand is not "" then
+					doAutoEdit(pkgDir, droppedItems, editCommand)
+				end if
+			end if
+		on error errorMessage number errorNumber
+			if errorNumber is not -128 then
+				display dialog "มีข้อผิดพลาด:" & return & errorMessage & return & return & ¬
+					tailLog(pkgDir) buttons {"ตกลง"} default button "ตกลง" with title "Ghostly790K"
+			end if
+		end try
+		set droppedItems to {}   -- ไฟล์ที่ลากมาใช้กับรอบแรกเท่านั้น รอบต่อไปเลือกใหม่
+	end repeat
+end menuLoop
+
+on commandFor(action)
+	if action is menuSmart then return "คัตเสียงคลิปนี้โดยเน้นประโยคสำคัญที่น่าสนใจ ความยาวเหลือไม่เกิน 3 นาที ใส่ซับไตเติ้ล"
+	if action is menuTikTok then return "ทำเป็นติ๊กต๊อก ตัดช่วงเงียบออก ใส่ซับ"
+	if action is menuYouTube then return "ทำเป็นคลิปยูทูบ ตัดช่วงเงียบออก ใส่คำบรรยาย"
+	if action is menuClean then return "ลดเสียงรบกวน ตัดช่วงเงียบออก ใส่ซับ"
+	if action is menuTitleSubs then return "ตัดช่วงเงียบออก ใส่ซับแบบ Title"
+	return ""   -- พิมพ์เอง
+end commandFor
+
+-- ตัดต่ออัตโนมัติ: ใช้ไฟล์ที่ลากมา หรือให้เลือก (เลือกหลายไฟล์ได้ ทำทีละไฟล์)
+on doAutoEdit(pkgDir, droppedItems, editCommand)
+	set theItems to droppedItems
+	if (count of theItems) is 0 then
+		set theItems to choose file with prompt "เลือกไฟล์วิดีโอ (mov / mp4) — เลือกหลายไฟล์ได้" ¬
+			with multiple selections allowed
+	end if
+
+	-- ซับพร้อมไหม บอกตรง ๆ ก่อนเริ่ม ไม่ข้ามเงียบ ๆ
+	set withSubs to whisperReady(pkgDir)
+	if not withSubs then
+		set subChoice to button returned of (display dialog ¬
+			"ยังไม่ได้ติดตั้งตัวถอดเสียงซับไทย (whisper)" & return & ¬
+			"คลิปจะถูกตัดต่อโดย 'ไม่มีซับไตเติ้ล'" & return & return & ¬
+			"ติดตั้ง: รัน \"ติดตั้งครั้งแรก.command\" (คลิกขวา → Open) จะลง whisper + โมเดลให้อัตโนมัติ" ¬
+			buttons {"ยกเลิก", "ดูวิธีติดตั้ง", "ตัดต่อโดยไม่มีซับ"} default button "ตัดต่อโดยไม่มีซับ" with title "Ghostly790K")
+		if subChoice is "ยกเลิก" then return
+		if subChoice is "ดูวิธีติดตั้ง" then
+			do shell script "open " & quoted form of (pkgDir & "/อ่านก่อนใช้.txt")
+			return
+		end if
+	end if
+
+	repeat with theItem in theItems
+		set videoPath to POSIX path of theItem
+		display notification "ไฟล์ใหญ่อาจใช้เวลาหลายนาที อย่าเพิ่งปิดโปรแกรม" with title "Ghostly790K" subtitle "กำลังตัดต่อ: " & videoPath
+		set outPath to my fcpxmlPath(videoPath)
+		set argsText to "auto " & quoted form of videoPath & " --command " & quoted form of editCommand & " --remember --out " & quoted form of outPath
+		if withSubs then
+			set modelPath to do shell script "ls " & quoted form of (pkgDir & "/models") & "/*.bin | head -1"
+			set argsText to argsText & " --model " & quoted form of modelPath
+		end if
+		runGhostly(pkgDir, argsText)
+		set userChoice to button returned of (display dialog "เสร็จแล้ว ✅" & return & outPath & return & return & ¬
+			"เปิดใน Final Cut Pro เลยไหม" buttons {"ไว้ก่อน", "เปิดเลย"} default button "เปิดเลย" with title "Ghostly790K")
+		if userChoice is "เปิดเลย" then do shell script "open " & quoted form of outPath
+	end repeat
+end doAutoEdit
+
+-- ซิงก์มุมกล้อง: ทุกไฟล์ = คนละมุมของงานเดียวกัน
+on doMulticam(pkgDir, droppedItems)
+	set theItems to droppedItems
+	if (count of theItems) < 2 then
+		set theItems to choose file with prompt "เลือกวิดีโอทุกมุมกล้อง (กด Cmd ค้างเพื่อเลือกหลายไฟล์)" ¬
+			with multiple selections allowed
+	end if
+	if (count of theItems) < 2 then
+		display dialog "ซิงก์มุมกล้องต้องเลือกอย่างน้อย 2 ไฟล์" buttons {"ตกลง"} default button "ตกลง" with title "Ghostly790K"
+		return
+	end if
+	set fileArgs to ""
+	repeat with theItem in theItems
+		set fileArgs to fileArgs & " " & quoted form of (POSIX path of theItem)
+	end repeat
+	set parentDir to do shell script "dirname " & quoted form of (POSIX path of (item 1 of theItems))
+	set outPath to parentDir & "/มัลติแคม.fcpxml"
+	display notification "กำลังฟังเสียงทุกมุมกล้องเพื่อซิงก์ อาจใช้เวลาหลายนาที" with title "Ghostly790K"
+	runGhostly(pkgDir, "sync" & fileArgs & " --out " & quoted form of outPath)
+	set userChoice to button returned of (display dialog "ซิงก์มุมกล้องเสร็จแล้ว ✅" & return & outPath & return & return & ¬
+		"นำเข้า FCP จะได้ multicam clip พร้อมตัดสลับมุม — เปิดเลยไหม" buttons {"ไว้ก่อน", "เปิดเลย"} default button "เปิดเลย" with title "Ghostly790K")
+	if userChoice is "เปิดเลย" then do shell script "open " & quoted form of outPath
+end doMulticam
+
+-- SUBTITLE Cover: ไฮไลต์ป๊อบอัพ 2 บรรทัด (ขาว/ส้ม) จากซับเดิมในโปรเจกต์ FCP
+on doCover(pkgDir)
+	display dialog "SUBTITLE Cover" & return & return & ¬
+		"1) ใน FCP: เลือกโปรเจกต์ → File → Export XML…" & return & ¬
+		"2) เลือกไฟล์ที่ export มา (.fcpxmld / .fcpxml)" & return & ¬
+		"3) โปรแกรมจะซ้อนไฮไลต์ป๊อบอัพ ขาว/ส้ม ตรงเวลาซับเดิมเป๊ะ — ซับเดิมไม่ถูกแตะ" ¬
+		buttons {"ยกเลิก", "เลือกไฟล์"} default button "เลือกไฟล์" with title "Ghostly790K"
+	set exported to choose file with prompt "เลือกไฟล์ Export XML จาก FCP (.fcpxmld / .fcpxml)"
+	set exportedPath to POSIX path of exported
+	display notification "กำลังสร้างไฮไลต์ป๊อบอัพ..." with title "Ghostly790K" subtitle "SUBTITLE Cover"
+	set outputText to runGhostly(pkgDir, "cover " & quoted form of exportedPath)
+	display dialog outputText & return & return & "นำเข้า FCP: File → Import → XML → เลือก Keep Both" ¬
+		buttons {"ตกลง"} default button "ตกลง" with title "Ghostly790K"
+end doCover
+
+-- ===== เครื่องมือกลาง =====
+
 on packageDir()
 	set appPath to POSIX path of (path to me)
 	set pkgDir to do shell script "dirname " & quoted form of appPath
@@ -32,12 +157,12 @@ on packageDir()
 	return pkgDir
 end packageDir
 
--- คำสั่งเชลล์มาตรฐาน: กันเครื่องหลับ (caffeinate) + เก็บ log ไว้วิเคราะห์
+-- รัน ghostly: กันเครื่องหลับ (caffeinate) + เก็บ log + ไม่จำกัดเวลา (ไฟล์ใหญ่ได้)
 on runGhostly(pkgDir, argsText)
 	set logPath to pkgDir & "/logs/ghostly.log"
 	set shellCmd to "export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"; cd " & quoted form of pkgDir & " && /usr/bin/caffeinate -im ./bin/ghostly " & argsText & " 2>>" & quoted form of logPath
 	with timeout of 86400 seconds
-		do shell script shellCmd
+		return do shell script shellCmd
 	end timeout
 end runGhostly
 
@@ -49,7 +174,6 @@ on tailLog(pkgDir)
 	end try
 end tailLog
 
--- ซับอัตโนมัติพร้อมไหม (มี whisper-cli + โมเดลใน models/)
 on whisperReady(pkgDir)
 	try
 		do shell script "export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"; command -v whisper-cli >/dev/null && ls " & quoted form of pkgDir & "/models/*.bin >/dev/null 2>&1"
@@ -59,69 +183,7 @@ on whisperReady(pkgDir)
 	end try
 end whisperReady
 
-on processFiles(theItems)
-	set pkgDir to packageDir()
-
-	-- ถ้าซับยังไม่พร้อม บอกตรง ๆ ก่อนเริ่ม ไม่ข้ามเงียบ ๆ
-	set withSubs to whisperReady(pkgDir)
-	if not withSubs then
-		set subChoice to button returned of (display dialog "ยังไม่ได้ติดตั้งตัวถอดเสียงซับไทย (whisper)" & return & "คลิปจะถูกตัดต่อโดย 'ไม่มีซับไตเติ้ล'" & return & return & "ติดตั้งได้โดยรัน \"ติดตั้งครั้งแรก.command\" (คลิกขวา → Open) — จะติดตั้ง whisper และดาวน์โหลดโมเดลให้อัตโนมัติ" buttons {"ยกเลิก", "ดูวิธีติดตั้ง", "ตัดต่อโดยไม่มีซับ"} default button "ตัดต่อโดยไม่มีซับ" with title "Ghostly790K")
-		if subChoice is "ยกเลิก" then return
-		if subChoice is "ดูวิธีติดตั้ง" then
-			do shell script "open " & quoted form of (pkgDir & "/อ่านก่อนใช้.txt")
-			return
-		end if
-	end if
-
-	set dialogResult to display dialog "คำสั่งตัดต่อ (พิมพ์ภาษาไทยได้เลย)" default answer defaultCommand buttons {"ยกเลิก", "เริ่มตัดต่อ"} default button "เริ่มตัดต่อ" with title "Ghostly790K"
-	if button returned of dialogResult is "ยกเลิก" then return
-	set editCommand to text returned of dialogResult
-	if editCommand is "" then set editCommand to defaultCommand
-
-	repeat with theItem in theItems
-		set videoPath to POSIX path of theItem
-		try
-			display notification "ไฟล์ใหญ่อาจใช้เวลาหลายนาที อย่าเพิ่งปิดโปรแกรมนะครับ" with title "Ghostly790K" subtitle "กำลังตัดต่อ: " & videoPath
-			set outPath to my fcpxmlPath(videoPath)
-			set argsText to "auto " & quoted form of videoPath & " --command " & quoted form of editCommand & " --remember --out " & quoted form of outPath
-			if withSubs then
-				set modelPath to do shell script "ls " & quoted form of (pkgDir & "/models") & "/*.bin | head -1"
-				set argsText to argsText & " --model " & quoted form of modelPath
-			end if
-			runGhostly(pkgDir, argsText)
-			set userChoice to button returned of (display dialog "เสร็จแล้ว ✅" & return & outPath & return & return & "เปิดใน Final Cut Pro เลยไหม" buttons {"ไว้ก่อน", "เปิดเลย"} default button "เปิดเลย" with title "Ghostly790K")
-			if userChoice is "เปิดเลย" then
-				do shell script "open " & quoted form of outPath
-			end if
-		on error errorMessage
-			display dialog "มีข้อผิดพลาดกับไฟล์:" & return & videoPath & return & return & errorMessage & return & return & tailLog(pkgDir) buttons {"ตกลง"} default button "ตกลง" with title "Ghostly790K"
-		end try
-	end repeat
-end processFiles
-
--- ซิงก์มุมกล้อง: ทุกไฟล์ที่ลากมา = คนละมุมของงานเดียวกัน
-on syncMulticam(theItems)
-	set pkgDir to packageDir()
-	set fileArgs to ""
-	repeat with theItem in theItems
-		set fileArgs to fileArgs & " " & quoted form of (POSIX path of theItem)
-	end repeat
-	set firstPath to POSIX path of (item 1 of theItems)
-	set parentDir to do shell script "dirname " & quoted form of firstPath
-	set outPath to parentDir & "/มัลติแคม.fcpxml"
-	try
-		display notification "กำลังวิเคราะห์เสียงทุกมุมกล้อง อาจใช้เวลาหลายนาทีสำหรับไฟล์ใหญ่" with title "Ghostly790K" subtitle "ซิงก์มุมกล้อง"
-		runGhostly(pkgDir, "sync" & fileArgs & " --out " & quoted form of outPath)
-		set userChoice to button returned of (display dialog "ซิงก์มุมกล้องเสร็จแล้ว ✅" & return & outPath & return & return & "นำเข้า FCP แล้วจะได้ multicam clip พร้อมตัดสลับมุม — เปิดเลยไหม" buttons {"ไว้ก่อน", "เปิดเลย"} default button "เปิดเลย" with title "Ghostly790K")
-		if userChoice is "เปิดเลย" then
-			do shell script "open " & quoted form of outPath
-		end if
-	on error errorMessage
-		display dialog "ซิงก์มุมกล้องไม่สำเร็จ:" & return & errorMessage & return & return & tailLog(pkgDir) buttons {"ตกลง"} default button "ตกลง" with title "Ghostly790K"
-	end try
-end syncMulticam
-
--- "…/คลิป.mp4" → "…/คลิป.fcpxml" (ถ้าไม่มีนามสกุลก็ต่อท้ายตรง ๆ)
+-- "…/คลิป.mp4" → "…/คลิป.fcpxml"
 on fcpxmlPath(videoPath)
 	set AppleScript's text item delimiters to "."
 	set parts to text items of videoPath

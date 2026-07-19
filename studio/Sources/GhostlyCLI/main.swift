@@ -10,6 +10,7 @@ import GhostlyExport
 import GhostlyTranscription
 import GhostlyColor
 import GhostlyAudio
+import GhostlyCover
 
 /// `ghostly` — command-line access to the studio engines.
 ///
@@ -60,6 +61,7 @@ guard let command = arguments.first else {
       ghostly presets
       ghostly workflow --wav <clip.wav> --command "<editing command>" [<subs.srt>] [--media video.mp4] [--diarize] [--preset name] [--remember] [--out file.fcpxml]   Full chain: analyze → edit → captions → export command (--remember = ใช้/จำค่าที่เคยใช้)
       ghostly sync <กล้อง1> <กล้อง2> [...] [--name มัลติแคม] [--vertical] [--out multicam.fcpxml]   ซิงก์มุมกล้องด้วยเสียง → FCP multicam clip
+      ghostly cover <exported.fcpxml|.fcpxmld> [--out file] [--list-titles]   SUBTITLE Cover: ไฮไลต์ป๊อบอัพ 2 บรรทัด (ขาว/ส้ม) ทับซับเดิม ตรงเวลาเป๊ะ
       ghostly analyze-audio <file.wav> [--diarize]   Speech ranges + beats/BPM (+ speakers) from a WAV file
       ghostly extract-audio <video> [--out file.wav] [--rate 16000] [--run]   The ffmpeg command that produces an analysis WAV (--run executes it)
       ghostly demo-audio [--out file.wav]       Write a deterministic demo WAV (speech + 120 BPM beats)
@@ -622,6 +624,38 @@ case "auto":
         if !result.edit.isValid {
             for issue in result.edit.issues { FileHandle.standardError.write(Data("\(issue)\n".utf8)) }
             exit(2)
+        }
+    } catch {
+        fail(error.localizedDescription)
+    }
+
+case "cover":
+    // SUBTITLE Cover: ดึงซับเดิม (title ไม่หนา) จากไฟล์ที่ Export XML จาก FCP
+    // แล้วซ้อนไฮไลต์ Pop-up 2 บรรทัด (บนขาว/ล่างส้ม) ตรงเวลาเป๊ะ — ซับเดิมไม่ถูกแตะ
+    guard arguments.count >= 2 else {
+        fail("usage: ghostly cover <exported.fcpxml|.fcpxmld> [--out ไฟล์_cover.fcpxml] [--list-titles]")
+    }
+    let coverInput = (arguments[1] as NSString).expandingTildeInPath
+    do {
+        if arguments.contains("--list-titles") {
+            // Debug: ทุก title ที่โปรแกรมเห็น พร้อม attribute — ใช้ไล่ปัญหา "ไม่พบซับ"
+            for line in try SubtitleCover.listTitles(path: coverInput) { print(line) }
+        } else {
+            let outPath: String
+            if let explicit = option("out", in: arguments) {
+                outPath = explicit
+            } else {
+                let (name, _) = try SubtitleCover.analyze(path: coverInput)
+                outPath = ((coverInput as NSString).deletingLastPathComponent as NSString)
+                    .appendingPathComponent("\(name)_cover.fcpxml")
+            }
+            let result = try SubtitleCover.run(path: coverInput, outPath: outPath)
+            for pair in result.pairs.prefix(8) {
+                print("• \(pair.white.isEmpty ? "—" : pair.white) / \(pair.orange)")
+            }
+            if result.pairs.count > 8 { print("  … รวม \(result.pairs.count) คู่") }
+            print("✅ สร้าง Cover \(result.coverCount) คู่ → \(result.outPath)")
+            print("   นำเข้า FCP: File → Import → XML (เลือก Keep Both) — ซับเดิมไม่ถูกแตะ")
         }
     } catch {
         fail(error.localizedDescription)

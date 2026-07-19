@@ -22,6 +22,7 @@ let package = Package(
         .library(name: "GhostlyAI", targets: ["GhostlyAI"]),
         .library(name: "GhostlyLearning", targets: ["GhostlyLearning"]),
         .library(name: "GhostlyMCP", targets: ["GhostlyMCP"]),
+        .library(name: "GhostlyCover", targets: ["GhostlyCover"]),
         .library(name: "GhostlyApp", targets: ["GhostlyApp"]),
         .executable(name: "ghostly", targets: ["GhostlyCLI"]),
         .executable(name: "ghostly-mcp-server", targets: ["GhostlyMCPServer"]),
@@ -48,6 +49,7 @@ let package = Package(
             "GhostlyExport", "GhostlyAudio", "GhostlyLearning",
         ]),
         .target(name: "GhostlyAI", dependencies: ["GhostlyCore", "GhostlyDomain"]),
+        .target(name: "GhostlyCover", dependencies: ["GhostlyCore", "GhostlySubtitles"]),
         .target(name: "GhostlyLearning", dependencies: ["GhostlyCore", "GhostlyDomain"]),
         .target(name: "GhostlyMCP", dependencies: [
             "GhostlyCore", "GhostlyDomain", "GhostlyFCPXML", "GhostlySubtitles",
@@ -64,7 +66,7 @@ let package = Package(
         .executableTarget(name: "GhostlyCLI", dependencies: [
             "GhostlyCore", "GhostlyDomain", "GhostlyFCPXML", "GhostlySubtitles",
             "GhostlyDirector", "GhostlyDetection", "GhostlyLearning", "GhostlyExport",
-            "GhostlyTranscription", "GhostlyColor", "GhostlyAudio",
+            "GhostlyTranscription", "GhostlyColor", "GhostlyAudio", "GhostlyCover",
         ]),
         .executableTarget(name: "GhostlyMCPServer", dependencies: ["GhostlyMCP"]),
         // MARK: Tests
@@ -94,5 +96,6 @@ let package = Package(
         .testTarget(name: "GhostlyAITests", dependencies: ["GhostlyAI", "GhostlyCore"]),
         .testTarget(name: "GhostlyLearningTests", dependencies: ["GhostlyLearning", "GhostlyCore"]),
         .testTarget(name: "GhostlyMCPTests", dependencies: ["GhostlyMCP", "GhostlyCore", "GhostlyDetection"]),
+        .testTarget(name: "GhostlyCoverTests", dependencies: ["GhostlyCover", "GhostlyCore"]),
     ]
 )

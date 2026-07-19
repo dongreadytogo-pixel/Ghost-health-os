@@ -125,6 +125,29 @@ jobs:
           grep -q -- "-ss " /tmp/shorts.txt
           grep -q "short1.mp4" /tmp/shorts.txt
           grep -q "scale=1080:1920" /tmp/shorts.txt
+          cat > /tmp/cover-in.fcpxml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE fcpxml>
+          <fcpxml version="1.11">
+            <resources>
+              <format id="r1" frameDuration="100/2500s" width="1080" height="1920"/>
+              <effect id="r2" name="Pop-up Text" uid="/Popup.moti"/>
+              <asset id="r3" name="clip" duration="2000/2500s"/>
+            </resources>
+            <library><event name="e"><project name="ทดสอบ"><sequence format="r1" duration="2000/2500s"><spine>
+              <asset-clip ref="r3" offset="0s" duration="2000/2500s" name="คลิป">
+                <title ref="r2" lane="1" offset="100/2500s" duration="250/2500s" name="ซับ1">
+                  <text><text-style ref="ts1">อาการปวดเข่าดีขึ้นมากเลยครับ</text-style></text>
+                  <text-style-def id="ts1"><text-style font="Prompt" fontFace="Light" fontSize="71"/></text-style-def>
+                </title>
+              </asset-clip>
+            </spine></sequence></project></event></library>
+          </fcpxml>
+          EOF
+          "$BIN/ghostly" cover /tmp/cover-in.fcpxml --out /tmp/cover-out.fcpxml | grep -q "สร้าง Cover"
+          grep -q -- "- COVER" /tmp/cover-out.fcpxml
+          grep -q 'lane="11"' /tmp/cover-out.fcpxml
+          "$BIN/ghostly" cover /tmp/cover-in.fcpxml --list-titles | grep -q "Pop-up Text"
           "$BIN/ghostly" demo-audio --out /tmp/camA.wav
           "$BIN/ghostly" demo-audio --out /tmp/camB.wav --lead-silence 2
           "$BIN/ghostly" sync /tmp/camA.wav /tmp/camB.wav --out /tmp/mc.fcpxml | tee /tmp/sync.txt

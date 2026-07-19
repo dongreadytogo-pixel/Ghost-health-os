@@ -3,6 +3,27 @@
 ## Unreleased
 
 ### Added
+- **SUBTITLE Cover merged in (โปรเจกต์เดิมของเจ้าของ)**: the Python
+  SUBTITLE Cover app is now a native module (`GhostlyCover`) + `ghostly
+  cover` — reads a project exported from FCP (.fcpxml/.fcpxmld), finds
+  the editor's plain (non-bold) subtitles, smart-splits each into
+  white-top/orange-bottom pop-up highlight titles at the exact same
+  times, and writes `{project}_cover.fcpxml` without touching the
+  originals. Every calibrated constant, the Pop-up Text parameter keys,
+  DTD insertion order, nested-spine offset walking, and the
+  validate-before-write gate were ported 1:1 from the handoff (preserved
+  at `docs/knowledge/SUBTITLE-COVER.md`); the open §8 bug got the
+  recommended fix (highlight = bold **and** heavy face, style-def
+  fallback via ref, honest Thai error, and `--list-titles` debug dump).
+  Thai splitting uses NLTokenizer word boundaries on macOS ∩ the
+  studio's syllable engine (+ spaces, no-trail/no-lead/keyword scoring).
+  12 tests over synthetic FCPXML per the original methodology; CI smoke
+  runs cover + --list-titles end-to-end.
+- **App is now a reusable command menu (เมนูปุ่มเลือกคำสั่ง)**: opening
+  Ghostly790K.app shows a Thai menu — smart cut ≤3 min, TikTok, YouTube,
+  noise cleanup, Title subs, multicam sync, SUBTITLE Cover, or free-form
+  command — runs the job, then returns to the menu until you quit (no
+  more one-shot dialog). Dropped files feed the first menu action.
 - **Multicam sync — ซิงก์มุมกล้องด้วยเสียง (no clapboard)**: new
   `AudioAligner` recovers each camera's start offset by coarse-to-fine
   normalized cross-correlation over mean-removed RMS envelopes (10 Hz
