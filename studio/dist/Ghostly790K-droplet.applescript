@@ -99,6 +99,19 @@ on doAutoEdit(pkgDir, droppedItems, editCommand)
 		end if
 	end if
 
+	-- "เน้นประเด็น/ประโยคสำคัญ" ต้องอ่านคำพูดจากซับถึงจะเลือกได้แม่น —
+	-- ถ้าไม่มีซับ บอกตรง ๆ ว่าจะได้แค่การเลือกจากพลังงานเสียง (หยาบกว่ามาก)
+	if (not withSubs) and (editCommand contains "สำคัญ" or editCommand contains "เน้น") then
+		set smartChoice to button returned of (display dialog ¬
+			"คำสั่งนี้ให้ 'เน้นประโยคสำคัญ' แต่ยังไม่มีซับ (whisper)" & return & return & ¬
+			"โปรแกรมต้องอ่านคำพูดจากซับ ถึงจะรู้ว่าประโยคไหนคือประเด็นสำคัญ — ไม่มีซับจะเลือกได้จากพลังงานเสียงเท่านั้น ซึ่งหยาบกว่ามาก" ¬
+			buttons {"ตัดแบบคร่าว ๆ ต่อไป", "ติดตั้งซับก่อน (แนะนำ)"} default button "ติดตั้งซับก่อน (แนะนำ)" with title "Ghostly790K")
+		if smartChoice is "ติดตั้งซับก่อน (แนะนำ)" then
+			installWhisper(pkgDir)
+			set withSubs to whisperReady(pkgDir)
+		end if
+	end if
+
 	repeat with theItem in theItems
 		set videoPath to POSIX path of theItem
 		display notification "ไฟล์ใหญ่อาจใช้เวลาหลายนาที อย่าเพิ่งปิดโปรแกรม" with title "Ghostly790K" subtitle "กำลังตัดต่อ: " & videoPath

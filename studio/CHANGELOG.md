@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Fixed
+- **Interview cutting is now content-aware (แก้ "คัตช็อตมั่ว ๆ")**: with
+  "เน้นประโยคสำคัญ" and a transcript, keeps align to whole sentences
+  (cue gaps ≤ 0.6 s join; no more mid-sentence chops), and shot selection
+  is driven by a new `ThaiImportance` scorer — benefit/conclusion words,
+  numbers, emphasis — so the budget keeps what is actually *said* to
+  matter, not whichever shot had energy. The app now also warns that
+  smart selection needs whisper subtitles when they're missing (with the
+  one-button install), since without text it can only guess from audio.
+- **"no usable segments found in footage" on real recordings**: when
+  every speech burst fell below the profile's minimum shot length the
+  planner dead-ended; it now falls back to the merged raw speech (or the
+  whole asset) so real footage always yields a cut.
 - **App froze with a spinning cursor at launch**: the menu app ran shell
   commands (quarantine unlock in the package folder) before showing any
   UI; when macOS raised its Downloads-access (TCC) prompt behind the

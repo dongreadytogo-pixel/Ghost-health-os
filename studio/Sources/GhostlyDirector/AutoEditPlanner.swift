@@ -32,15 +32,26 @@ public struct AutoEditPlanner: Sendable {
         var timeline = Timeline(name: projectName, format: profile.format)
         let frameRate = profile.format.frameRate
 
-        // 1. Collect keepable source ranges (speech, or whole scenes when no speech).
+        // 1. Collect keepable source ranges. With "เน้นประโยคสำคัญ" and a
+        // transcript, keeps align to whole sentences (cut points never land
+        // mid-sentence) — the difference between a content cut and random
+        // shot chopping on interview footage.
+        let contentAware = profile.emphasizeHighlights
+            && transcript.map { !$0.cues.isEmpty } == true
         for (asset, analysis) in footage {
-            let keeps = keepRanges(for: analysis)
+            let keeps = contentAware
+                ? sentenceKeeps(transcript!, within: analysis.duration)
+                : keepRanges(for: analysis)
             for keep in keeps {
-                // 2. Chop ranges longer than maxShotLength into profile-sized shots.
-                for shot in shots(from: keep) {
+                // 2. Chop ranges longer than maxShotLength into profile-sized
+                // shots — except content-aware keeps, which stay whole so
+                // sentences survive intact.
+                let shotRanges = contentAware ? [keep] : shots(from: keep)
+                let minimumSeconds = contentAware ? 0.4 : max(0.2, profile.minShotLength * 0.5)
+                for shot in shotRanges {
                     let snappedStart = frameRate.snapped(shot.start)
                     let snappedDuration = frameRate.snapped(shot.duration)
-                    guard snappedDuration.seconds >= max(0.2, profile.minShotLength * 0.5) else { continue }
+                    guard snappedDuration.seconds >= minimumSeconds else { continue }
                     timeline.appendToStoryline(
                         assetID: asset.id, name: asset.name,
                         sourceRange: TimeRange(start: snappedStart, duration: snappedDuration))
@@ -48,6 +59,24 @@ public struct AutoEditPlanner: Sendable {
             }
         }
 
+        // Real footage must never dead-end on shot-length rules: when the
+        // per-shot filters dropped everything, fall back to the raw merged
+        // speech (or the whole asset) instead of failing.
+        if timeline.clips.isEmpty {
+            for (asset, analysis) in footage {
+                let keeps = analysis.speechRanges.isEmpty
+                    ? [TimeRange(start: .zero, duration: analysis.duration)]
+                    : mergedSpeech(analysis.speechRanges)
+                for keep in keeps {
+                    let snappedDuration = frameRate.snapped(keep.duration)
+                    guard snappedDuration.seconds >= 0.2 else { continue }
+                    timeline.appendToStoryline(
+                        assetID: asset.id, name: asset.name,
+                        sourceRange: TimeRange(start: frameRate.snapped(keep.start),
+                                               duration: snappedDuration))
+                }
+            }
+        }
         guard !timeline.clips.isEmpty else {
             throw StudioError.validationFailure(detail: "no usable segments found in footage")
         }
@@ -173,6 +202,39 @@ public struct AutoEditPlanner: Sendable {
         return out
     }
 
+    /// Sentence-sized keeps from transcript cue timings: cues whose gap is
+    /// ≤ 0.6 s join into one spoken passage, clipped to the clip length.
+    func sentenceKeeps(_ transcript: SubtitleTrack, within duration: RationalTime) -> [TimeRange] {
+        let sorted = transcript.cues
+            .filter { $0.range.start < duration }
+            .sorted { $0.range.start < $1.range.start }
+        var out: [TimeRange] = []
+        for cue in sorted {
+            let end = min(cue.range.end, duration)
+            guard end > cue.range.start else { continue }
+            if let last = out.last, (cue.range.start - last.end).seconds <= 0.6 {
+                out[out.count - 1] = TimeRange(start: last.start, end: max(last.end, end))
+            } else {
+                out.append(TimeRange(start: cue.range.start, end: end))
+            }
+        }
+        return out
+    }
+
+    /// Sorted union of possibly-overlapping speech ranges.
+    func mergedSpeech(_ ranges: [TimeRange]) -> [TimeRange] {
+        let sorted = ranges.sorted { $0.start < $1.start }
+        var out: [TimeRange] = []
+        for range in sorted {
+            if let last = out.last, range.start <= last.end {
+                out[out.count - 1] = TimeRange(start: last.start, end: max(last.end, range.end))
+            } else {
+                out.append(range)
+            }
+        }
+        return out
+    }
+
     /// Basic Title overlays mirroring the styled subtitle cues on lane 2 —
     /// the "ซับแบบ Title" option. Font/size/position follow the caption
     /// style so both layers read the same until restyled in FCP.
@@ -270,16 +332,15 @@ public struct AutoEditPlanner: Sendable {
         }
         if let transcript {
             let hits = transcript.cues.filter { $0.range.overlaps(window) }
-            let emphasisWeight = profile.emphasizeHighlights ? 0.6 : 0.25
-            if hits.contains(where: { $0.text.contains("!") || $0.text.contains("?") }) {
-                score += emphasisWeight
-            }
-            // Longer sentences over a shot ≈ denser narration: small boost,
-            // stronger when the command asked for the key sentences.
+            // What is actually being SAID: Thai importance keywords, numbers,
+            // emphasis — the heart of "เน้นประโยคสำคัญ" on interview footage.
+            let importance = hits.map { ThaiImportance.score($0.text) }.max() ?? 0
+            score += importance * (profile.emphasizeHighlights ? 0.9 : 0.3)
+            // Denser narration over the shot: small boost.
             let coverage = hits.reduce(0.0) {
                 $0 + ($1.range.intersection(window)?.duration.seconds ?? 0)
             } / length
-            score += min(1, coverage) * (profile.emphasizeHighlights ? 0.4 : 0.2)
+            score += min(1, coverage) * (profile.emphasizeHighlights ? 0.3 : 0.2)
         }
         // Slight early bonus keeps openings competitive on ties.
         score += max(0, 0.1 - Double(clip.offset.seconds) * 0.001)

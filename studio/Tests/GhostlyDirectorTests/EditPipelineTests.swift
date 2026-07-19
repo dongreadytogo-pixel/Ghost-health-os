@@ -3,6 +3,7 @@ import GhostlyCore
 import GhostlyDomain
 import GhostlyDetection
 import GhostlySubtitles
+import GhostlyFCPXML
 @testable import GhostlyDirector
 
 final class EditPipelineTests: XCTestCase {
@@ -97,6 +98,70 @@ final class EditPipelineTests: XCTestCase {
             subtitles: thaiSRT, durationSeconds: 0, command: "add captions")))
         XCTAssertThrowsError(try EditPipeline.run(EditPipeline.Input(
             subtitles: "not a subtitle file", durationSeconds: 10, command: "add captions")))
+    }
+
+    // MARK: Content-aware interview cut (เน้นประโยคสำคัญ ต้องเลือกตามเนื้อหา)
+
+    func testImportantSentenceSurvivesTheBudgetCut() throws {
+        // Three sentences; only the middle one carries content that matters.
+        // With "เน้นประโยคสำคัญ" + a budget, the kept clip must be the
+        // important sentence — not whichever shot happened to score on energy.
+        let srt = """
+        1
+        00:00:00,500 --> 00:00:04,000
+        เอ่อ คือว่า วันนี้อากาศก็ปกติธรรมดานะ
+
+        2
+        00:00:06,000 --> 00:00:09,500
+        สิ่งสำคัญที่สุดคืออาการปวดหายขาดดีขึ้นมาก
+
+        3
+        00:00:11,000 --> 00:00:14,500
+        แล้วก็นะ เดี๋ยวไว้ค่อยเล่าต่อละกัน
+        """
+        let output = try EditPipeline.run(EditPipeline.Input(
+            subtitles: srt, durationSeconds: 15,
+            command: "คัตเสียงคลิปนี้โดยเน้นประโยคสำคัญ ความยาวเหลือไม่เกิน 4 วินาที"))
+        XCTAssertTrue(output.isValid, "issues: \(output.issues)")
+        XCTAssertLessThanOrEqual(output.durationSeconds, 4.01)
+        // The surviving storyline must be the important sentence (6.0–9.5 s):
+        // its keyword score dominates the filler sentences.
+        let library = try FCPXMLReader().library(from: output.fcpxml)
+        let story = try XCTUnwrap(library.events.first?.projects.first?.timeline.storyline)
+        XCTAssertEqual(story.count, 1, "budget 4 s fits exactly one sentence")
+        XCTAssertEqual(story[0].sourceRange.start.seconds, 6.0, accuracy: 0.1,
+                       "the kept clip must start at the important sentence")
+    }
+
+    func testShortFragmentsNeverDeadEnd() throws {
+        // Every speech burst is far below the profile's minimum shot length —
+        // the planner must fall back to merged speech, not throw
+        // "no usable segments found in footage".
+        let srt = """
+        1
+        00:00:01,000 --> 00:00:01,400
+        ครับ
+
+        2
+        00:00:03,000 --> 00:00:03,300
+        ใช่
+        """
+        let output = try EditPipeline.run(EditPipeline.Input(
+            subtitles: srt, durationSeconds: 5,
+            command: "ตัดต่อแบบพอดแคสต์ สไตล์ podcast ตัดช่วงเงียบออก"))
+        XCTAssertTrue(output.isValid, "issues: \(output.issues)")
+        XCTAssertGreaterThan(output.storylineClipCount, 0,
+                             "fallback must keep the speech instead of failing")
+    }
+
+    func testThaiImportanceScoring() {
+        XCTAssertGreaterThan(
+            ThaiImportance.score("สิ่งสำคัญที่สุดคืออาการหายขาดดีขึ้นมาก"),
+            ThaiImportance.score("เอ่อ คือว่า วันนี้อากาศก็ปกติ"),
+            "benefit/conclusion sentences must outrank filler")
+        XCTAssertGreaterThan(ThaiImportance.score("ลดไป 5 กิโลใน 2 เดือน"), 0.1,
+                             "numbers signal concrete claims")
+        XCTAssertEqual(ThaiImportance.score(""), 0)
     }
 
     // MARK: Custom Title subtitle layer (ซับแบบ Title)
