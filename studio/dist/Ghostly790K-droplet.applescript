@@ -81,18 +81,21 @@ on doAutoEdit(pkgDir, droppedItems, editCommand)
 			with multiple selections allowed
 	end if
 
-	-- ซับพร้อมไหม บอกตรง ๆ ก่อนเริ่ม ไม่ข้ามเงียบ ๆ
+	-- ซับพร้อมไหม บอกตรง ๆ ก่อนเริ่ม — และติดตั้งให้เลยได้จากปุ่มเดียว
 	set withSubs to whisperReady(pkgDir)
 	if not withSubs then
 		set subChoice to button returned of (display dialog ¬
-			"ยังไม่ได้ติดตั้งตัวถอดเสียงซับไทย (whisper)" & return & ¬
-			"คลิปจะถูกตัดต่อโดย 'ไม่มีซับไตเติ้ล'" & return & return & ¬
-			"ติดตั้ง: รัน \"ติดตั้งครั้งแรก.command\" (คลิกขวา → Open) จะลง whisper + โมเดลให้อัตโนมัติ" ¬
-			buttons {"ยกเลิก", "ดูวิธีติดตั้ง", "ตัดต่อโดยไม่มีซับ"} default button "ตัดต่อโดยไม่มีซับ" with title "Ghostly790K")
+			"ยังไม่ได้ติดตั้งตัวถอดเสียงซับไทย (whisper)" & return & return & ¬
+			"กด \"ติดตั้งซับให้เลย\" — โปรแกรมจะติดตั้ง whisper และดาวน์โหลดโมเดล (~550MB) ให้อัตโนมัติ ใช้เวลา 5-15 นาที ครั้งเดียวจบ แล้วซับจะขึ้นทุกงานหลังจากนี้" ¬
+			buttons {"ตัดต่อโดยไม่มีซับ", "ยกเลิก", "ติดตั้งซับให้เลย"} default button "ติดตั้งซับให้เลย" with title "Ghostly790K")
 		if subChoice is "ยกเลิก" then return
-		if subChoice is "ดูวิธีติดตั้ง" then
-			do shell script "open " & quoted form of (pkgDir & "/อ่านก่อนใช้.txt")
-			return
+		if subChoice is "ติดตั้งซับให้เลย" then
+			installWhisper(pkgDir)
+			set withSubs to whisperReady(pkgDir)
+			if not withSubs then
+				display dialog "ยังติดตั้งไม่สำเร็จ — จะตัดต่อโดยไม่มีซับไปก่อนนะครับ (รายละเอียดอยู่ใน logs/ghostly.log)" ¬
+					buttons {"ตกลง"} default button "ตกลง" with title "Ghostly790K"
+			end if
 		end if
 	end if
 
@@ -182,6 +185,34 @@ on tailLog(pkgDir)
 		return ""
 	end try
 end tailLog
+
+-- ติดตั้ง whisper + โมเดลถอดเสียงไทย จากในแอปโดยตรง (ปุ่ม "ติดตั้งซับให้เลย")
+on installWhisper(pkgDir)
+	display notification "กำลังติดตั้ง whisper + ดาวน์โหลดโมเดล (~550MB) มีแจ้งเตือนเมื่อเสร็จ" with title "Ghostly790K" subtitle "ติดตั้งซับไทยอัตโนมัติ"
+	set logPath to pkgDir & "/logs/ghostly.log"
+	set sh to "export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"; cd " & quoted form of pkgDir & ¬
+		" && mkdir -p logs models; if ! command -v brew >/dev/null 2>&1; then exit 42; fi; " & ¬
+		"command -v whisper-cli >/dev/null 2>&1 || brew install whisper-cpp; " & ¬
+		"ls models/*.bin >/dev/null 2>&1 || ( /usr/bin/caffeinate -im curl -L --fail -o models/model.tmp " & ¬
+		"'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin' " & ¬
+		"&& mv models/model.tmp 'models/ggml-large-v3-turbo-q5_0.bin' ) || { rm -f models/model.tmp; exit 1; }"
+	try
+		with timeout of 86400 seconds
+			do shell script sh & " 2>>" & quoted form of logPath
+		end timeout
+		display notification "ติดตั้งซับไทยเสร็จแล้ว ✅" with title "Ghostly790K"
+	on error errorMessage number errorNumber
+		if errorNumber is 42 then
+			do shell script "open https://brew.sh"
+			display dialog "ต้องติดตั้ง Homebrew ก่อนหนึ่งครั้ง (เปิดเว็บ brew.sh ให้แล้ว)" & return & ¬
+				"ก็อปคำสั่งบรรทัดแรกในเว็บไปวางใน Terminal รอเสร็จ แล้วกลับมากด \"ติดตั้งซับให้เลย\" อีกครั้งครับ" ¬
+				buttons {"ตกลง"} default button "ตกลง" with title "Ghostly790K"
+		else if errorNumber is not -128 then
+			display dialog "ติดตั้งไม่สำเร็จ:" & return & errorMessage & return & return & tailLog(pkgDir) ¬
+				buttons {"ตกลง"} default button "ตกลง" with title "Ghostly790K"
+		end if
+	end try
+end installWhisper
 
 on whisperReady(pkgDir)
 	try
