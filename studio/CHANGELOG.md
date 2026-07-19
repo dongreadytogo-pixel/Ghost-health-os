@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Fixed
+- **App froze with a spinning cursor at launch**: the menu app ran shell
+  commands (quarantine unlock in the package folder) before showing any
+  UI; when macOS raised its Downloads-access (TCC) prompt behind the
+  invisible window, the app appeared hung. The package folder is now
+  resolved in pure AppleScript, no shell runs before the menu appears
+  (`activate` brings it frontmost), and the one-time unlock happens on
+  the first job instead — after the user has already interacted, so
+  permission prompts surface properly.
+
 ### Added
 - **SUBTITLE Cover merged in (โปรเจกต์เดิมของเจ้าของ)**: the Python
   SUBTITLE Cover app is now a native module (`GhostlyCover`) + `ghostly

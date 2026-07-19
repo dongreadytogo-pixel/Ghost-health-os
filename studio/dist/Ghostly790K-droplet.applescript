@@ -21,9 +21,12 @@ on open theItems
 end open
 
 -- เมนูหลัก: เลือกคำสั่ง → ทำงาน → กลับมาที่เมนู จนกว่าจะกดปิด
+-- สำคัญ: ห้ามรันคำสั่งเชลล์ใด ๆ ก่อนเมนูขึ้น — TCC ของ macOS อาจเด้งขอสิทธิ์
+-- อยู่หลังหน้าต่างจนดูเหมือนแอปค้าง (เม้าส์หมุน) ตอนเปิดโปรแกรม
 on menuLoop(droppedItems)
 	set pkgDir to packageDir()
 	repeat
+		activate
 		set actions to {menuSmart, menuTikTok, menuYouTube, menuClean, menuTitleSubs, ¬
 			menuMulticam, menuCover, menuCustom, menuQuit}
 		set picked to choose from list actions with prompt ¬
@@ -150,17 +153,23 @@ end doCover
 
 -- ===== เครื่องมือกลาง =====
 
+-- หาโฟลเดอร์แพ็กเกจแบบ AppleScript ล้วน (ไม่เรียกเชลล์ — เมนูต้องขึ้นทันที)
 on packageDir()
-	set appPath to POSIX path of (path to me)
-	set pkgDir to do shell script "dirname " & quoted form of appPath
-	do shell script "cd " & quoted form of pkgDir & " && xattr -dr com.apple.quarantine . 2>/dev/null; chmod +x bin/ghostly 2>/dev/null; mkdir -p logs; true"
+	set appPath to POSIX path of (path to me)   -- ".../Ghostly790K-AI-Studio/Ghostly790K.app/"
+	set AppleScript's text item delimiters to "/"
+	set parts to text items of appPath
+	if item -1 of parts is "" then set parts to items 1 thru -2 of parts
+	set parts to items 1 thru -2 of parts       -- ตัดชื่อ .app ออก
+	set pkgDir to parts as text
+	set AppleScript's text item delimiters to ""
 	return pkgDir
 end packageDir
 
--- รัน ghostly: กันเครื่องหลับ (caffeinate) + เก็บ log + ไม่จำกัดเวลา (ไฟล์ใหญ่ได้)
+-- รัน ghostly: ปลดล็อก quarantine ครั้งแรก + กันเครื่องหลับ (caffeinate)
+-- + เก็บ log + ไม่จำกัดเวลา (ไฟล์ใหญ่ได้) — งานเชลล์ทั้งหมดเกิดหลังผู้ใช้สั่งงานแล้ว
 on runGhostly(pkgDir, argsText)
 	set logPath to pkgDir & "/logs/ghostly.log"
-	set shellCmd to "export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"; cd " & quoted form of pkgDir & " && /usr/bin/caffeinate -im ./bin/ghostly " & argsText & " 2>>" & quoted form of logPath
+	set shellCmd to "export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"; cd " & quoted form of pkgDir & " && mkdir -p logs; xattr -dr com.apple.quarantine . 2>/dev/null; chmod +x bin/ghostly 2>/dev/null; /usr/bin/caffeinate -im ./bin/ghostly " & argsText & " 2>>" & quoted form of logPath
 	with timeout of 86400 seconds
 		return do shell script shellCmd
 	end timeout
