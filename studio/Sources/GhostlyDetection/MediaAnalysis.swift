@@ -88,6 +88,17 @@ public struct AVAudioSampleProvider: AudioSampleProviding {
         self.sampleRate = sampleRate
     }
 
+    /// The container's real playback duration (video included) — the length
+    /// a multicam angle's clip must span, independent of how much audio
+    /// decoded. Zero when it can't be read.
+    public func mediaDuration(for url: URL) async -> RationalTime {
+        let asset = AVURLAsset(url: url)
+        guard let seconds = try? await asset.load(.duration).seconds, seconds.isFinite, seconds > 0 else {
+            return .zero
+        }
+        return RationalTime(seconds: seconds, preferredTimescale: 48_000)
+    }
+
     public func monoSamples(for url: URL) async throws -> (samples: [Float], sampleRate: Int) {
         let asset = AVURLAsset(url: url)
         guard let track = try await asset.loadTracks(withMediaType: .audio).first else {

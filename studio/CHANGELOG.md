@@ -15,6 +15,18 @@
   before uploading; build and model are cached so CI stays fast.
 
 ### Fixed
+- **Multicam angles came in empty (แก้มุมกล้องหาย)**: `ghostly sync` set
+  each angle's clip length from the *decoded audio sample count*, so a
+  camera whose audio was faint, short, or partly undecodable (drone
+  footage especially) produced a zero-length — visually empty — angle.
+  The clip length now comes from the container's real playback duration
+  (`AVAudioSampleProvider.mediaDuration` via `AVURLAsset.duration`),
+  independent of audio. And angles with **no usable audio to sync on**
+  are no longer dropped or failed: they join the multicam at offset 0,
+  flagged in the output ("ไม่มีเสียงให้ซิงก์… จัดตำแหน่งเองใน FCP ได้"),
+  so all four cameras always appear and the editor can nudge the
+  audioless ones by eye. The audio reference is the first angle that
+  actually has audio.
 - **Interview cutting is now content-aware (แก้ "คัตช็อตมั่ว ๆ")**: with
   "เน้นประโยคสำคัญ" and a transcript, keeps align to whole sentences
   (cue gaps ≤ 0.6 s join; no more mid-sentence chops), and shot selection

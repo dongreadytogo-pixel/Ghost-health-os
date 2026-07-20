@@ -685,50 +685,83 @@ case "sync":
         fail("usage: ghostly sync <กล้อง1.mov> <กล้อง2.mov> [...] [--name มัลติแคม] [--vertical] [--out multicam.fcpxml]")
     }
     do {
-        // Each angle's audio: WAV decodes anywhere; other formats decode
-        // natively via AVFoundation on Apple platforms.
-        func angleAudio(_ path: String) async throws -> WAV.Audio {
+        // Each angle: decoded audio (for correlation) + the container's real
+        // playback duration (for the clip length). Angles that carry no
+        // usable audio (e.g. drone footage) still join the multicam — placed
+        // at 0 and flagged — instead of vanishing. WAV decodes anywhere;
+        // other formats decode natively via AVFoundation on Apple platforms.
+        struct AngleInput { let path: String; let audio: WAV.Audio?; let duration: RationalTime }
+        func loadAngle(_ path: String) async throws -> AngleInput {
             if path.lowercased().hasSuffix(".wav") {
-                return try WAV.decode(contentsOf: URL(fileURLWithPath: path))
+                let audio = try WAV.decode(contentsOf: URL(fileURLWithPath: path))
+                return AngleInput(path: path, audio: audio, duration: audio.duration)
             }
             #if canImport(AVFoundation)
-            let native = try await AVAudioSampleProvider(sampleRate: 16_000)
-                .monoSamples(for: URL(fileURLWithPath: path))
-            return WAV.Audio(samples: native.samples, sampleRate: native.sampleRate)
+            let url = URL(fileURLWithPath: path)
+            let provider = AVAudioSampleProvider(sampleRate: 16_000)
+            // Real clip length from the container — never zero-length clips.
+            var duration = await provider.mediaDuration(for: url)
+            var audio: WAV.Audio?
+            do {
+                let native = try await provider.monoSamples(for: url)
+                let decoded = WAV.Audio(samples: native.samples, sampleRate: native.sampleRate)
+                audio = decoded
+                if duration.seconds <= 0 { duration = decoded.duration }
+            } catch {
+                audio = nil   // no/unreadable audio track — keep as a manual angle
+            }
+            return AngleInput(path: path, audio: audio, duration: duration)
             #else
             throw StudioError.invalidInput(
                 field: "file",
                 reason: "บน Linux รองรับเฉพาะ .wav — แปลงก่อนด้วย ghostly extract-audio '\(path)' --run")
             #endif
         }
-        var angleInputs: [(path: String, audio: WAV.Audio)] = []
+        var angleInputs: [AngleInput] = []
         for file in syncFiles {
             let expanded = (file as NSString).expandingTildeInPath
             guard FileManager.default.fileExists(atPath: expanded) else {
                 fail("ไม่พบไฟล์ '\(expanded)'")
             }
-            angleInputs.append((expanded, try await angleAudio(expanded)))
+            angleInputs.append(try await loadAngle(expanded))
         }
+        // Reference = the first angle that actually has audio to correlate against.
+        let referenceAudio = angleInputs.compactMap(\.audio).first
         let aligner = AudioAligner()
-        var offsets: [Double] = [0]
-        for item in angleInputs.dropFirst() {
-            offsets.append(aligner.offsetSeconds(reference: angleInputs[0].audio,
-                                                 other: item.audio))
+        var offsets: [Double?] = []
+        for item in angleInputs {
+            if let ref = referenceAudio, let audio = item.audio {
+                offsets.append(aligner.offsetSeconds(reference: ref, other: audio))
+            } else {
+                offsets.append(nil)   // no audio → can't audio-sync this angle
+            }
         }
-        let earliest = offsets.min() ?? 0
+        let earliest = offsets.compactMap { $0 }.min() ?? 0
         let format: VideoFormat = arguments.contains("--vertical") ? .vertical1080x1920p30 : .hd1080p30
         var angles: [FCPXMLWriter.MulticamAngle] = []
+        var manualAngles: [String] = []
         for (index, item) in angleInputs.enumerated() {
-            let delay = offsets[index] - earliest
             let url = URL(fileURLWithPath: item.path).standardizedFileURL
-            let asset = Asset(name: (item.path as NSString).lastPathComponent,
-                              url: url, duration: item.audio.duration,
+            let clipName = (item.path as NSString).lastPathComponent
+            let asset = Asset(name: clipName, url: url, duration: item.duration,
                               kind: .video, format: format)
-            angles.append(FCPXMLWriter.MulticamAngle(
-                asset: asset,
-                delay: RationalTime(seconds: delay, preferredTimescale: 48_000)))
-            print(String(format: "• %@: เริ่ม %+.2fs เทียบกล้องแรก → วางที่ %.2fs",
-                         asset.name, offsets[index], delay))
+            if let offset = offsets[index] {
+                let delay = offset - earliest
+                angles.append(FCPXMLWriter.MulticamAngle(
+                    asset: asset,
+                    delay: RationalTime(seconds: delay, preferredTimescale: 48_000)))
+                print(String(format: "• %@: เริ่ม %+.2fs เทียบกล้องแรก → วางที่ %.2fs (%.1fs)",
+                             clipName, offset, delay, item.duration.seconds))
+            } else {
+                // No audio to sync on — include at 0 so it's on the timeline
+                // for the editor to nudge into place by eye.
+                angles.append(FCPXMLWriter.MulticamAngle(asset: asset, delay: .zero))
+                manualAngles.append(clipName)
+                print("• \(clipName): ไม่มีเสียงให้ซิงก์ (เช่นไฟล์โดรน) → ใส่ไว้ที่ต้นคลิป จัดตำแหน่งเองใน FCP ได้")
+            }
+        }
+        if !manualAngles.isEmpty {
+            print("⚠️ \(manualAngles.count) มุมไม่มีเสียงให้ซิงก์อัตโนมัติ (\(manualAngles.joined(separator: ", "))) — ยังอยู่ในมัลติแคมครบ แต่ต้องเลื่อนให้ตรงเองใน FCP")
         }
         let name = option("name", in: arguments) ?? "มัลติแคม"
         let document = try FCPXMLWriter().multicamDocument(name: name, angles: angles,
