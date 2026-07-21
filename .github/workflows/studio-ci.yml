@@ -1,0 +1,275 @@
+name: Studio CI (Swift)
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'studio/**'
+      - '.github/workflows/studio-ci.yml'
+  pull_request:
+    paths:
+      - 'studio/**'
+      - '.github/workflows/studio-ci.yml'
+
+concurrency:
+  group: studio-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-test:
+    name: Linux build & test (engines, MCP, CLI)
+    runs-on: ubuntu-latest
+    container: swift:6.0
+    defaults:
+      run:
+        working-directory: studio
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Build (debug)
+        run: swift build --build-tests
+
+      - name: Test
+        run: swift test --parallel
+
+      - name: Build executables (release)
+        run: |
+          swift build -c release --product ghostly
+          swift build -c release --product ghostly-mcp-server
+
+      - name: Install ffmpeg (one-click auto smoke)
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Smoke-test CLI
+        run: |
+          BIN=$(swift build -c release --show-bin-path)
+          "$BIN/ghostly" version
+          "$BIN/ghostly" intent "edit this like marvel and add tiktok captions"
+          "$BIN/ghostly" intent "ตัดช่วงเงียบออก ทำเป็นติ๊กต๊อก ใส่คำบรรยาย" | grep -q "removeSilence"
+          "$BIN/ghostly" intent "คัตเสียงคลิปนี้โดยเน้นประโยคสำคัญที่น่าสนใจ ความยาวเหลือไม่เกิน 3 นาที" | tee /tmp/smart.txt
+          grep -q "limitDuration" /tmp/smart.txt
+          grep -q "max duration: 180s" /tmp/smart.txt
+          grep -q "เน้นประโยคสำคัญ" /tmp/smart.txt
+          "$BIN/ghostly" styles
+          "$BIN/ghostly" presets
+          "$BIN/ghostly" export in.mov --preset TikTok --out out.mp4 | grep -q "scale=1080:1920"
+          "$BIN/ghostly" demo-thai | grep -q "captionFormat=ITT.th"
+          cat > /tmp/thai.srt <<'EOF'
+          1
+          00:00:01,000 --> 00:00:03,500
+          สวัสดีครับวันนี้เราจะมารีวิวกล้องตัวใหม่
+
+          2
+          00:00:04,000 --> 00:00:07,000
+          กล้องตัวนี้ถ่ายวิดีโอได้สวยมาก
+          EOF
+          "$BIN/ghostly" edit /tmp/thai.srt --duration 8 --command "create a tiktok with captions, remove silence" > /tmp/edit.fcpxml
+          "$BIN/ghostly" edit /tmp/thai.srt --duration 8 --command "คัตเสียง เน้นประโยคสำคัญ ไม่เกิน 5 วินาที" > /tmp/smart.fcpxml
+          "$BIN/ghostly" validate /tmp/smart.fcpxml
+          "$BIN/ghostly" edit /tmp/thai.srt --duration 8 --command "ทำเป็นติ๊กต๊อก ใส่ซับแบบ Title" > /tmp/title-subs.fcpxml
+          grep -q "captionFormat=ITT.th" /tmp/title-subs.fcpxml
+          grep -q "<title " /tmp/title-subs.fcpxml
+          grep -q 'lane="2"' /tmp/title-subs.fcpxml
+          "$BIN/ghostly" validate /tmp/title-subs.fcpxml
+          grep -q "<fcpxml" /tmp/edit.fcpxml
+          grep -q "captionFormat=ITT.th" /tmp/edit.fcpxml
+          "$BIN/ghostly" validate /tmp/edit.fcpxml
+          "$BIN/ghostly" demo-audio --out /tmp/demo.wav
+          "$BIN/ghostly" analyze-audio /tmp/demo.wav | tee /tmp/audio.txt
+          grep -q "speech: 2 range" /tmp/audio.txt || grep -q "speech: 3 range" /tmp/audio.txt
+          grep -q "BPM" /tmp/audio.txt
+          "$BIN/ghostly" edit --wav /tmp/demo.wav --command "create a tiktok, remove silence" > /tmp/wav-edit.fcpxml
+          grep -q "<fcpxml" /tmp/wav-edit.fcpxml
+          "$BIN/ghostly" validate /tmp/wav-edit.fcpxml
+          "$BIN/ghostly" edit /tmp/thai.srt --wav /tmp/demo.wav --command "create a tiktok with captions" | grep -q "captionFormat=ITT.th"
+          "$BIN/ghostly" edit /tmp/thai.srt --duration 8 --media "/tmp/ฟุตเทจ/คลิป.mov" --command "create a tiktok with captions" > /tmp/media-edit.fcpxml
+          grep -q 'src="file:///tmp/' /tmp/media-edit.fcpxml
+          ! grep -q 'file:///media/' /tmp/media-edit.fcpxml
+          "$BIN/ghostly" validate /tmp/media-edit.fcpxml
+          GHOSTLY_HOME=/tmp/ghostly-cli "$BIN/ghostly" workflow --wav /tmp/demo.wav --media "/tmp/คลิป.mov" --command "create a tiktok, remove silence" --out /tmp/wf-media.fcpxml | tee /tmp/wf-media.txt
+          grep -q "referenced real media" /tmp/wf-media.txt
+          grep -q 'src="file:///tmp/' /tmp/wf-media.fcpxml
+          grep -qF "/tmp/คลิป.mov" /tmp/wf-media.txt
+          "$BIN/ghostly" extract-audio "คลิป.mp4" | grep -q "pcm_s16le"
+          ffmpeg -y -hide_banner -loglevel error -f lavfi -i testsrc=duration=8:size=160x120:rate=10 -i /tmp/demo.wav -shortest -c:v mpeg4 -c:a aac "/tmp/คลิป.mp4"
+          "$BIN/ghostly" extract-audio "/tmp/คลิป.mp4" --run --out /tmp/extracted.wav | grep -q "wrote"
+          "$BIN/ghostly" analyze-audio /tmp/extracted.wav | grep -q "speech:"
+          "$BIN/ghostly" auto "/tmp/คลิป.mp4" --command "ตัดช่วงเงียบออก ทำเป็นติ๊กต๊อก" --out /tmp/auto.fcpxml | tee /tmp/auto.txt
+          grep -q 'src="file:///tmp/' /tmp/auto.fcpxml
+          grep -q "preset: TikTok" /tmp/auto.txt
+          grep -qF "/tmp/คลิป.mp4" /tmp/auto.txt
+          "$BIN/ghostly" validate /tmp/auto.fcpxml
+          "$BIN/ghostly" analyze-audio /tmp/demo.wav --diarize | grep -q "speakers: 1"
+          GHOSTLY_HOME=/tmp/ghostly-cli "$BIN/ghostly" workflow --wav /tmp/demo.wav --command "create a tiktok, remove silence" --remember --out /tmp/wf.fcpxml | tee /tmp/wf.txt
+          grep -q "TikTok" /tmp/ghostly-cli/preferences.json
+          grep -q "export: ffmpeg" /tmp/wf.txt
+          grep -q "preset: TikTok" /tmp/wf.txt
+          "$BIN/ghostly" validate /tmp/wf.fcpxml
+          "$BIN/ghostly" lut --exposure 0.3 --temperature 0.2 --out /tmp/warm.cube
+          "$BIN/ghostly" lut-info /tmp/warm.cube | grep -q "valid 3D cube LUT"
+          "$BIN/ghostly" lut --neutralize "0.55 0.45 0.35" --out /tmp/wb.cube
+          "$BIN/ghostly" lut-info /tmp/wb.cube | grep -q "valid 3D cube LUT"
+          "$BIN/ghostly" normalize-audio /tmp/demo.wav --target -16 --out /tmp/leveled.wav | grep -q "rms:"
+          "$BIN/ghostly" normalize-audio /tmp/demo.wav --target -16 --lufs --out /tmp/leveled-lufs.wav | grep -q "lufs:"
+          "$BIN/ghostly" analyze-audio /tmp/demo.wav | grep -q "LUFS"
+          "$BIN/ghostly" doctor | grep -q "เอนจินหลัก\|พร้อมใช้งานเต็มรูปแบบ"
+          printf '1\n00:00:01,000 --> 00:00:20,000\nบทนำ\n\n2\n00:00:40,000 --> 00:01:00,000\nช่วงสอง\n\n3\n00:01:20,000 --> 00:01:40,000\nช่วงสาม\n' > /tmp/ch.srt
+          "$BIN/ghostly" chapters /tmp/ch.srt --duration 120 | grep -q "^0:00 "
+          "$BIN/ghostly" highlights /tmp/ch.srt --duration 120 | grep -qE "\[(hook|highlight|cta)\]"
+          "$BIN/ghostly" shorts /tmp/ch.srt --duration 120 --media "/tmp/คลิป.mp4" | tee /tmp/shorts.txt
+          grep -q -- "-ss " /tmp/shorts.txt
+          grep -q "short1.mp4" /tmp/shorts.txt
+          grep -q "scale=1080:1920" /tmp/shorts.txt
+          cat > /tmp/cover-in.fcpxml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE fcpxml>
+          <fcpxml version="1.11">
+            <resources>
+              <format id="r1" frameDuration="100/2500s" width="1080" height="1920"/>
+              <effect id="r2" name="Pop-up Text" uid="/Popup.moti"/>
+              <asset id="r3" name="clip" duration="2000/2500s"/>
+            </resources>
+            <library><event name="e"><project name="ทดสอบ"><sequence format="r1" duration="2000/2500s"><spine>
+              <asset-clip ref="r3" offset="0s" duration="2000/2500s" name="คลิป">
+                <title ref="r2" lane="1" offset="100/2500s" duration="250/2500s" name="ซับ1">
+                  <text><text-style ref="ts1">อาการปวดเข่าดีขึ้นมากเลยครับ</text-style></text>
+                  <text-style-def id="ts1"><text-style font="Prompt" fontFace="Light" fontSize="71"/></text-style-def>
+                </title>
+              </asset-clip>
+            </spine></sequence></project></event></library>
+          </fcpxml>
+          EOF
+          "$BIN/ghostly" cover /tmp/cover-in.fcpxml --out /tmp/cover-out.fcpxml | grep -q "สร้าง Cover"
+          grep -q -- "- COVER" /tmp/cover-out.fcpxml
+          grep -q 'lane="11"' /tmp/cover-out.fcpxml
+          "$BIN/ghostly" cover /tmp/cover-in.fcpxml --list-titles | grep -q "Pop-up Text"
+          "$BIN/ghostly" demo-audio --out /tmp/camA.wav
+          "$BIN/ghostly" demo-audio --out /tmp/camB.wav --lead-silence 2
+          "$BIN/ghostly" sync /tmp/camA.wav /tmp/camB.wav --out /tmp/mc.fcpxml | tee /tmp/sync.txt
+          grep -q "วางที่ 2.00s" /tmp/sync.txt
+          grep -q "mc-angle" /tmp/mc.fcpxml
+          grep -q "mc-clip" /tmp/mc.fcpxml
+          "$BIN/ghostly" validate /tmp/mc.fcpxml
+          "$BIN/ghostly" clean-audio /tmp/demo.wav --dehum 50 --out /tmp/clean.wav | grep -q "de-hum 50"
+          "$BIN/ghostly" analyze-audio /tmp/clean.wav | grep -q "speech:"
+          "$BIN/ghostly" analyze-audio /tmp/leveled.wav | grep -q "speech:"
+
+      - name: Smoke-test MCP server handshake
+        run: |
+          BIN=$(swift build -c release --show-bin-path)
+          OUT=$(printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            | GHOSTLY_HOME=/tmp/ghostly "$BIN/ghostly-mcp-server")
+          echo "$OUT"
+          echo "$OUT" | grep -q '"protocolVersion"'
+          echo "$OUT" | grep -q '"auto_edit"'
+          echo "$OUT" | grep -q '"export_chapters"'
+
+  macos-build:
+    name: macOS build & test (full platform incl. SwiftUI)
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: studio
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Build all targets
+        run: swift build --build-tests
+
+      - name: Test
+        run: swift test --parallel
+
+      - name: Cache whisper-cli build
+        uses: actions/cache@v4
+        with:
+          path: studio/whisper-build
+          key: whisper-cli-macos-arm64-v1
+
+      - name: Cache Thai ASR model
+        uses: actions/cache@v4
+        with:
+          path: studio/whisper-model
+          key: ggml-large-v3-turbo-q5_0
+
+      - name: Build whisper-cli + fetch Thai model (bundled subtitles, zero setup)
+        run: |
+          if [ ! -x whisper-build/bin/whisper-cli ]; then
+            git clone --depth 1 https://github.com/ggerganov/whisper.cpp /tmp/whisper.cpp
+            cmake -S /tmp/whisper.cpp -B /tmp/whisper.cpp/build \
+              -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+              -DGGML_METAL_EMBED_LIBRARY=ON
+            cmake --build /tmp/whisper.cpp/build -j 4 --target whisper-cli
+            mkdir -p whisper-build/bin
+            cp /tmp/whisper.cpp/build/bin/whisper-cli whisper-build/bin/
+            find /tmp/whisper.cpp/build -name '*.dylib' -exec cp {} whisper-build/bin/ \; || true
+          fi
+          if [ ! -f whisper-model/ggml-large-v3-turbo-q5_0.bin ]; then
+            mkdir -p whisper-model
+            curl -L --fail -o whisper-model/ggml-large-v3-turbo-q5_0.bin \
+              https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin
+          fi
+
+      - name: Package clickable app folder (Ghostly790K-AI-Studio)
+        run: |
+          bash -n dist/Ghostly790K-AI-Studio/*.command
+          swift build -c release --product ghostly
+          BIN=$(swift build -c release --show-bin-path)
+          PKG=/tmp/pkg/Ghostly790K-AI-Studio
+          mkdir -p "$PKG/bin" "$PKG/models"
+          cp -R dist/Ghostly790K-AI-Studio/. "$PKG/"
+          cp "$BIN/ghostly" "$PKG/bin/"
+          cp whisper-build/bin/* "$PKG/bin/"
+          cp whisper-model/ggml-large-v3-turbo-q5_0.bin "$PKG/models/"
+          chmod +x "$PKG"/*.command "$PKG/bin/ghostly" "$PKG/bin/whisper-cli"
+          "$PKG/bin/ghostly" version
+          ls -la "$PKG" "$PKG/bin" "$PKG/models"
+
+      - name: Verify bundled whisper actually transcribes (zero-setup subs)
+        run: |
+          PKG=/tmp/pkg/Ghostly790K-AI-Studio
+          "$PKG/bin/ghostly" demo-audio --out /tmp/subcheck.wav
+          "$PKG/bin/whisper-cli" -m "$PKG/models/ggml-large-v3-turbo-q5_0.bin" \
+            -f /tmp/subcheck.wav -l th -otxt -of /tmp/subcheck >/dev/null
+          test -f /tmp/subcheck.txt
+          # Drag & drop app: compile the Thai droplet and register mov/mp4
+          # (plus any file) so Finder accepts drops on the icon.
+          osacompile -o "$PKG/Ghostly790K.app" dist/Ghostly790K-droplet.applescript
+          PLIST="$PKG/Ghostly790K.app/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleDocumentTypes" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundleDocumentTypes array" \
+            -c "Add :CFBundleDocumentTypes:0 dict" \
+            -c "Add :CFBundleDocumentTypes:0:CFBundleTypeName string 'Video'" \
+            -c "Add :CFBundleDocumentTypes:0:CFBundleTypeRole string Viewer" \
+            -c "Add :CFBundleDocumentTypes:0:LSItemContentTypes array" \
+            -c "Add :CFBundleDocumentTypes:0:LSItemContentTypes:0 string public.movie" \
+            -c "Add :CFBundleDocumentTypes:0:LSItemContentTypes:1 string public.item" \
+            "$PLIST"
+          plutil -lint "$PLIST"
+          ls -la "$PKG"
+
+      - name: Smoke-test zero-setup auto (native AVFoundation, no ffmpeg)
+        run: |
+          PKG=/tmp/pkg/Ghostly790K-AI-Studio
+          "$PKG/bin/ghostly" demo-audio --out "/tmp/คลิป.wav"
+          "$PKG/bin/ghostly" auto "/tmp/คลิป.wav" --command "ตัดช่วงเงียบออก ทำเป็นติ๊กต๊อก" --out /tmp/auto-native.fcpxml | tee /tmp/auto-native.txt
+          grep -q "เอนจิน macOS" /tmp/auto-native.txt
+          grep -q 'src="file:///tmp/' /tmp/auto-native.fcpxml
+          "$PKG/bin/ghostly" validate /tmp/auto-native.fcpxml
+
+      - name: Upload clickable app folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ghostly790K-AI-Studio
+          path: /tmp/pkg
+          if-no-files-found: error
