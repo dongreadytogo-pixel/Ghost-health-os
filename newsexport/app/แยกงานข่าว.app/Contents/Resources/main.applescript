@@ -64,21 +64,37 @@ on showMainMenu()
 		set choice to button returned of (display dialog ¬
 			"เปิดงานข่าวค้างไว้ใน Final Cut Pro" & return & ¬
 			"แล้วคลิกที่ชื่องานนั้นหนึ่งครั้ง" & return & return & ¬
-			"จากนั้นกดปุ่ม เอ็กพอร์ต" & return & return & ¬
-			"โปรแกรมจะไปเอาไทม์ไลน์มาเอง แยกเป็นก้อน" & return & ¬
-			"แล้วเอ็กพอร์ตให้ครบทุกก้อน ทั้ง mov และ mxf" ¬
-			buttons {"ดูบันทึก", "ทดสอบละเอียด", "เอ็กพอร์ต"} ¬
-			default button "เอ็กพอร์ต" with title appTitle)
+			"เลือกวิธีทำงาน" & return & return & ¬
+			"แบบแน่นอน   โปรแกรมแยกก้อนและตั้งชื่อให้ครบ" & return & ¬
+			"            แล้วบอกให้คุณกด Share เอง 2 ครั้ง" & return & ¬
+			"            วิธีนี้ไม่มีพลาด ใช้ได้ทุกครั้ง" & return & return & ¬
+			"แบบอัตโนมัติ  โปรแกรมกด Share ให้เองด้วย" & return & ¬
+			"            เร็วกว่า แต่ยังไม่นิ่งในทุกเครื่อง" ¬
+			buttons {"เมนูอื่น", "แบบอัตโนมัติ", "แบบแน่นอน"} ¬
+			default button "แบบแน่นอน" with title appTitle)
 
-		if choice is "ดูบันทึก" then
-			showLog()
-		else if choice is "ทดสอบละเอียด" then
-			runDeepTest()
+		if choice is "แบบแน่นอน" then
+			runWorkflow(false)
+		else if choice is "แบบอัตโนมัติ" then
+			runWorkflow(true)
 		else
-			runWorkflow()
+			showOtherMenu()
 		end if
 	end repeat
 end showMainMenu
+
+
+on showOtherMenu()
+	set choice to button returned of (display dialog ¬
+		"เมนูสำหรับตรวจสอบและแก้ปัญหา" ¬
+		buttons {"กลับ", "ดูบันทึก", "ทดสอบละเอียด"} ¬
+		default button "กลับ" with title appTitle)
+	if choice is "ดูบันทึก" then
+		showLog()
+	else if choice is "ทดสอบละเอียด" then
+		runDeepTest()
+	end if
+end showOtherMenu
 
 
 on showLog()
@@ -100,7 +116,7 @@ end showLog
 -- ลำดับการทำงานทั้งหมด
 -- ============================================================
 
-on runWorkflow()
+on runWorkflow(autoShare)
 	try
 		if not ensureFinalCutRunning() then return
 		if not ensureAccessibility() then return
@@ -153,7 +169,13 @@ on runWorkflow()
 		importTimeline(splitPath)
 		logLine("นำงานย่อยกลับเข้า Final Cut Pro แล้ว")
 
-		runExportStage(outFolder, namesFile, totalFiles)
+		if autoShare then
+			logLine("โหมดอัตโนมัติ")
+			runExportStage(outFolder, namesFile, totalFiles)
+		else
+			logLine("โหมดแน่นอน ให้ผู้ใช้กด Share เอง")
+			showManualInstructions(outFolder, namesFile, totalFiles)
+		end if
 		logLine("จบรอบการทำงาน")
 
 	on error errorMessage number errorNumber
@@ -589,6 +611,32 @@ end importTimeline
 -- ============================================================
 -- เอ็กพอร์ต พร้อมแสดงเปอร์เซ็นต์
 -- ============================================================
+
+on showManualInstructions(outFolder, namesFile, totalFiles)
+	-- โหมดนี้ไม่แตะ Final Cut Pro เลย จึงไม่มีทางพลาด
+	-- งานหนักทั้งหมดคือการแยกก้อนและตั้งชื่อ ทำเสร็จให้แล้ว
+	-- เหลือแค่กด Share ซึ่งกดครั้งเดียวได้ทุกก้อนพร้อมกัน
+	set blockCount to totalFiles / 2 as integer
+
+	display dialog ¬
+		"แยกงานเสร็จแล้ว ได้ " & blockCount & " ก้อน" & return & ¬
+		"ตั้งชื่อลงท้าย -1 ถึง -" & blockCount & " ให้เรียบร้อยแล้ว" & return & return & ¬
+		"เหลืออีก 2 ครั้งเท่านั้น ทำใน Final Cut Pro" & return & return & ¬
+		"ขั้นที่ 1  คลิกงานย่อยอันแรก" & return & ¬
+		"          กด Shift ค้าง แล้วคลิกอันสุดท้าย" & return & ¬
+		"          จะเลือกได้ครบทั้ง " & blockCount & " อันในทีเดียว" & return & return & ¬
+		"ขั้นที่ 2  เมนู File แล้ว Share แล้ว Export File" & return & ¬
+		"          กด Next แล้วเลือกโฟลเดอร์นี้" & return & ¬
+		"          " & outFolder & return & return & ¬
+		"ขั้นที่ 3  เลือกทั้งหมดอีกครั้ง แล้ว Share แล้ว MXF-50" & return & ¬
+		"          ตรวจแท็บ Roles ให้เป็น 3 Stereo" & return & ¬
+		"          กด Next แล้วเลือกโฟลเดอร์เดิม" & return & return & ¬
+		"สั่งเสร็จแล้วกดปุ่มข้างล่าง โปรแกรมจะนับไฟล์ให้" ¬
+		buttons {"สั่งแล้ว นับไฟล์ให้เลย"} default button 1 with title appTitle
+
+	monitorProgress(outFolder, namesFile, totalFiles)
+end showManualInstructions
+
 
 on runExportStage(outFolder, namesFile, totalFiles)
 	logLine("เริ่มขั้นเอ็กพอร์ต ต้องได้ " & totalFiles & " ไฟล์")
