@@ -154,6 +154,76 @@ class TestRealFixture(unittest.TestCase):
         self.assertIn("Export XML", str(caught.exception))
 
 
+class TestSplit(unittest.TestCase):
+    """ทดสอบการแยกไทม์ไลน์ออกเป็นงานย่อย"""
+
+    @classmethod
+    def setUpClass(cls):
+        import xml.etree.ElementTree as ET
+        import fcpxml_split
+        cls.split_module = fcpxml_split
+        fixture = os.path.join(HERE, "sample-news.fcpxml")
+        if not os.path.exists(fixture):
+            import make_fixture  # noqa
+        cls.tree, cls.details, cls.fps = fcpxml_split.split(ET.parse(fixture), 1.0)
+        cls.root = cls.tree.getroot()
+        cls.ET = ET
+
+    def test_makes_one_project_per_block(self):
+        self.assertEqual(len(list(self.root.iter("project"))), 5)
+        self.assertEqual(len(self.details), 5)
+
+    def test_project_names_end_with_the_block_number(self):
+        names = [p.get("name") for p in self.root.iter("project")]
+        for index, name in enumerate(names, start=1):
+            self.assertTrue(name.endswith("-%d" % index), name)
+
+    def test_each_block_starts_at_zero(self):
+        # งานย่อยทุกอันต้องเริ่มที่ 0 ไม่ใช่ตำแหน่งเดิมบนไทม์ไลน์ยาว
+        for project in self.root.iter("project"):
+            first = list(project.find("sequence").find("spine"))[0]
+            self.assertEqual(ns.parse_time(first.get("offset")), Fraction(0))
+
+    def test_block_duration_matches_the_detected_length(self):
+        for project, detail in zip(self.root.iter("project"), self.details):
+            duration = ns.parse_time(project.find("sequence").get("duration"))
+            self.assertEqual(duration, detail["end"] - detail["start"])
+
+    def test_no_clip_is_lost_or_duplicated(self):
+        total = sum(len(list(p.find("sequence").find("spine")))
+                    for p in self.root.iter("project"))
+        self.assertEqual(total, 17)  # 5+3+3+3+3 คลิปในไฟล์ตัวอย่าง
+
+    def test_resources_are_carried_over(self):
+        # ถ้าไม่ยก resources มาด้วย Final Cut Pro จะหาไฟล์วิดีโอไม่เจอ
+        resources = self.root.find("resources")
+        self.assertIsNotNone(resources)
+        self.assertIsNotNone(resources.find("asset"))
+        self.assertIsNotNone(resources.find("format"))
+
+    def test_sequence_settings_are_preserved(self):
+        # การวางเสียงและอัตราเสียงต้องเหมือนเดิม ไม่งั้น Roles จะเพี้ยน
+        for project in self.root.iter("project"):
+            sequence = project.find("sequence")
+            self.assertEqual(sequence.get("audioLayout"), "stereo")
+            self.assertEqual(sequence.get("audioRate"), "48k")
+            self.assertEqual(sequence.get("format"), "r1")
+
+    def test_output_is_valid_xml(self):
+        text = self.ET.tostring(self.root, encoding="unicode")
+        self.assertIsNotNone(self.ET.fromstring(text))
+
+    def test_ntsc_timescale_is_not_rounded(self):
+        # 29.97 fps ต้องใช้ตัวส่วน 30000 ไม่ใช่ 30
+        self.assertEqual(self.split_module.timescale_for(Fraction(30000, 1001)), 30000)
+        self.assertEqual(self.split_module.timescale_for(Fraction(25)), 25)
+
+    def test_write_time_lands_on_whole_frames(self):
+        write_time = self.split_module.write_time
+        self.assertEqual(write_time(Fraction(0), 25), "0s")
+        self.assertEqual(write_time(Fraction(35), 25), "875/25s")
+
+
 if __name__ == "__main__":
     result = unittest.main(exit=False, verbosity=1).result
     print("")
