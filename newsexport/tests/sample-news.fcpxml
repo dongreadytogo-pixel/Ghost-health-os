@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE fcpxml>
+<fcpxml version="1.11">
+  <resources>
+    <format id="r1" name="FFVideoFormat1080p25" frameDuration="100/2500s"
+            width="1920" height="1080" colorSpace="1-1-1 (Rec. 709)"/>
+    <asset id="r2" name="A001" start="0s" duration="3600s" hasVideo="1" hasAudio="1"
+           format="r1" audioSources="1" audioChannels="2">
+      <media-rep kind="original-media" src="file:///Volumes/News/A001.mov"/>
+    </asset>
+  </resources>
+  <library location="file:///Volumes/News/News.fcpbundle/">
+    <event name="28-07-2569">
+      <project name="OA690728_4 (ลบ) หนุ่มขับรถตู้ชนท้ายรถ 3 คันเสียหาย(ชลบุรี)">
+        <sequence format="r1" duration="4525/25s" tcStart="0s" tcFormat="NDF"
+                  audioLayout="stereo" audioRate="48k">
+          <spine>
+        <asset-clip ref="r2" offset="0/25s" name="ชลบุรี(วิเชียร)ชนแหลก 1" start="0s" duration="200/25s" format="r1" tcFormat="NDF"/>
+        <asset-clip ref="r2" offset="200/25s" name="ชลบุรี(วิเชียร)ชนแหลก 2" start="0s" duration="150/25s" format="r1" tcFormat="NDF"/>
+        <asset-clip ref="r2" offset="350/25s" name="ชลบุรี(วิเชียร)ชนแหลก 3" start="0s" duration="125/25s" format="r1" tcFormat="NDF"/>
+        <asset-clip ref="r2" offset="475/25s" name="ชลบุรี(วิเชียร)ชนแหลก 4" start="0s" duration="175/25s" format="r1" tcFormat="NDF"/>
+        <asset-clip ref="r2" offset="650/25s" name="ชลบุรี(วิเชียร)ชนแหลก 5" start="0s" duration="225/25s" format="r1" tcFormat="NDF"/>
+        <gap name="Gap" offset="875/25s" start="0s" duration="175/25s"/>
+        <asset-clip ref="r2" offset="1050/25s" name="ชลบุรี(วิเชียร)ชนแหลก 6" start="0s" duration="250/25s" format="r1" tcFormat="NDF"/>
+        <asset-clip ref="r2" offset="1300/25s" name="ชลบุรี(วิเชียร)ชนแหลก 7" start="0s" duration="150/25s" format="r1" tcFormat="NDF"/>
+        <asset-clip ref="r2" offset="1450/25s" name="ชลบุรี(วิเชียร)ชนแหลก 8" start="0s" duration="175/25s" format="r1" tcFormat="NDF"/>
+        <gap name="Gap" offset="1625/25s" start="0s" duration="425/25s"/>
+        <asset-clip ref="r2" offset="2050/25s" name="ชลบุรี(วิเชียร)ชนแหลก 9" start="0s" duration="300/25s" format="r1" tcFormat="NDF"/>
+        <asset-clip ref="r2" offset="2350/25s" name="ชลบุรี(วิเชียร)ชนแหลก 10" start="0s" duration="225/25s" format="r1" tcFormat="NDF"/>
+        <asset-clip ref="r2" offset="2575/25s" name="ชลบุรี(วิเชียร)ชนแหลก 11" start="0s" duration="225/25s" format="r1" tcFormat="NDF"/>
+        <gap name="Gap" offset="2800/25s" start="0s" duration="125/25s"/>
+        <asset-clip ref="r2" offset="2925/25s" name="ชลบุรี(วิเชียร)ชนแหลก 12" start="0s" duration="275/25s" format="r1" tcFormat="NDF"/>
+        <asset-clip ref="r2" offset="3200/25s" name="ชลบุรี(วิเชียร)ชนแหลก 13" start="0s" duration="200/25s" format="r1" tcFormat="NDF"/>
+        <asset-clip ref="r2" offset="3400/25s" name="ชลบุรี(วิเชียร)ชนแหลก 14" start="0s" duration="150/25s" format="r1" tcFormat="NDF"/>
+        <gap name="Gap" offset="3550/25s" start="0s" duration="325/25s"/>
+        <asset-clip ref="r2" offset="3875/25s" name="ชลบุรี(วิเชียร)ชนแหลก 15" start="0s" duration="225/25s" format="r1" tcFormat="NDF"/>
+        <asset-clip ref="r2" offset="4100/25s" name="ชลบุรี(วิเชียร)ชนแหลก 16" start="0s" duration="200/25s" format="r1" tcFormat="NDF"/>
+        <asset-clip ref="r2" offset="4300/25s" name="ชลบุรี(วิเชียร)ชนแหลก 17" start="0s" duration="225/25s" format="r1" tcFormat="NDF"/>
+          </spine>
+        </sequence>
+      </project>
+    </event>
+  </library>
+</fcpxml>
