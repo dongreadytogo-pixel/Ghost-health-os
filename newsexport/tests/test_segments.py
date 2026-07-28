@@ -507,6 +507,30 @@ class TestFindRecentTimeline(unittest.TestCase):
         code, output = self.find()
         self.assertEqual((code, output), (0, second))
 
+    def test_finds_file_saved_deep_in_a_given_folder(self):
+        # ห้องข่าวเซฟลงไดรฟ์เครือข่าย ซึ่งอยู่นอกโฟลเดอร์ส่วนตัว
+        # จึงต้องค้นโฟลเดอร์ที่ส่งเข้ามาให้ ไม่ใช่แค่ในบ้านของผู้ใช้
+        deep = os.path.join(self.temp, "งานข่าว", "วันนี้")
+        os.makedirs(deep)
+        wanted = os.path.join(deep, "ไทม์ไลน์.fcpxml")
+        open(wanted, "w").close()
+        later = os.path.getmtime(self.marker) + 10
+        os.utime(wanted, (later, later))
+        code, output = self.find()
+        self.assertEqual((code, output), (0, wanted))
+
+    def test_does_not_look_inside_a_library_bundle(self):
+        # ในคลังของ Final Cut Pro มีไฟล์เยอะมาก และไม่ใช่ไฟล์ที่เราต้องการ
+        # ถ้าเดินเข้าไปจะช้าและอาจหยิบไฟล์ผิด
+        inside = os.path.join(self.temp, "คลัง.fcpbundle", "ข้างใน")
+        os.makedirs(inside)
+        wrong = os.path.join(inside, "ไม่ควรเจอ.fcpxml")
+        open(wrong, "w").close()
+        later = os.path.getmtime(self.marker) + 10
+        os.utime(wrong, (later, later))
+        code, output = self.find()
+        self.assertEqual(code, 1)
+
     def test_unrelated_files_are_ignored(self):
         self.make_new("ไม่เกี่ยว.mov")
         self.make_new("ไม่เกี่ยว.txt")

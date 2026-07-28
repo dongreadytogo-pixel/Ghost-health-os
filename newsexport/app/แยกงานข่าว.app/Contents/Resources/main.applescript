@@ -112,7 +112,7 @@ on runWorkflow()
 		end if
 		logLine("โฟลเดอร์ปลายทาง = " & outFolder)
 
-		set xmlPath to fetchTimeline()
+		set xmlPath to fetchTimeline(outFolder)
 		if xmlPath is "" then
 			logLine("จบที่ขั้นไปเอาไทม์ไลน์ ไม่สำเร็จ")
 			return
@@ -231,7 +231,7 @@ end chooseOutputFolder
 -- ไปเอาไทม์ไลน์มาเอง ผู้ใช้ไม่ต้องยุ่ง
 -- ============================================================
 
-on fetchTimeline()
+on fetchTimeline(outFolder)
 	set marker to workPath & "/เริ่มเมื่อ"
 	do shell script "rm -f " & quoted form of marker & " && touch " & quoted form of marker
 
@@ -290,39 +290,63 @@ on fetchTimeline()
 		logLine("กดเมนูไม่สำเร็จ " & e)
 	end try
 
-	set foundPath to waitForNewTimeline(marker, 30)
+	set foundPath to waitForNewTimeline(marker, outFolder, 20)
 	if foundPath is not "" then return foundPath
 
 	-- ยังไม่ได้ ลองกดปุ่มยืนยันซ้ำอีกครั้ง เผื่อหน้าต่างเพิ่งโผล่ช้า
+	logLine("ยังไม่เจอไฟล์ ลองกดยืนยันซ้ำ")
 	try
 		confirmSheet()
 	end try
-	set foundPath to waitForNewTimeline(marker, 20)
+	set foundPath to waitForNewTimeline(marker, outFolder, 25)
 	if foundPath is not "" then return foundPath
 
-	display dialog ¬
-		"ไปเอาไทม์ไลน์มาไม่สำเร็จ" & return & return & ¬
-		"ถ้ามีหน้าต่างของ Final Cut Pro ค้างอยู่ ให้กด Save หรือ Cancel ก่อน" & return & return & ¬
-		"แล้วกดปุ่ม ตรวจสอบระบบ ที่หน้าแรก" & return & ¬
-		"ถ่ายรูปผลที่ได้ส่งมา ผมจะแก้ให้ตรงจุด" ¬
-		buttons {"ปิด"} default button 1 with title appTitle with icon caution
-	return ""
+	-- ทางออกสุดท้าย ให้ผู้ใช้ชี้ตำแหน่งเอง ใช้เวลาไม่กี่วินาที
+	-- ดีกว่าปล่อยให้จบแบบทำอะไรต่อไม่ได้
+	set answer to button returned of (display dialog ¬
+		"หาไฟล์ที่ Final Cut Pro เพิ่งเซฟไม่เจอ" & return & return & ¬
+		"มักเกิดตอนเซฟลงไดรฟ์เครือข่าย" & return & return & ¬
+		"กดปุ่ม ชี้ให้ดู แล้วเลือกไฟล์ที่เพิ่งเซฟ" & return & ¬
+		"ทำครั้งเดียว แล้วโปรแกรมจะไปต่อได้เลย" ¬
+		buttons {"ยกเลิก", "ชี้ให้ดู"} default button "ชี้ให้ดู" with title appTitle)
+	if answer is "ยกเลิก" then
+		logLine("ผู้ใช้ยกเลิกตอนหาไฟล์ไม่เจอ")
+		return ""
+	end if
+	try
+		set picked to POSIX path of (choose file with prompt ¬
+			"เลือกไฟล์ที่ Final Cut Pro เพิ่งเซฟ ลงท้ายด้วย fcpxml หรือ fcpxmld")
+		logLine("ผู้ใช้ชี้ไฟล์เอง " & picked)
+		return picked
+	on error
+		logLine("ผู้ใช้ไม่ได้เลือกไฟล์")
+		return ""
+	end try
 end fetchTimeline
 
 
-on waitForNewTimeline(marker, maxSeconds)
-	repeat with i from 1 to maxSeconds
+on waitForNewTimeline(marker, outFolder, maxTries)
+	-- ค้นหาไฟล์ที่ Final Cut Pro เพิ่งเซฟ
+	-- ส่งโฟลเดอร์ปลายทางเข้าไปด้วย เพราะห้องข่าวทำงานบนไดรฟ์เครือข่าย
+	-- ซึ่งมักเป็นที่เดียวกับที่ Final Cut Pro จำไว้เป็นที่เซฟล่าสุด
+	repeat with i from 1 to maxTries
 		try
 			set found to do shell script "/usr/bin/env python3 " & ¬
 				quoted form of (resourcesPath & "/tools/find_recent.py") & ¬
-				" " & quoted form of marker
+				" " & quoted form of marker & ¬
+				" " & quoted form of outFolder & ¬
+				" " & quoted form of workPath
 			if found is not "" then
+				logLine("เจอไฟล์ไทม์ไลน์ที่ " & found)
 				delay 1.5 -- เผื่อเวลาให้เขียนไฟล์เสร็จ
 				return found
 			end if
 		end try
+		if i is 5 then logLine("ยังหาไม่เจอ ผ่านไป 5 รอบ กำลังค้นต่อ")
+		if i is 15 then logLine("ยังหาไม่เจอ ผ่านไป 15 รอบ กำลังค้นไดรฟ์ที่ต่ออยู่")
 		delay 1
 	end repeat
+	logLine("ค้นครบ " & maxTries & " รอบแล้วยังไม่เจอ")
 	return ""
 end waitForNewTimeline
 
