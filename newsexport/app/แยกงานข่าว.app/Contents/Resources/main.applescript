@@ -237,8 +237,8 @@ on runWorkflow()
 		--
 		-- สั่ง Share สองรอบติดกันเลย ไม่ต้องรอไฟล์รอบแรกเสร็จ
 		-- เพราะ Final Cut Pro รับงานเข้าคิวแล้วทยอยทำเองพร้อมกันได้
-		shareTo("Export File", "ไฟล์ mov")
-		shareTo("MXF-50", "ไฟล์ mxf")
+		shareTo("Export File", "ไฟล์ mov", "")
+		shareTo("MXF-50", "ไฟล์ mxf", "3 Stereo")
 
 		monitorAndCollect(outFolder, namesFile, totalFiles)
 		say("จบรอบการทำงาน")
@@ -459,7 +459,108 @@ on countPanelFields()
 end countPanelFields
 
 
-on shareTo(destinationName, humanName)
+on setRolesTo(wantedSetting)
+	--
+	-- ตั้งค่าแท็บ Roles ให้ถูกก่อนเซฟทุกครั้ง
+	--
+	-- ไฟล์ mxf ของห้องข่าวต้องเป็น 3 Stereo คือเสียง 3 คู่ รวม 6 ช่อง
+	-- แต่ค่านี้ไม่ได้ติดมากับปลายทางที่บันทึกไว้เสมอไป
+	-- พอสั่ง Share งานคนละอัน Final Cut Pro อาจตั้งกลับเป็นค่าอื่นให้
+	-- ที่ผ่านมาโปรแกรมกด Next ไปเลยโดยไม่ตรวจ ไฟล์ที่ได้จึงตั้งค่าผิด
+	--
+	-- ขั้นตอนคือ เปิดแท็บ Roles ก่อน แล้วค่อยตั้งค่าในช่อง Roles as
+	set clickedTab to false
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events"
+				tell process fcpName
+					repeat with windowRef in windows
+						try
+							repeat with tabGroupRef in tab groups of windowRef
+								repeat with radioRef in radio buttons of tabGroupRef
+									if (name of radioRef) is "Roles" then
+										click radioRef
+										set clickedTab to true
+									end if
+								end repeat
+							end repeat
+						end try
+						try
+							repeat with radioRef in radio buttons of windowRef
+								if (name of radioRef) is "Roles" then
+									click radioRef
+									set clickedTab to true
+								end if
+							end repeat
+						end try
+					end repeat
+				end tell
+			end tell
+		end timeout
+	end try
+	if clickedTab then
+		logLine("เปิดแท็บ Roles แล้ว")
+	else
+		logLine("หาแท็บ Roles ไม่เจอ")
+	end if
+	delay 1
+
+	-- หาช่องเลือกที่มีตัวเลือกตามที่ต้องการ แล้วเลือกให้
+	set didSet to false
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events"
+				tell process fcpName
+					repeat with windowRef in windows
+						repeat with elementRef in (entire contents of windowRef)
+							try
+								if class of elementRef is pop up button then
+									set currentValue to (value of elementRef) as string
+									my logLine("พบช่องเลือก ค่าปัจจุบัน " & currentValue)
+									if currentValue is wantedSetting then
+										set didSet to true
+									else
+										try
+											click elementRef
+											delay 0.4
+											click menu item wantedSetting of menu 1 of elementRef
+											set didSet to true
+											my logLine("ตั้งค่าเป็น " & wantedSetting & " แล้ว")
+										on error
+											try
+												key code 53
+											end try
+										end try
+									end if
+								end if
+							end try
+							if didSet then exit repeat
+						end repeat
+						if didSet then exit repeat
+					end repeat
+				end tell
+			end tell
+		end timeout
+	end try
+
+	if didSet then
+		logLine("แท็บ Roles เป็น " & wantedSetting & " เรียบร้อย")
+	else
+		logLine("ตั้งค่า Roles ไม่สำเร็จ")
+		say("ตั้งค่า Roles ให้ไม่สำเร็จ")
+		set answer to askWarn(¬
+			"ตั้งค่าแท็บ Roles ให้อัตโนมัติไม่สำเร็จ" & return & return & ¬
+			"ในหน้าต่างของ Final Cut Pro ที่เปิดอยู่" & return & ¬
+			"ให้ไปที่แท็บ Roles" & return & ¬
+			"แล้วตั้ง Roles as ให้เป็น " & wantedSetting & return & return & ¬
+			"ตั้งเสร็จแล้วกดปุ่มข้างล่าง", ¬
+			{"ตั้งแล้ว"}, "ตั้งแล้ว")
+	end if
+	delay 0.5
+end setRolesTo
+
+
+on shareTo(destinationName, humanName, rolesSetting)
 	say("กำลังสั่งสร้าง " & humanName)
 	set opened to false
 	try
@@ -491,6 +592,9 @@ on shareTo(destinationName, humanName)
 	end if
 
 	delay 2
+	-- ตั้งค่า Roles ให้ถูกก่อนเสมอ ก่อนจะกด Next
+	if rolesSetting is not "" then setRolesTo(rolesSetting)
+
 	if pressButtons({"Next…", "Next...", "Next"}) then logLine("กดปุ่ม Next แล้ว")
 	delay 2
 
@@ -513,7 +617,7 @@ on shareTo(destinationName, humanName)
 			pressButtons({"Cancel", "ยกเลิก"})
 			delay 1
 			-- เริ่มรอบนี้ใหม่ คราวนี้ผู้ใช้เลือกครบแล้ว
-			shareTo(destinationName, humanName)
+			shareTo(destinationName, humanName, rolesSetting)
 			return
 		end if
 	end if

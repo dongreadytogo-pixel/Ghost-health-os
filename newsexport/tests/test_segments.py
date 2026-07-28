@@ -638,6 +638,79 @@ class TestManyBlocks(unittest.TestCase):
         self.assertEqual(event.get("name"), "แยกงาน ทดสอบ")
 
 
+class TestChannelRolesSurvive(unittest.TestCase):
+    """
+    ไฟล์ mxf ของห้องข่าวใช้ Roles as 3 Stereo คือเสียง 3 คู่ รวม 6 ช่อง
+    ค่านั้นอ่านจากการตั้ง Role ระดับช่องเสียงในแต่ละคลิป
+    ถ้าการแยกก้อนทำให้ค่านี้หายแม้ช่องเดียว ไฟล์ mxf จะเสียทันที
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        import xml.etree.ElementTree as ET
+        import fcpxml_split
+        cls.ET = ET
+
+        clips = []
+        for index in range(1, 5):
+            offset = (index - 1) * 10
+            clips.append(
+                '<asset-clip ref="r2" offset="%ds" name="ข่าว %d" start="0s" '
+                'duration="8s" format="r1" audioRole="dialogue">'
+                '<audio-channel-source srcCh="1, 2" role="dialogue.dialogue-%d"/>'
+                '<audio-channel-source srcCh="3, 4" role="dialogue.dialogue-%d"/>'
+                '<adjust-volume amount="-3dB"/>'
+                '</asset-clip>' % (offset, index, index, index + 2))
+            if index < 4:
+                clips.append('<gap name="Gap" offset="%ds" start="0s" duration="2s"/>'
+                             % (offset + 8))
+
+        document = (
+            '<?xml version="1.0" encoding="UTF-8"?><fcpxml version="1.14"><resources>'
+            '<format id="r1" frameDuration="200/5000s" width="1920" height="1080"/>'
+            '<asset id="r2" name="A" start="0s" duration="999s" hasVideo="1"'
+            ' hasAudio="1" audioChannels="6" format="r1">'
+            '<media-rep kind="original-media" src="file:///x.mov"/></asset>'
+            '</resources><library><event name="e"><project name="ข่าว-">'
+            '<sequence format="r1" duration="38s" tcStart="0s" tcFormat="NDF"'
+            ' audioLayout="stereo" audioRate="48k"><spine>%s</spine>'
+            '</sequence></project></event></library></fcpxml>' % "".join(clips))
+
+        source = ET.ElementTree(ET.fromstring(document))
+        cls.before = ET.fromstring(document)
+        cls.tree, cls.details, _, _ = fcpxml_split.split(source, 0.2, "ทดสอบ")
+        cls.after = cls.tree.getroot()
+
+    def roles_in(self, root):
+        return sorted(e.get("role") for e in root.iter("audio-channel-source"))
+
+    def test_every_channel_role_survives(self):
+        self.assertEqual(self.roles_in(self.before), self.roles_in(self.after))
+
+    def test_channel_count_is_unchanged(self):
+        before = len(list(self.before.iter("audio-channel-source")))
+        after = len(list(self.after.iter("audio-channel-source")))
+        self.assertEqual(before, after)
+        self.assertEqual(before, 8)
+
+    def test_source_channel_mapping_survives(self):
+        before = sorted(e.get("srcCh") for e in self.before.iter("audio-channel-source"))
+        after = sorted(e.get("srcCh") for e in self.after.iter("audio-channel-source"))
+        self.assertEqual(before, after)
+
+    def test_volume_adjustments_survive(self):
+        before = len(list(self.before.iter("adjust-volume")))
+        after = len(list(self.after.iter("adjust-volume")))
+        self.assertEqual(before, after)
+
+    def test_each_segment_keeps_its_own_channel_roles(self):
+        # ก้อนที่ 3 ต้องมี dialogue-3 และ dialogue-5 ตามที่ตั้งไว้
+        projects = list(self.after.iter("project"))
+        third = projects[2]
+        roles = sorted(e.get("role") for e in third.iter("audio-channel-source"))
+        self.assertEqual(roles, ["dialogue.dialogue-3", "dialogue.dialogue-5"])
+
+
 class TestCollectOutputs(unittest.TestCase):
     """
     Final Cut Pro บังคับที่เซฟไม่ได้จริง ไฟล์จึงไปตกที่อื่น
