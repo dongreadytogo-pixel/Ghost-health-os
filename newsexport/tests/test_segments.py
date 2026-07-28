@@ -638,6 +638,104 @@ class TestManyBlocks(unittest.TestCase):
         self.assertEqual(event.get("name"), "แยกงาน ทดสอบ")
 
 
+class TestCollectOutputs(unittest.TestCase):
+    """
+    Final Cut Pro บังคับที่เซฟไม่ได้จริง ไฟล์จึงไปตกที่อื่น
+    เคยไปโผล่ทั้งในโฟลเดอร์ F และในโฟลเดอร์ Applications
+    ตัวเก็บไฟล์จึงต้องตามไปเก็บมาให้ถูกที่ และห้ามแตะไฟล์อื่นของผู้ใช้
+    """
+
+    def setUp(self):
+        import tempfile
+        import collect_outputs
+        self.collector = collect_outputs
+        self.temp = tempfile.mkdtemp()
+        self.target = os.path.join(self.temp, "ปลายทาง")
+        self.stray = os.path.join(self.temp, "ที่ผิด")
+        os.makedirs(self.target)
+        os.makedirs(self.stray)
+        self.names = ["ข่าว-1.mov", "ข่าว-1.mxf", "ข่าว-2.mov", "ข่าว-2.mxf"]
+        self.namesFile = os.path.join(self.temp, "names.txt")
+        with open(self.namesFile, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(self.names) + "\n")
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.temp, ignore_errors=True)
+
+    def put(self, folder, name, size=400):
+        path = os.path.join(folder, name)
+        with open(path, "wb") as handle:
+            handle.write(b"x" * size)
+        return path
+
+    def collect(self):
+        import io
+        import contextlib
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            self.collector.main([self.target, self.namesFile,
+                                 "--also-look-in", self.stray, "--settle", "0.2"])
+        lines = buffer.getvalue().split("\n")
+        return int(lines[0]), int(lines[1]), int(lines[2])
+
+    def test_files_saved_elsewhere_are_brought_back(self):
+        for name in self.names:
+            self.put(self.stray, name)
+        moved, waiting, missing = self.collect()
+        self.assertEqual((moved, waiting, missing), (4, 0, 0))
+        self.assertEqual(sorted(os.listdir(self.target)), sorted(self.names))
+        self.assertEqual(os.listdir(self.stray), [])
+
+    def test_other_files_are_never_touched(self):
+        self.put(self.stray, "ข่าว-1.mov")
+        keep = self.put(self.stray, "งานสำคัญของผู้ใช้.mov")
+        self.collect()
+        self.assertTrue(os.path.exists(keep))
+
+    def test_files_already_in_place_are_left_alone(self):
+        wanted = self.put(self.target, "ข่าว-1.mov")
+        moved, waiting, missing = self.collect()
+        self.assertTrue(os.path.exists(wanted))
+        self.assertEqual(missing, 3)
+
+    def test_existing_file_is_not_overwritten(self):
+        self.put(self.target, "ข่าว-1.mov", size=111)
+        self.put(self.stray, "ข่าว-1.mov", size=999)
+        self.collect()
+        # ของเดิมต้องยังอยู่เท่าเดิม ของใหม่ได้ชื่อใหม่
+        self.assertEqual(os.path.getsize(os.path.join(self.target, "ข่าว-1.mov")), 111)
+        self.assertTrue(any(n.startswith("ข่าว-1 (2)") for n in os.listdir(self.target)))
+
+    def test_a_file_still_being_written_is_left_for_next_round(self):
+        import threading
+        path = self.put(self.stray, "ข่าว-1.mov", size=10)
+        stop = threading.Event()
+
+        def grow():
+            while not stop.is_set():
+                with open(path, "ab") as handle:
+                    handle.write(b"y" * 64)
+                time.sleep(0.01)
+
+        worker = threading.Thread(target=grow)
+        worker.start()
+        try:
+            moved, waiting, missing = self.collect()
+        finally:
+            stop.set()
+            worker.join()
+        self.assertEqual(moved, 0)
+        self.assertEqual(waiting, 1)
+        self.assertTrue(os.path.exists(path))
+
+    def test_missing_files_are_reported_not_invented(self):
+        self.put(self.stray, "ข่าว-1.mov")
+        moved, waiting, missing = self.collect()
+        self.assertEqual(moved, 1)
+        self.assertEqual(missing, 3)
+
+
 class TestNameListOutput(unittest.TestCase):
     """รายชื่อไฟล์ที่ส่งให้ตัวนับเปอร์เซ็นต์ ต้องเรียงและครบถ้วน"""
 

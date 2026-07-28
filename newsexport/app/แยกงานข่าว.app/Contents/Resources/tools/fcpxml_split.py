@@ -289,11 +289,49 @@ def print_report(details, fps, output_path, warnings=()):
     print("")
 
 
+def write_per_segment(tree, min_gap, folder, event_prefix):
+    """
+    เขียนไฟล์แยกทีละก้อน ก้อนละหนึ่งไฟล์ และแต่ละไฟล์มีงานเดียว
+
+    ทำไมต้องแยกทีละไฟล์
+    -------------------
+    ตอนสั่งเอ็กพอร์ต ปัญหาใหญ่ที่สุดคือการเลือกงานให้ครบทุกอัน
+    ถ้าเลือกไม่ครบ จะได้ไฟล์มาแค่ก้อนเดียว ซึ่งเกิดขึ้นจริงมาแล้ว
+
+    วิธีนี้ตัดปัญหาทิ้งทั้งหมด
+    เพราะนำเข้าทีละไฟล์ Event ที่ได้จะมีงานอยู่แค่ชิ้นเดียว
+    สั่งเลือกทั้งหมดเมื่อไร ก็ได้งานชิ้นนั้นชิ้นเดียวแน่นอน
+    ไม่มีทางเลือกผิด และไม่มีทางเลือกไม่ครบ
+    """
+    os.makedirs(folder, exist_ok=True)
+    written = []
+    total = len(group_into_segments(
+        walk_spine(find_sequence(tree.getroot())[1].find("spine")), min_gap))
+
+    for index in range(1, total + 1):
+        single, details, fps, _ = split(tree, min_gap,
+                                        "%s %d" % (event_prefix, index))
+        root = single.getroot()
+        library = root.find("library")
+        event = library.find("event")
+        # เก็บไว้เฉพาะงานลำดับที่ต้องการ ที่เหลือเอาออก
+        for project in list(event.findall("project")):
+            if project.get("name") != details[index - 1]["name"]:
+                event.remove(project)
+        path = os.path.join(folder, "ก้อน-%03d.fcpxml" % index)
+        write_fcpxml(single, path)
+        written.append({"index": index, "path": path,
+                        "name": details[index - 1]["name"]})
+    return written
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description="แยกไทม์ไลน์ข่าวออกเป็นงานย่อย อันละหนึ่งก้อน")
     parser.add_argument("fcpxml", help="ไฟล์ .fcpxml ที่ Export มาจาก Final Cut Pro")
     parser.add_argument("-o", "--output", help="ชื่อไฟล์ผลลัพธ์ (ค่าเริ่มต้นคือเติม -แยกแล้ว)")
+    parser.add_argument("--per-segment", default=None,
+                        help="เขียนไฟล์แยกทีละก้อนลงในโฟลเดอร์นี้ ก้อนละหนึ่งไฟล์")
     parser.add_argument("--event-name", default=None,
                         help="ชื่อ Event ที่จะสร้างในไฟล์ผลลัพธ์ ควรไม่ซ้ำของเดิม")
     parser.add_argument("--min-gap", type=float, default=DEFAULT_MIN_GAP,
@@ -335,6 +373,13 @@ def main(argv=None):
                 base = base[: -len(suffix)]
                 break
         output = base + "-แยกแล้ว.fcpxml"
+
+    if args.per_segment:
+        written = write_per_segment(tree, args.min_gap, args.per_segment,
+                                    args.event_name or "แยกงาน")
+        for item in written:
+            print("%d\t%s\t%s" % (item["index"], item["path"], item["name"]))
+        return 0
 
     write_fcpxml(new_tree, output)
     print_report(details, fps, output, warnings)
