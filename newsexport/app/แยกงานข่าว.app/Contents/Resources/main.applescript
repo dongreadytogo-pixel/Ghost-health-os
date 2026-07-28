@@ -1,12 +1,14 @@
 -- ============================================================
 -- หน้าจอหลักของโปรแกรมแยกงานข่าว
 -- ------------------------------------------------------------
--- Final Cut Pro ไม่เปิดให้สั่งงานจากภายนอกโดยตรง
--- โปรแกรมจึงต้องกดเมนูแทนผู้ใช้ผ่านระบบช่วยเหลือของ macOS
+-- เป้าหมายของไฟล์นี้
+-- ผู้ใช้เปิดงานค้างไว้ใน Final Cut Pro แล้วกดปุ่มเดียว
+-- ที่เหลือโปรแกรมทำเองทั้งหมด ผู้ใช้ไม่ต้องเลือกไฟล์ ไม่ต้องเซฟอะไร
 --
--- กฎเหล็กของไฟล์นี้
--- ห้ามเชื่อว่าการกดแทนสำเร็จ ต้องพิสูจน์ด้วยไฟล์ที่เกิดขึ้นจริงเท่านั้น
--- ถ้าพิสูจน์ไม่ได้ ต้องบอกผู้ใช้ให้ทำเอง แล้วรอต่อ ห้ามจบด้วยความล้มเหลว
+-- กฎเหล็ก 3 ข้อ
+-- 1. ห้ามให้ผู้ใช้เลือกไฟล์ไทม์ไลน์เอง โปรแกรมต้องไปเอามาเอง
+-- 2. ห้ามเชื่อว่าการกดแทนสำเร็จ ต้องพิสูจน์ด้วยไฟล์ที่เกิดขึ้นจริง
+-- 3. เวลาพัง ต้องบอกให้ชัดว่าพังตรงไหน ห้ามบอกลอย ๆ
 -- ============================================================
 
 property appTitle : "แยกงานข่าว"
@@ -36,39 +38,23 @@ end run
 on showMainMenu()
 	repeat
 		set choice to button returned of (display dialog ¬
-			"โปรแกรมนี้จะช่วยแยกข่าวในไทม์ไลน์ออกเป็นก้อน ๆ" & return & ¬
-			"แล้วช่วยเอ็กพอร์ตให้ครบทุกก้อน ทั้งไฟล์ mov และ mxf" & return & return & ¬
 			"เปิดงานข่าวค้างไว้ใน Final Cut Pro" & return & ¬
 			"แล้วคลิกที่ชื่องานนั้นหนึ่งครั้ง" & return & return & ¬
-			"จากนั้นกดปุ่ม เริ่มทำงาน" ¬
-			buttons {"ปิด", "วิธีใช้", "เริ่มทำงาน"} ¬
-			default button "เริ่มทำงาน" with title appTitle)
+			"จากนั้นกดปุ่ม เอ็กพอร์ต" & return & return & ¬
+			"โปรแกรมจะไปเอาไทม์ไลน์มาเอง แยกเป็นก้อน" & return & ¬
+			"แล้วเอ็กพอร์ตให้ครบทุกก้อน ทั้ง mov และ mxf" ¬
+			buttons {"ปิด", "ตรวจสอบระบบ", "เอ็กพอร์ต"} ¬
+			default button "เอ็กพอร์ต" with title appTitle)
 
 		if choice is "ปิด" then
 			return
-		else if choice is "วิธีใช้" then
-			showHelp()
+		else if choice is "ตรวจสอบระบบ" then
+			runDiagnostics()
 		else
 			runWorkflow()
 		end if
 	end repeat
 end showMainMenu
-
-
-on showHelp()
-	display dialog ¬
-		"โปรแกรมทำให้ 5 ขั้น" & return & return & ¬
-		"1. ถามว่าจะเก็บไฟล์ไว้ที่ไหน" & return & ¬
-		"2. ดึงไทม์ไลน์ออกมาจาก Final Cut Pro" & return & ¬
-		"3. บอกว่าพบข่าวกี่ก้อน ให้ตรวจก่อน" & return & ¬
-		"4. แยกเป็นงานย่อย ตั้งชื่อลงท้าย -1 -2 -3 ให้เอง" & return & ¬
-		"5. ช่วยเอ็กพอร์ต พร้อมแสดงเปอร์เซ็นต์จนเสร็จ" & return & return & ¬
-		"สิ่งที่โปรแกรมไม่ทำ" & return & return & ¬
-		"ไม่แก้งานเดิมของคุณ อ่านอย่างเดียว" & return & ¬
-		"ไม่แปลงไฟล์เอง เสียงและ Roles จึงไม่เพี้ยน" & return & ¬
-		"ไม่สร้างไฟล์ใด ๆ จนกว่าคุณจะกดยืนยัน" ¬
-		buttons {"เข้าใจแล้ว"} default button 1 with title appTitle
-end showHelp
 
 
 -- ============================================================
@@ -80,55 +66,49 @@ on runWorkflow()
 		if not ensureFinalCutRunning() then return
 		if not ensureAccessibility() then return
 
-		-- ขั้นที่ 1 เลือกโฟลเดอร์เก็บไฟล์
 		set outFolder to chooseOutputFolder()
 		if outFolder is "" then return
 
-		-- ขั้นที่ 2 ดึงไทม์ไลน์ออกมา
-		set xmlPath to exportTimeline()
+		set xmlPath to fetchTimeline()
 		if xmlPath is "" then return
 
-		-- ขั้นที่ 3 ตรวจจำนวนก้อน
 		set gapSeconds to "0.2"
 		repeat
 			set reportText to runBrief(xmlPath, gapSeconds)
 			set answer to button returned of (display dialog ¬
-				reportText & return & return & "รายการนี้ถูกต้องไหม" ¬
-				buttons {"ยกเลิก", "ปรับจำนวนก้อน", "ถูกต้อง ไปต่อ"} ¬
-				default button "ถูกต้อง ไปต่อ" with title appTitle)
+				reportText & return & return & "จำนวนก้อนถูกต้องไหม" ¬
+				buttons {"ยกเลิก", "ปรับจำนวนก้อน", "ถูกต้อง เอ็กพอร์ตเลย"} ¬
+				default button "ถูกต้อง เอ็กพอร์ตเลย" with title appTitle)
 			if answer is "ยกเลิก" then return
-			if answer is "ถูกต้อง ไปต่อ" then exit repeat
+			if answer is "ถูกต้อง เอ็กพอร์ตเลย" then exit repeat
 			set gapSeconds to askGapSeconds(gapSeconds)
 			if gapSeconds is "" then return
 		end repeat
 
-		-- ขั้นที่ 4 แยกงานแล้วนำกลับเข้า Final Cut Pro
 		set splitPath to (workPath & "/แยกแล้ว.fcpxml")
 		runSplit(xmlPath, gapSeconds, splitPath)
 
-		-- เก็บรายชื่อไฟล์ที่ต้องได้ ไว้ใช้นับเปอร์เซ็นต์ตอนเอ็กพอร์ต
 		set namesFile to workPath & "/รายชื่อไฟล์.txt"
 		do shell script "/usr/bin/env python3 " & quoted form of (resourcesPath & "/tools/fcpxml_segments.py") & ¬
 			" " & quoted form of xmlPath & " --min-gap " & gapSeconds & " --names > " & quoted form of namesFile
 		set totalFiles to (do shell script "grep -c . " & quoted form of namesFile) as integer
 
 		importTimeline(splitPath)
-
-		-- ขั้นที่ 5 เอ็กพอร์ตพร้อมแสดงเปอร์เซ็นต์
 		runExportStage(outFolder, namesFile, totalFiles)
 
 	on error errorMessage number errorNumber
 		if errorNumber is -128 then return
 		display dialog ¬
 			"เกิดปัญหาระหว่างทำงาน" & return & return & errorMessage & return & return & ¬
-			"ถ้าไม่เข้าใจข้อความนี้ ถ่ายรูปหน้าจอส่งกลับมาได้เลย" ¬
+			"ลองกดปุ่ม ตรวจสอบระบบ ที่หน้าแรก" & return & ¬
+			"แล้วถ่ายรูปผลที่ได้ส่งกลับมา" ¬
 			buttons {"ปิด"} default button 1 with title appTitle with icon caution
 	end try
 end runWorkflow
 
 
 -- ============================================================
--- ขั้นที่ 0 ตรวจความพร้อม
+-- ตรวจความพร้อม
 -- ============================================================
 
 on ensureFinalCutRunning()
@@ -136,7 +116,7 @@ on ensureFinalCutRunning()
 	if isRunning then return true
 	set answer to button returned of (display dialog ¬
 		"ยังไม่ได้เปิด Final Cut Pro" & return & return & ¬
-		"ให้เปิด Final Cut Pro และเปิดงานข่าวที่ต้องการค้างไว้ก่อน" ¬
+		"ให้เปิด Final Cut Pro และเปิดงานข่าวค้างไว้ก่อน" ¬
 		buttons {"ยกเลิก", "เปิดให้เลย"} default button "เปิดให้เลย" with title appTitle)
 	if answer is "ยกเลิก" then return false
 	tell application "Final Cut Pro" to activate
@@ -172,20 +152,12 @@ on ensureAccessibility()
 end ensureAccessibility
 
 
--- ============================================================
--- ขั้นที่ 1 เลือกโฟลเดอร์เก็บไฟล์
--- ============================================================
-
 on chooseOutputFolder()
-	-- จำโฟลเดอร์ที่เลือกครั้งก่อน เพื่อไม่ต้องหาใหม่ทุกวัน
 	set startFolder to missing value
 	try
 		set lastFolder to (do shell script "cat " & quoted form of prefsPath)
-		if lastFolder is not "" then
-			set startFolder to (POSIX file lastFolder) as alias
-		end if
+		if lastFolder is not "" then set startFolder to (POSIX file lastFolder) as alias
 	end try
-
 	try
 		if startFolder is missing value then
 			set chosen to choose folder with prompt "เลือกโฟลเดอร์ที่จะเก็บไฟล์ mov และ mxf"
@@ -195,143 +167,159 @@ on chooseOutputFolder()
 	on error number -128
 		return ""
 	end try
-
 	set chosenPath to POSIX path of chosen
-	-- ตัดขีดปิดท้ายออก เพื่อให้เอาไปต่อชื่อไฟล์ได้สะดวก
-	if chosenPath ends with "/" then
-		set chosenPath to text 1 thru -2 of chosenPath
-	end if
+	if chosenPath ends with "/" then set chosenPath to text 1 thru -2 of chosenPath
 	do shell script "echo " & quoted form of chosenPath & " > " & quoted form of prefsPath
 	return chosenPath
 end chooseOutputFolder
 
 
 -- ============================================================
--- ขั้นที่ 2 ดึงไทม์ไลน์ออกมาจาก Final Cut Pro
+-- ไปเอาไทม์ไลน์มาเอง ผู้ใช้ไม่ต้องยุ่ง
 -- ============================================================
 
-on exportTimeline()
-	set outFolder to workPath & "/ดึงออกมา"
-	do shell script "rm -rf " & quoted form of outFolder & " && mkdir -p " & quoted form of outFolder
-	-- จำเวลาเริ่ม เพื่อใช้ค้นหาไฟล์ที่เพิ่งเกิดใหม่ในที่อื่น ๆ
-	set startStamp to workPath & "/เริ่มเมื่อ"
-	do shell script "touch " & quoted form of startStamp
+on fetchTimeline()
+	set marker to workPath & "/เริ่มเมื่อ"
+	do shell script "rm -f " & quoted form of marker & " && touch " & quoted form of marker
+
+	-- ตรวจก่อนว่าเมนูกดได้จริงไหม
+	-- ถ้าเมนูเป็นสีเทา แปลว่ายังไม่ได้คลิกเลือกชื่องาน ซึ่งเป็นสาเหตุที่พบบ่อยที่สุด
+	set state to menuItemState("File", "Export XML")
+
+	if state is "missing" then
+		display dialog ¬
+			"หาเมนู Export XML ใน Final Cut Pro ไม่เจอ" & return & return & ¬
+			"อาจเป็นเพราะเมนูของ Final Cut Pro ไม่ได้เป็นภาษาอังกฤษ" & return & return & ¬
+			"กดปุ่ม ตรวจสอบระบบ ที่หน้าแรก แล้วส่งผลมาให้ผมดู" ¬
+			buttons {"ปิด"} default button 1 with title appTitle with icon caution
+		return ""
+	end if
+
+	if state is "disabled" then
+		display dialog ¬
+			"ยังไม่ได้เลือกงานข่าว" & return & return & ¬
+			"ใน Final Cut Pro ให้คลิกที่ ชื่องาน หนึ่งครั้ง" & return & ¬
+			"คลิกที่ตัวงานในหน้าต่าง Browser" & return & ¬
+			"ไม่ใช่คลิกที่ Event หรือ Library" & return & return & ¬
+			"คลิกเสร็จแล้วกดปุ่ม เลือกแล้ว" ¬
+			buttons {"ยกเลิก", "เลือกแล้ว"} default button "เลือกแล้ว" with title appTitle
+		if button returned of result is "ยกเลิก" then return ""
+		set state to menuItemState("File", "Export XML")
+		if state is not "enabled" then
+			display dialog ¬
+				"ยังเลือกงานไม่ถูกต้อง" & return & return & ¬
+				"ต้องคลิกที่ตัวงานข่าวในหน้าต่าง Browser" & return & ¬
+				"ให้ชื่องานมีกรอบสีเหลืองล้อมรอบ" ¬
+				buttons {"ปิด"} default button 1 with title appTitle with icon caution
+			return ""
+		end if
+	end if
 
 	display dialog ¬
-		"ขั้นที่ 2 จาก 5" & return & return & ¬
-		"กำลังจะดึงไทม์ไลน์ออกมาจาก Final Cut Pro" & return & return & ¬
-		"ตรวจก่อนว่าคลิกเลือกชื่องานข่าวไว้แล้ว" & return & ¬
-		"ระหว่างนี้อย่าเพิ่งแตะเมาส์หรือคีย์บอร์ด" ¬
+		"กำลังจะไปเอาไทม์ไลน์มา" & return & return & ¬
+		"ใช้เวลาไม่กี่วินาที" & return & ¬
+		"ระหว่างนี้อย่าแตะเมาส์หรือคีย์บอร์ด" ¬
 		buttons {"เริ่มเลย"} default button 1 with title appTitle
 
-	-- ครั้งที่หนึ่ง ลองกดแทนให้
+	-- กดเมนู แล้วกดปุ่มยืนยันในหน้าต่างที่เด้งขึ้นมา
+	-- ไม่ไปยุ่งกับที่เก็บไฟล์เลย ปล่อยให้มันเซฟตรงไหนก็ได้
+	-- เดี๋ยวเราไปตามหาไฟล์เอง ซึ่งทนทานกว่าการบังคับหน้าต่างมาก
 	try
 		clickMenuItem("File", "Export XML")
 		delay 2
-		if sheetIsOpen() then
-			saveSheetTo(outFolder, "ไทม์ไลน์")
-		end if
+		confirmSheet()
 	end try
 
-	set foundPath to findTimelineFile(outFolder, startStamp, 25)
+	set foundPath to waitForNewTimeline(marker, 30)
 	if foundPath is not "" then return foundPath
 
-	-- ครั้งที่สอง ให้ผู้ใช้ทำเอง โปรแกรมเปิดโฟลเดอร์รอไว้ให้แล้ว
-	do shell script "open " & quoted form of outFolder
-	display dialog ¬
-		"กดแทนให้ไม่สำเร็จ ขอให้ทำเอง 2 ขั้นตอนนี้" & return & return & ¬
-		"1. กลับไปที่ Final Cut Pro คลิกที่ชื่องานข่าว" & return & ¬
-		"   แล้วไปที่เมนู File เลือก Export XML" & return & return & ¬
-		"2. เซฟลงในโฟลเดอร์ที่เพิ่งเปิดขึ้นมาให้" & return & ¬
-		"   หรือจะเซฟที่ Desktop ก็ได้ โปรแกรมหาเจอเอง" & return & return & ¬
-		"เซฟเสร็จแล้วค่อยกดปุ่มข้างล่าง" ¬
-		buttons {"เซฟแล้ว"} default button 1 with title appTitle
-
-	set foundPath to findTimelineFile(outFolder, startStamp, 90)
+	-- ยังไม่ได้ ลองกดปุ่มยืนยันซ้ำอีกครั้ง เผื่อหน้าต่างเพิ่งโผล่ช้า
+	try
+		confirmSheet()
+	end try
+	set foundPath to waitForNewTimeline(marker, 20)
 	if foundPath is not "" then return foundPath
 
 	display dialog ¬
-		"ยังหาไฟล์ไทม์ไลน์ไม่เจอ" & return & return & ¬
-		"สาเหตุที่พบบ่อยที่สุดคือ ไม่ได้คลิกเลือกชื่องานข่าวก่อน" & return & ¬
-		"ต้องคลิกที่ตัวงาน ไม่ใช่ที่ Event หรือ Library" & return & return & ¬
-		"ลองใหม่อีกครั้งได้เลย" ¬
+		"ไปเอาไทม์ไลน์มาไม่สำเร็จ" & return & return & ¬
+		"ถ้ามีหน้าต่างของ Final Cut Pro ค้างอยู่ ให้กด Save หรือ Cancel ก่อน" & return & return & ¬
+		"แล้วกดปุ่ม ตรวจสอบระบบ ที่หน้าแรก" & return & ¬
+		"ถ่ายรูปผลที่ได้ส่งมา ผมจะแก้ให้ตรงจุด" ¬
 		buttons {"ปิด"} default button 1 with title appTitle with icon caution
 	return ""
-end exportTimeline
+end fetchTimeline
 
 
-on findTimelineFile(outFolder, startStamp, maxSeconds)
-	-- หาไฟล์ที่เกิดใหม่ ทั้งในโฟลเดอร์ที่เตรียมไว้ และในที่ที่คนชอบเซฟกัน
+on waitForNewTimeline(marker, maxSeconds)
 	repeat with i from 1 to maxSeconds
 		try
-			set found to do shell script ¬
-				"find " & quoted form of outFolder & " -maxdepth 1 \\( -name '*.fcpxmld' -o -name '*.fcpxml' \\) -newer " & quoted form of startStamp & " 2>/dev/null | head -1"
-			if found is "" then
-				set found to do shell script ¬
-					"find ~/Desktop ~/Documents ~/Movies ~/Downloads -maxdepth 2 \\( -name '*.fcpxmld' -o -name '*.fcpxml' \\) -newer " & quoted form of startStamp & " 2>/dev/null | head -1"
-			end if
+			set found to do shell script "/usr/bin/env python3 " & ¬
+				quoted form of (resourcesPath & "/tools/find_recent.py") & ¬
+				" " & quoted form of marker
 			if found is not "" then
-				delay 1.5 -- เผื่อเวลาให้เขียนไฟล์เสร็จสมบูรณ์
+				delay 1.5 -- เผื่อเวลาให้เขียนไฟล์เสร็จ
 				return found
 			end if
 		end try
 		delay 1
 	end repeat
 	return ""
-end findTimelineFile
+end waitForNewTimeline
+
+
+on confirmSheet()
+	-- กดปุ่มยืนยันในหน้าต่างเซฟ โดยไม่แตะที่เก็บไฟล์
+	tell application "System Events"
+		tell process fcpName
+			set frontmost to true
+			delay 0.3
+			set didClick to false
+			try
+				repeat with sheetRef in sheets of window 1
+					repeat with buttonName in {"Save", "Export", "OK"}
+						try
+							click button buttonName of sheetRef
+							set didClick to true
+							exit repeat
+						end try
+					end repeat
+					if didClick then exit repeat
+				end repeat
+			end try
+			if not didClick then key code 36 -- ปุ่ม Return
+		end tell
+	end tell
+end confirmSheet
 
 
 -- ============================================================
--- ขั้นที่ 4 นำงานย่อยกลับเข้า Final Cut Pro
+-- นำงานย่อยกลับเข้า Final Cut Pro
 -- ============================================================
 
 on importTimeline(splitPath)
+	-- วิธีนี้เชื่อถือได้กว่าการกดเมนูมาก
+	-- เพราะเป็นการบอก macOS ให้เปิดไฟล์ด้วย Final Cut Pro ตรง ๆ
+	-- Final Cut Pro จะนำเข้าให้เองโดยไม่ต้องกดปุ่มอะไรเลย
+	do shell script "open -a " & quoted form of "/Applications/Final Cut Pro.app" & " " & quoted form of splitPath
+	delay 3
+
 	display dialog ¬
-		"ขั้นที่ 4 จาก 5" & return & return & ¬
-		"แยกงานเรียบร้อยแล้ว" & return & ¬
-		"กำลังจะนำงานย่อยกลับเข้า Final Cut Pro" & return & return & ¬
-		"ระหว่างนี้อย่าเพิ่งแตะเมาส์หรือคีย์บอร์ด" ¬
-		buttons {"ไปต่อ"} default button 1 with title appTitle
-
-	set didOpen to false
-	try
-		tell application "System Events"
-			tell process fcpName
-				set frontmost to true
-				delay 0.4
-				set fileMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "File")
-				set importItem to (first menu item of fileMenu whose name starts with "Import")
-				click (first menu item of menu 1 of importItem whose name starts with "XML")
-			end tell
-		end tell
-		delay 2
-		if sheetIsOpen() then
-			openSheetAt(splitPath)
-			set didOpen to true
-		end if
-	end try
-
-	if not didOpen then
-		do shell script "open -R " & quoted form of splitPath
-		display dialog ¬
-			"กดแทนให้ไม่สำเร็จ ขอให้ทำเอง 2 ขั้นตอนนี้" & return & return & ¬
-			"1. ใน Final Cut Pro ไปที่เมนู File แล้ว Import แล้ว XML" & return & return & ¬
-			"2. เลือกไฟล์ แยกแล้ว.fcpxml ที่เปิดค้างไว้ให้ใน Finder" & return & return & ¬
-			"เสร็จแล้วกดปุ่มข้างล่าง" ¬
-			buttons {"นำเข้าแล้ว"} default button 1 with title appTitle
-	end if
+		"แยกงานเรียบร้อยแล้ว" & return & return & ¬
+		"งานย่อยกำลังเข้าไปอยู่ใน Final Cut Pro" & return & ¬
+		"ชื่อลงท้าย -1 -2 -3 เรียงตามลำดับให้แล้ว" & return & return & ¬
+		"ถ้ามีหน้าต่างถามเรื่องการนำเข้า ให้กด Import" & return & ¬
+		"เสร็จแล้วกดปุ่มข้างล่าง" ¬
+		buttons {"เข้ามาแล้ว"} default button 1 with title appTitle
 end importTimeline
 
 
 -- ============================================================
--- ขั้นที่ 5 เอ็กพอร์ต พร้อมแสดงเปอร์เซ็นต์
+-- เอ็กพอร์ต พร้อมแสดงเปอร์เซ็นต์
 -- ============================================================
 
 on runExportStage(outFolder, namesFile, totalFiles)
 	display dialog ¬
-		"ขั้นที่ 5 จาก 5" & return & return & ¬
-		"งานย่อยเข้าไปอยู่ใน Final Cut Pro แล้ว" & return & ¬
-		"ชื่อลงท้าย -1 -2 -3 เรียงตามลำดับให้แล้ว" & return & return & ¬
+		"ขั้นสุดท้าย" & return & return & ¬
 		"ให้เลือกงานย่อยทั้งหมดพร้อมกัน" & return & ¬
 		"คลิกอันแรก กด Shift ค้าง แล้วคลิกอันสุดท้าย" & return & return & ¬
 		"ไฟล์จะถูกเก็บไว้ที่" & return & outFolder ¬
@@ -339,12 +327,12 @@ on runExportStage(outFolder, namesFile, totalFiles)
 
 	shareWith("Export File", "ไฟล์ mov", outFolder)
 	shareWith("MXF-50", "ไฟล์ mxf", outFolder)
-
 	monitorProgress(outFolder, namesFile, totalFiles)
 end runExportStage
 
 
 on shareWith(destinationName, humanName, outFolder)
+	set opened to false
 	try
 		tell application "System Events"
 			tell process fcpName
@@ -353,18 +341,26 @@ on shareWith(destinationName, humanName, outFolder)
 				set fileMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "File")
 				set shareItem to (first menu item of fileMenu whose name starts with "Share")
 				click (first menu item of menu 1 of shareItem whose name starts with destinationName)
+				set opened to true
 			end tell
 		end tell
 		delay 2.5
 	end try
 
-	display dialog ¬
-		"กำลังตั้งค่า " & humanName & return & return & ¬
-		"ในหน้าต่างของ Final Cut Pro ให้กดปุ่ม Next" & return & ¬
-		"แล้วเลือกโฟลเดอร์นี้เป็นที่เก็บไฟล์" & return & return & ¬
-		outFolder & return & return & ¬
-		"กดปุ่มข้างล่างเมื่อสั่งเอ็กพอร์ตแล้ว" ¬
-		buttons {"สั่งแล้ว"} default button 1 with title appTitle
+	if opened then
+		display dialog ¬
+			"หน้าต่างตั้งค่า " & humanName & " เปิดขึ้นมาแล้ว" & return & return & ¬
+			"กดปุ่ม Next แล้วเลือกโฟลเดอร์นี้" & return & return & outFolder & return & return & ¬
+			"สั่งเอ็กพอร์ตแล้วกดปุ่มข้างล่าง" ¬
+			buttons {"สั่งแล้ว"} default button 1 with title appTitle
+	else
+		display dialog ¬
+			"เปิดหน้าต่าง " & humanName & " ให้ไม่สำเร็จ" & return & return & ¬
+			"ขอให้ทำเอง ไปที่เมนู File แล้ว Share" & return & ¬
+			"แล้วเลือก " & destinationName & return & return & ¬
+			"เก็บไฟล์ไว้ที่" & return & outFolder ¬
+			buttons {"สั่งแล้ว"} default button 1 with title appTitle
+	end if
 end shareWith
 
 
@@ -386,11 +382,10 @@ on monitorProgress(outFolder, namesFile, totalFiles)
 		set percent to 0
 		if totalFiles > 0 then set percent to round (doneCount * 100 / totalFiles)
 
-		-- แจ้งเตือนแบบไม่รบกวน เมื่อมีไฟล์เสร็จเพิ่ม
 		if doneCount > lastDone then
 			try
 				display notification "เสร็จแล้ว " & doneCount & " จาก " & totalFiles & " ไฟล์" ¬
-					with title appTitle subtitle (percent & "%")
+					with title appTitle subtitle ((percent as string) & "%")
 			end try
 			set lastDone to doneCount
 		end if
@@ -398,11 +393,9 @@ on monitorProgress(outFolder, namesFile, totalFiles)
 		set statusLine to "กำลังรอ Final Cut Pro เริ่มสร้างไฟล์"
 		if workingCount > 0 then set statusLine to "กำลังเขียนอยู่ " & workingCount & " ไฟล์"
 
-		set message to ¬
-			"กำลังเอ็กพอร์ต" & return & return & ¬
+		set message to "กำลังเอ็กพอร์ต" & return & return & ¬
 			progressBar(percent) & "  " & percent & "%" & return & return & ¬
-			"เสร็จแล้ว " & doneCount & " จาก " & totalFiles & " ไฟล์" & return & ¬
-			statusLine
+			"เสร็จแล้ว " & doneCount & " จาก " & totalFiles & " ไฟล์" & return & statusLine
 		if lastName is not "" then
 			set message to message & return & return & "ไฟล์ล่าสุด" & return & lastName
 		end if
@@ -424,7 +417,6 @@ end monitorProgress
 
 
 on progressBar(percent)
-	-- แถบความคืบหน้าแบบตัวอักษร ยาว 20 ช่อง
 	set filled to round (percent / 5)
 	if filled < 0 then set filled to 0
 	if filled > 20 then set filled to 20
@@ -446,20 +438,118 @@ on finishDialog(outFolder, totalFiles, wasCompleted)
 	else
 		set headline to "หยุดรอแล้ว Final Cut Pro อาจยังสร้างไฟล์ต่ออยู่"
 	end if
-
 	set answer to button returned of (display dialog ¬
-		headline & return & return & ¬
-		"ไฟล์ทั้งหมดถูกเก็บไว้ที่" & return & return & outFolder ¬
+		headline & return & return & "ไฟล์ทั้งหมดอยู่ที่" & return & return & outFolder ¬
 		buttons {"ปิด", "เปิดโฟลเดอร์"} default button "เปิดโฟลเดอร์" with title appTitle)
-	if answer is "เปิดโฟลเดอร์" then
-		do shell script "open " & quoted form of outFolder
-	end if
+	if answer is "เปิดโฟลเดอร์" then do shell script "open " & quoted form of outFolder
 end finishDialog
 
 
 -- ============================================================
--- ตัวช่วยกดเมนูและหน้าต่างเซฟ
+-- ตรวจสอบระบบ บอกให้ชัดว่าอะไรพร้อมอะไรไม่พร้อม
 -- ============================================================
+
+on runDiagnostics()
+	set lines to {}
+
+	-- Final Cut Pro เปิดอยู่ไหม
+	tell application "System Events" to set isRunning to (exists process fcpName)
+	if isRunning then
+		set end of lines to "เปิด Final Cut Pro อยู่          ผ่าน"
+	else
+		set end of lines to "เปิด Final Cut Pro อยู่          ไม่ผ่าน ยังไม่ได้เปิด"
+	end if
+
+	-- สิทธิ์กดเมนูแทนผู้ใช้
+	set canSeeMenus to false
+	try
+		tell application "System Events"
+			tell process fcpName to get name of menu bar 1
+		end tell
+		set canSeeMenus to true
+		set end of lines to "สิทธิ์กดเมนูแทน               ผ่าน"
+	on error
+		set end of lines to "สิทธิ์กดเมนูแทน               ไม่ผ่าน ต้องเปิดสิทธิ์ก่อน"
+	end try
+
+	if canSeeMenus then
+		-- เมนูที่ต้องใช้ มีครบไหม และกดได้ไหม
+		set end of lines to "เมนู Export XML              " & thaiState(menuItemState("File", "Export XML"))
+		set end of lines to "เมนู Share ปลายทาง mov       " & thaiState(shareItemState("Export File"))
+		set end of lines to "เมนู Share ปลายทาง mxf       " & thaiState(shareItemState("MXF-50"))
+	end if
+
+	-- ตัวช่วยที่ต้องใช้
+	try
+		do shell script "/usr/bin/env python3 --version"
+		set end of lines to "ตัวช่วย python3               ผ่าน"
+	on error
+		set end of lines to "ตัวช่วย python3               ไม่ผ่าน"
+	end try
+
+	set report to ""
+	repeat with aLine in lines
+		set report to report & aLine & return
+	end repeat
+
+	set answer to button returned of (display dialog ¬
+		"ผลตรวจสอบระบบ" & return & return & report & return & ¬
+		"คำอธิบาย" & return & ¬
+		"กดไม่ได้ แปลว่ายังไม่ได้คลิกเลือกชื่องานข่าว" & return & ¬
+		"ไม่มีเมนูนี้ แปลว่าชื่อเมนูไม่ตรง ต้องแจ้งผมให้แก้" ¬
+		buttons {"ปิด", "คัดลอกผล"} default button "ปิด" with title appTitle)
+	if answer is "คัดลอกผล" then
+		set the clipboard to report
+		display dialog "คัดลอกแล้ว วางส่งกลับมาได้เลย" buttons {"ปิด"} default button 1 with title appTitle
+	end if
+end runDiagnostics
+
+
+on thaiState(state)
+	if state is "enabled" then return "ผ่าน"
+	if state is "disabled" then return "กดไม่ได้ ยังไม่ได้เลือกงาน"
+	return "ไม่มีเมนูนี้"
+end thaiState
+
+
+on shareItemState(destinationName)
+	try
+		tell application "System Events"
+			tell process fcpName
+				set fileMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "File")
+				set shareItem to (first menu item of fileMenu whose name starts with "Share")
+				set target to (first menu item of menu 1 of shareItem whose name starts with destinationName)
+				if enabled of target then return "enabled"
+				return "disabled"
+			end tell
+		end tell
+	on error
+		return "missing"
+	end try
+end shareItemState
+
+
+-- ============================================================
+-- ตัวช่วยกดเมนู
+-- ============================================================
+
+on menuItemState(menuName, itemPrefix)
+	-- คืนค่าได้ 3 แบบ  enabled คือกดได้  disabled คือเป็นสีเทา  missing คือไม่มีเมนูนี้
+	try
+		tell application "System Events"
+			tell process fcpName
+				set frontmost to true
+				delay 0.3
+				set target to (first menu item of menu 1 of (first menu bar item of menu bar 1 whose name is menuName) whose name starts with itemPrefix)
+				if enabled of target then return "enabled"
+				return "disabled"
+			end tell
+		end tell
+	on error
+		return "missing"
+	end try
+end menuItemState
+
 
 on clickMenuItem(menuName, itemPrefix)
 	tell application "System Events"
@@ -470,56 +560,6 @@ on clickMenuItem(menuName, itemPrefix)
 		end tell
 	end tell
 end clickMenuItem
-
-
-on sheetIsOpen()
-	-- ตรวจว่าหน้าต่างเซฟหรือเปิดไฟล์โผล่ขึ้นมาจริงหรือยัง
-	-- ถ้าไม่ตรวจ แล้วพิมพ์ลงไปเลย ตัวอักษรจะไปตกใส่ไทม์ไลน์ ซึ่งอันตราย
-	try
-		tell application "System Events"
-			tell process fcpName
-				if (count of sheets of window 1) > 0 then return true
-			end tell
-		end tell
-	end try
-	return false
-end sheetIsOpen
-
-
-on saveSheetTo(folderPath, fileName)
-	tell application "System Events"
-		tell process fcpName
-			set frontmost to true
-			keystroke "g" using {command down, shift down}
-			delay 1
-			keystroke folderPath
-			delay 0.6
-			key code 36
-			delay 1.2
-			keystroke "a" using {command down}
-			delay 0.3
-			keystroke fileName
-			delay 0.5
-			key code 36
-		end tell
-	end tell
-end saveSheetTo
-
-
-on openSheetAt(filePath)
-	tell application "System Events"
-		tell process fcpName
-			set frontmost to true
-			keystroke "g" using {command down, shift down}
-			delay 1
-			keystroke filePath
-			delay 0.6
-			key code 36
-			delay 1.5
-			key code 36
-		end tell
-	end tell
-end openSheetAt
 
 
 -- ============================================================

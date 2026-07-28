@@ -426,6 +426,94 @@ class TestProgressCounting(unittest.TestCase):
         self.assertEqual((done, working, total), (4, 0, 4))
 
 
+class TestFindRecentTimeline(unittest.TestCase):
+    """
+    โปรแกรมต้องไปหาไฟล์ไทม์ไลน์เอง ผู้ใช้ไม่ต้องเลือกไฟล์
+    จึงต้องหยิบเฉพาะไฟล์ที่เพิ่งเกิดใหม่ ห้ามหยิบไฟล์เก่าของเมื่อวาน
+    """
+
+    def setUp(self):
+        import tempfile
+        import find_recent
+        self.finder = find_recent
+        self.temp = tempfile.mkdtemp()
+        self.marker = os.path.join(self.temp, "marker")
+        open(self.marker, "w").close()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.temp, ignore_errors=True)
+
+    def find(self):
+        import io
+        import contextlib
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            code = self.finder.main([self.marker, self.temp])
+        return code, buffer.getvalue().strip()
+
+    def make_old(self, name):
+        path = os.path.join(self.temp, name)
+        open(path, "w").close()
+        os.utime(path, (0, 0))
+        return path
+
+    def make_new(self, name):
+        path = os.path.join(self.temp, name)
+        open(path, "w").close()
+        later = os.path.getmtime(self.marker) + 10
+        os.utime(path, (later, later))
+        return path
+
+    def make_new_bundle(self, name):
+        bundle = os.path.join(self.temp, name)
+        os.makedirs(bundle)
+        inner = os.path.join(bundle, "Info.fcpxml")
+        open(inner, "w").close()
+        later = os.path.getmtime(self.marker) + 10
+        os.utime(inner, (later, later))
+        os.utime(bundle, (0, 0))   # เวลาของตัวกล่องไม่อัปเดต ต้องดูไฟล์ข้างใน
+        return bundle
+
+    def test_nothing_new_reports_not_found(self):
+        self.make_old("เมื่อวาน.fcpxml")
+        code, output = self.find()
+        self.assertEqual(code, 1)
+        self.assertEqual(output, "")
+
+    def test_finds_a_new_plain_file(self):
+        wanted = self.make_new("วันนี้.fcpxml")
+        code, output = self.find()
+        self.assertEqual(code, 0)
+        self.assertEqual(output, wanted)
+
+    def test_finds_a_new_bundle_by_its_inner_file(self):
+        wanted = self.make_new_bundle("วันนี้.fcpxmld")
+        code, output = self.find()
+        self.assertEqual(code, 0)
+        self.assertEqual(output, wanted)
+
+    def test_old_file_is_never_chosen_over_new_one(self):
+        self.make_old("เมื่อวาน.fcpxml")
+        wanted = self.make_new("วันนี้.fcpxml")
+        code, output = self.find()
+        self.assertEqual((code, output), (0, wanted))
+
+    def test_newest_wins_between_two_new_files(self):
+        first = self.make_new("หนึ่ง.fcpxml")
+        second = self.make_new("สอง.fcpxml")
+        later = os.path.getmtime(first) + 5
+        os.utime(second, (later, later))
+        code, output = self.find()
+        self.assertEqual((code, output), (0, second))
+
+    def test_unrelated_files_are_ignored(self):
+        self.make_new("ไม่เกี่ยว.mov")
+        self.make_new("ไม่เกี่ยว.txt")
+        code, output = self.find()
+        self.assertEqual(code, 1)
+
+
 class TestNameListOutput(unittest.TestCase):
     """รายชื่อไฟล์ที่ส่งให้ตัวนับเปอร์เซ็นต์ ต้องเรียงและครบถ้วน"""
 
