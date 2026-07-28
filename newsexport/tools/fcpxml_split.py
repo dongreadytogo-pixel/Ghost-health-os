@@ -40,13 +40,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from fcpxml_segments import (  # noqa: E402
     CLIP_TAGS,
+    DEFAULT_MIN_GAP,
     TimelineError,
     find_sequence,
     format_timecode,
     group_into_segments,
     parse_time,
     read_frame_rate,
+    resolve_input,
     safe_filename,
+    segment_basename,
     walk_spine,
 )
 
@@ -213,7 +216,7 @@ def split(tree, min_gap):
     details = []
     for index, segment in enumerate(segments, start=1):
         start, end = segment["start"], segment["end"]
-        name = "%s-%d" % (safe_filename(project_name), index)
+        name = segment_basename(project_name, index)
         sliced = slice_spine(spine, start, end, timescale)
         event.append(build_segment_project(sequence, sliced, name, end - start, timescale))
         details.append({
@@ -284,16 +287,22 @@ def main(argv=None):
         description="แยกไทม์ไลน์ข่าวออกเป็นงานย่อย อันละหนึ่งก้อน")
     parser.add_argument("fcpxml", help="ไฟล์ .fcpxml ที่ Export มาจาก Final Cut Pro")
     parser.add_argument("-o", "--output", help="ชื่อไฟล์ผลลัพธ์ (ค่าเริ่มต้นคือเติม -แยกแล้ว)")
-    parser.add_argument("--min-gap", type=float, default=1.0,
-                        help="ช่องว่างกี่วินาทีขึ้นไปจึงถือว่าคั่นข่าว (ค่าเริ่มต้น 1.0)")
+    parser.add_argument("--min-gap", type=float, default=DEFAULT_MIN_GAP,
+                        help="ช่องว่างกี่วินาทีขึ้นไปจึงถือว่าคั่นข่าว (ค่าเริ่มต้น %g)"
+                             % DEFAULT_MIN_GAP)
     args = parser.parse_args(argv)
 
-    if not os.path.exists(args.fcpxml):
-        print("ไม่พบไฟล์: %s" % args.fcpxml, file=sys.stderr)
+    try:
+        source = resolve_input(args.fcpxml)
+    except TimelineError as error:
+        print("")
+        print("เกิดปัญหา:")
+        print("  %s" % error)
+        print("")
         return 2
 
     try:
-        tree = ET.parse(args.fcpxml)
+        tree = ET.parse(source)
     except ET.ParseError as error:
         print("อ่านไฟล์ไม่ได้ ไฟล์อาจเสียหาย: %s" % error, file=sys.stderr)
         return 2
@@ -309,8 +318,14 @@ def main(argv=None):
 
     output = args.output
     if not output:
-        base, extension = os.path.splitext(args.fcpxml)
-        output = base + "-แยกแล้ว" + (extension or ".fcpxml")
+        # เก็บผลลัพธ์ไว้ข้าง ๆ ของเดิม และเป็นไฟล์ .fcpxml ธรรมดาเสมอ
+        # ถึงต้นทางจะเป็นกล่อง .fcpxmld ก็ตาม
+        base = args.fcpxml.rstrip("/")
+        for suffix in (".fcpxmld", ".fcpxml"):
+            if base.endswith(suffix):
+                base = base[: -len(suffix)]
+                break
+        output = base + "-แยกแล้ว.fcpxml"
 
     write_fcpxml(new_tree, output)
     print_report(details, fps, output, warnings)

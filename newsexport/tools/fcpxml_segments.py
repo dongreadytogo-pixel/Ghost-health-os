@@ -98,6 +98,29 @@ class TimelineError(Exception):
     """ข้อผิดพลาดที่อธิบายเป็นภาษาคนได้ ไม่ใช่ข้อความของเครื่อง"""
 
 
+def resolve_input(path):
+    """
+    รับได้ทั้งสองแบบที่ Final Cut Pro ส่งออกมา
+
+    แบบเก่า  ไฟล์เดียว           งาน.fcpxml
+    แบบใหม่  กล่องที่มีไฟล์ข้างใน  งาน.fcpxmld  (ข้างในมี Info.fcpxml)
+
+    Final Cut Pro รุ่นใหม่ส่งออกเป็นแบบกล่อง ซึ่งบน Mac จะเห็นเป็นไฟล์เดียว
+    แต่จริง ๆ เป็นโฟลเดอร์ โปรแกรมจึงต้องเข้าไปหยิบไฟล์ข้างในให้เอง
+    """
+    if os.path.isdir(path):
+        inner = os.path.join(path, "Info.fcpxml")
+        if os.path.isfile(inner):
+            return inner
+        raise TimelineError(
+            "ในกล่องนี้ไม่มีไฟล์ Info.fcpxml\n"
+            "  กรุณาส่งออกใหม่จาก Final Cut Pro ด้วยเมนู File > Export XML"
+        )
+    if os.path.isfile(path):
+        return path
+    raise TimelineError("ไม่พบไฟล์หรือโฟลเดอร์นี้: %s" % path)
+
+
 def find_sequence(root):
     """หา <project> และ <sequence> ในไฟล์ ไม่ว่าจะซ้อนอยู่ลึกแค่ไหน"""
     project = None
@@ -192,6 +215,22 @@ def group_into_segments(items, min_gap_seconds):
     return segments
 
 
+def list_gaps(items):
+    """คืนรายการช่องว่างทั้งหมดที่พบ พร้อมตำแหน่งและความยาว"""
+    return [(start, duration) for kind, start, duration, _, _ in items if kind == "gap"]
+
+
+# ค่าเริ่มต้นของตัวคั่น หน่วยวินาที
+#
+# ผู้ใช้ยืนยันว่า "จะมีช่องว่างเสมอ พอเห็นคลิปใหม่ถัดจากช่องว่าง นั่นคือไฟล์ถัดไป"
+# แปลว่าช่องว่างทุกอันคือตัวคั่นข่าว ไม่ได้ขึ้นกับว่ายาวเท่าไร
+#
+# แต่ตั้งไว้ที่ 0.2 วินาที (5 เฟรม) ไม่ใช่ 0 เพราะเวลาตัดงานจริง
+# บางครั้งเผลอเว้นช่องว่างไว้ 1-2 เฟรมโดยไม่ตั้งใจ ซึ่งมองด้วยตาไม่เห็น
+# ถ้าตั้งเป็น 0 ช่องว่างที่เผลอนั้นจะทำให้ข่าวขาดเป็นสองก้อนโดยไม่รู้ตัว
+DEFAULT_MIN_GAP = 0.2
+
+
 # ============================================================
 # ส่วนที่ 3 — การตั้งชื่อไฟล์
 # ============================================================
@@ -210,9 +249,22 @@ def safe_filename(name):
     return cleaned or "Untitled"
 
 
+def segment_basename(project_name, index):
+    """
+    สร้างชื่อฐานของก้อนที่ index เช่น 'ชื่องาน-1'
+
+    ผู้ใช้บางคนตั้งชื่องานลงท้ายด้วยขีดไว้อยู่แล้ว เช่น '…(ชลบุรี)-'
+    ถ้าเติมขีดซ้ำจะกลายเป็น '…(ชลบุรี)--1' ซึ่งผิดจากที่ต้องการ
+    จึงตัดขีดและช่องว่างท้ายชื่อออกก่อนเสมอ แล้วค่อยเติม '-เลขก้อน'
+    ผลลัพธ์จึงเป็น '…(ชลบุรี)-1' ไม่ว่าผู้ใช้จะตั้งชื่อมาแบบไหน
+    """
+    base = safe_filename(project_name).rstrip("- ")
+    return "%s-%d" % (base or "Untitled", index)
+
+
 def build_filenames(project_name, index, extensions):
     """สร้างชื่อไฟล์ของก้อนที่ index เช่น 'ชื่องาน-1.mov' และ 'ชื่องาน-1.mxf'"""
-    base = "%s-%d" % (safe_filename(project_name), index)
+    base = segment_basename(project_name, index)
     return [base + "." + extension for extension in extensions]
 
 
@@ -221,7 +273,7 @@ def build_filenames(project_name, index, extensions):
 # ============================================================
 
 
-def print_report(project_name, fps, segments, extensions, min_gap):
+def print_report(project_name, fps, segments, extensions, min_gap, gaps=()):
     total = len(segments)
     print("")
     print("=" * 60)
@@ -232,6 +284,24 @@ def print_report(project_name, fps, segments, extensions, min_gap):
     print("  ถือว่าช่องว่างตั้งแต่ %g วินาทีขึ้นไป คือตัวคั่นข่าว" % min_gap)
     print("  พบทั้งหมด    : %d ก้อน" % total)
     print("")
+
+    if gaps:
+        separators = [g for g in gaps if float(g[1]) >= min_gap]
+        too_short = [g for g in gaps if float(g[1]) < min_gap]
+        print("  ช่องว่างที่ใช้คั่นข่าว %d จุด" % len(separators))
+        for start, duration in separators:
+            print("     ที่ %s  ยาว %.1f วินาที"
+                  % (format_timecode(start, fps), float(duration)))
+        print("")
+        if too_short:
+            print("  หมายเหตุ: พบช่องว่างสั้นมากอีก %d จุด ซึ่งไม่ถูกใช้คั่นข่าว"
+                  % len(too_short))
+            for start, duration in too_short:
+                frames = int(round(float(duration) * float(fps)))
+                print("     ที่ %s  ยาวแค่ %d เฟรม"
+                      % (format_timecode(start, fps), frames))
+            print("     ถ้าจุดพวกนี้ควรเป็นตัวคั่นข่าวด้วย ให้ลดตัวเลขวินาทีลง")
+            print("")
 
     if total == 0:
         print("  ⚠️  ไม่พบข่าวสักก้อน")
@@ -294,20 +364,25 @@ def main(argv=None):
     )
     parser.add_argument("fcpxml", help="ไฟล์ .fcpxml ที่ Export มาจาก Final Cut Pro")
     parser.add_argument(
-        "--min-gap", type=float, default=1.0,
-        help="ช่องว่างกี่วินาทีขึ้นไปจึงถือว่าคั่นข่าว (ค่าเริ่มต้น 1.0)")
+        "--min-gap", type=float, default=DEFAULT_MIN_GAP,
+        help="ช่องว่างกี่วินาทีขึ้นไปจึงถือว่าคั่นข่าว (ค่าเริ่มต้น %g)" % DEFAULT_MIN_GAP)
     parser.add_argument(
         "--ext", default="mov,mxf",
         help="นามสกุลไฟล์ที่ต้องสร้าง คั่นด้วยจุลภาค (ค่าเริ่มต้น mov,mxf)")
     parser.add_argument("--json", action="store_true", help="แสดงผลเป็นข้อมูลสำหรับโปรแกรม")
     args = parser.parse_args(argv)
 
-    if not os.path.exists(args.fcpxml):
-        print("ไม่พบไฟล์: %s" % args.fcpxml, file=sys.stderr)
+    try:
+        source = resolve_input(args.fcpxml)
+    except TimelineError as error:
+        print("")
+        print("เกิดปัญหา:")
+        print("  %s" % error)
+        print("")
         return 2
 
     try:
-        tree = ET.parse(args.fcpxml)
+        tree = ET.parse(source)
     except ET.ParseError as error:
         print("อ่านไฟล์ไม่ได้ ไฟล์อาจเสียหาย: %s" % error, file=sys.stderr)
         return 2
@@ -339,7 +414,8 @@ def main(argv=None):
         print(json.dumps(build_json(project_name, fps, segments, extensions),
                          ensure_ascii=False, indent=2))
     else:
-        print_report(project_name, fps, segments, extensions, args.min_gap)
+        print_report(project_name, fps, segments, extensions, args.min_gap,
+                     list_gaps(items))
     return 0
 
 

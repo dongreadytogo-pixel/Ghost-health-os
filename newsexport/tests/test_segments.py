@@ -122,6 +122,99 @@ class TestFilenames(unittest.TestCase):
         self.assertEqual(ns.safe_filename("ข่าวเช้า. "), "ข่าวเช้า")
 
 
+class TestNamingAgainstRealProject(unittest.TestCase):
+    """
+    ชื่องานจริงของผู้ใช้ลงท้ายด้วยขีดอยู่แล้ว
+    ผลลัพธ์ที่ต้องได้คือ '…(ชลบุรี)-1.mov' ไม่ใช่ '…(ชลบุรี)--1.mov'
+    """
+
+    REAL = "OA690728_4 (ลบ) หนุ่มขับรถตู้ชนท้ายรถ 3 คันเสียหาย(ชลบุรี)-"
+    WANT = "OA690728_4 (ลบ) หนุ่มขับรถตู้ชนท้ายรถ 3 คันเสียหาย(ชลบุรี)-1"
+
+    def test_trailing_hyphen_is_not_doubled(self):
+        self.assertEqual(ns.segment_basename(self.REAL, 1), self.WANT)
+
+    def test_name_without_hyphen_gets_one(self):
+        self.assertEqual(ns.segment_basename("ข่าวเช้า", 2), "ข่าวเช้า-2")
+
+    def test_trailing_hyphen_and_space(self):
+        self.assertEqual(ns.segment_basename("ข่าวเช้า - ", 3), "ข่าวเช้า-3")
+
+    def test_filenames_match_the_delivery_list(self):
+        names = ns.build_filenames(self.REAL, 1, ["mov", "mxf"])
+        self.assertEqual(names, [self.WANT + ".mov", self.WANT + ".mxf"])
+
+
+class TestBundleInput(unittest.TestCase):
+    """Final Cut Pro รุ่นใหม่ส่งออกเป็นกล่อง .fcpxmld ต้องรับได้ด้วย"""
+
+    def setUp(self):
+        import tempfile
+        self.temp = tempfile.mkdtemp()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.temp, ignore_errors=True)
+
+    def test_bundle_folder_resolves_to_inner_file(self):
+        bundle = os.path.join(self.temp, "งาน.fcpxmld")
+        os.makedirs(bundle)
+        inner = os.path.join(bundle, "Info.fcpxml")
+        with open(inner, "w", encoding="utf-8") as handle:
+            handle.write("<fcpxml/>")
+        self.assertEqual(ns.resolve_input(bundle), inner)
+
+    def test_plain_file_passes_through(self):
+        plain = os.path.join(self.temp, "งาน.fcpxml")
+        with open(plain, "w", encoding="utf-8") as handle:
+            handle.write("<fcpxml/>")
+        self.assertEqual(ns.resolve_input(plain), plain)
+
+    def test_bundle_without_inner_file_explains_itself(self):
+        bundle = os.path.join(self.temp, "ว่าง.fcpxmld")
+        os.makedirs(bundle)
+        with self.assertRaises(ns.TimelineError) as caught:
+            ns.resolve_input(bundle)
+        self.assertIn("Export XML", str(caught.exception))
+
+    def test_missing_path_is_reported(self):
+        with self.assertRaises(ns.TimelineError):
+            ns.resolve_input(os.path.join(self.temp, "ไม่มีจริง.fcpxml"))
+
+
+class TestRealTimelineShape(unittest.TestCase):
+    """
+    ทดสอบด้วยโครงสร้างแบบเดียวกับไทม์ไลน์จริงของผู้ใช้
+    ช่องว่าง 4 จุด ยาว 6.36 / 11.20 / 7.52 / 10.28 วินาที รวมเป็น 5 ก้อน
+    """
+
+    GAPS = [6.36, 11.20, 7.52, 10.28]
+
+    def build_items(self):
+        pattern = []
+        for index in range(5):
+            pattern.append(("clip", 20))
+            if index < 4:
+                pattern.append(("gap", self.GAPS[index]))
+        return spine_items(pattern)
+
+    def test_default_threshold_finds_five_blocks(self):
+        segments = ns.group_into_segments(self.build_items(), ns.DEFAULT_MIN_GAP)
+        self.assertEqual(len(segments), 5)
+
+    def test_every_real_gap_is_a_separator(self):
+        gaps = ns.list_gaps(self.build_items())
+        self.assertEqual(len(gaps), 4)
+        for _, duration in gaps:
+            self.assertGreaterEqual(float(duration), ns.DEFAULT_MIN_GAP)
+
+    def test_accidental_two_frame_gap_does_not_split(self):
+        # ช่องว่าง 2 เฟรมที่ 25 fps = 0.08 วินาที ต่ำกว่าค่าเริ่มต้น 0.2
+        pattern = [("clip", 20), ("gap", 0.08), ("clip", 20)]
+        segments = ns.group_into_segments(spine_items(pattern), ns.DEFAULT_MIN_GAP)
+        self.assertEqual(len(segments), 1)
+
+
 class TestRealFixture(unittest.TestCase):
     """ทดสอบกับไฟล์ FCPXML ตัวอย่างที่เลียนแบบงานข่าวจริง"""
 

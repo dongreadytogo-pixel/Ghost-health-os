@@ -43,7 +43,8 @@ fi
 # ------------------------------------------------------------
 # ขั้นที่ 2 รับไฟล์จากผู้ใช้
 # ------------------------------------------------------------
-echo "${BOLD}  ขั้นที่ 1${OFF}  ลากไฟล์ .fcpxml มาวางในหน้าต่างนี้ แล้วกด Enter"
+echo "${BOLD}  ขั้นที่ 1${OFF}  ลากไฟล์งานมาวางในหน้าต่างนี้ แล้วกด Enter"
+echo "  ${YELLOW}(ไฟล์จะลงท้ายด้วย .fcpxml หรือ .fcpxmld ก็ได้ทั้งคู่)${OFF}"
 echo
 echo "  ${YELLOW}(ยังไม่มีไฟล์? เปิด Final Cut Pro > คลิกที่ชื่องาน${OFF}"
 echo "  ${YELLOW} > เมนู File > Export XML… > เซฟไว้ที่ Desktop)${OFF}"
@@ -67,7 +68,9 @@ if [ -z "$INPUT_PATH" ]; then
     exit 1
 fi
 
-if [ ! -f "$INPUT_PATH" ]; then
+# Final Cut Pro รุ่นใหม่ส่งออกเป็นกล่อง .fcpxmld ซึ่งจริง ๆ เป็นโฟลเดอร์
+# จึงต้องรับได้ทั้งไฟล์ธรรมดาและโฟลเดอร์
+if [ ! -f "$INPUT_PATH" ] && [ ! -d "$INPUT_PATH" ]; then
     echo
     echo "${RED}  หาไฟล์นี้ไม่เจอ:${OFF} $INPUT_PATH"
     echo "  ลองใหม่โดยการลากไฟล์มาวาง อย่าพิมพ์เอง"
@@ -81,13 +84,13 @@ fi
 echo
 echo "${BOLD}  ขั้นที่ 2${OFF}  ช่องว่างกี่วินาที ถึงจะนับว่าคั่นข่าวคนละเรื่อง"
 echo
-echo "  กด Enter เฉย ๆ เพื่อใช้ค่าปกติคือ 1 วินาที"
-echo "  ${YELLOW}(ถ้าผลออกมาได้ก้อนน้อยเกินไป ให้ลองใส่ 0.5${OFF}"
-echo "  ${YELLOW} ถ้าได้ก้อนเยอะเกินไป ให้ลองใส่ 2 หรือ 3)${OFF}"
+echo "  กด Enter เฉย ๆ ไปเลย เพื่อใช้ค่าปกติคือ 0.2 วินาที"
+echo "  ${YELLOW}(ค่านี้จับช่องว่างทุกอันที่คุณเว้นไว้จริง${OFF}"
+echo "  ${YELLOW} แต่ไม่นับช่องว่าง 1-2 เฟรมที่อาจเผลอเว้นไว้โดยไม่ตั้งใจ)${OFF}"
 echo
-printf "  วินาที [1]: "
+printf "  วินาที [0.2]: "
 read -r MIN_GAP
-[ -z "$MIN_GAP" ] && MIN_GAP=1
+[ -z "$MIN_GAP" ] && MIN_GAP=0.2
 
 # ------------------------------------------------------------
 # ขั้นที่ 4 ดูรายการก่อน ว่าแยกได้กี่ก้อน
@@ -118,7 +121,9 @@ if [ "$CONFIRM" != "y" ] && [ "$CONFIRM" != "Y" ]; then
 fi
 
 # เก็บผลลัพธ์ไว้ข้าง ๆ ไฟล์ต้นฉบับ จะได้หาเจอง่าย
-OUTPUT_PATH="${INPUT_PATH%.fcpxml}-แยกแล้ว.fcpxml"
+OUTPUT_PATH="${INPUT_PATH%/}"
+OUTPUT_PATH="${OUTPUT_PATH%.fcpxmld}"
+OUTPUT_PATH="${OUTPUT_PATH%.fcpxml}-แยกแล้ว.fcpxml"
 
 echo
 if python3 tools/fcpxml_split.py "$INPUT_PATH" -o "$OUTPUT_PATH" --min-gap "$MIN_GAP"; then
