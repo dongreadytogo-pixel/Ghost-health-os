@@ -17,6 +17,7 @@ property fcpName : "Final Cut Pro"
 global resourcesPath
 global workPath
 global prefsPath
+global logPath
 
 
 on run argv
@@ -27,8 +28,31 @@ on run argv
 	end if
 	set workPath to (do shell script "mkdir -p ~/Library/Caches/fcpx-news-export && echo ~/Library/Caches/fcpx-news-export")
 	set prefsPath to workPath & "/โฟลเดอร์ล่าสุด.txt"
+	set logPath to workPath & "/บันทึกการทำงาน.txt"
+	startLog()
 	showMainMenu()
 end run
+
+
+-- ============================================================
+-- ตัวบันทึกการทำงาน
+-- ------------------------------------------------------------
+-- จดทุกขั้นตอนลงไฟล์ เพื่อว่าถ้าพัง จะรู้ได้ทันทีว่าพังตรงไหน
+-- ผู้ใช้ไม่ต้องอธิบายเอง แค่ส่งไฟล์นี้มาก็พอ
+-- ============================================================
+
+on startLog()
+	try
+		do shell script "echo '===== เริ่มรอบใหม่ " & ((current date) as string) & " =====' >> " & quoted form of logPath
+	end try
+end startLog
+
+
+on logLine(theText)
+	try
+		do shell script "echo " & quoted form of ("  " & theText) & " >> " & quoted form of logPath
+	end try
+end logLine
 
 
 -- ============================================================
@@ -43,11 +67,11 @@ on showMainMenu()
 			"จากนั้นกดปุ่ม เอ็กพอร์ต" & return & return & ¬
 			"โปรแกรมจะไปเอาไทม์ไลน์มาเอง แยกเป็นก้อน" & return & ¬
 			"แล้วเอ็กพอร์ตให้ครบทุกก้อน ทั้ง mov และ mxf" ¬
-			buttons {"ปิด", "ตรวจสอบระบบ", "เอ็กพอร์ต"} ¬
+			buttons {"ดูบันทึก", "ตรวจสอบระบบ", "เอ็กพอร์ต"} ¬
 			default button "เอ็กพอร์ต" with title appTitle)
 
-		if choice is "ปิด" then
-			return
+		if choice is "ดูบันทึก" then
+			showLog()
 		else if choice is "ตรวจสอบระบบ" then
 			runDiagnostics()
 		else
@@ -55,6 +79,21 @@ on showMainMenu()
 		end if
 	end repeat
 end showMainMenu
+
+
+on showLog()
+	try
+		do shell script "open -R " & quoted form of logPath
+		display dialog ¬
+			"เปิด Finder ให้แล้ว ไฟล์ชื่อ บันทึกการทำงาน.txt" & return & return & ¬
+			"ส่งไฟล์นี้กลับมาให้ผม" & return & ¬
+			"ผมจะรู้ทันทีว่าติดตรงไหน โดยคุณไม่ต้องอธิบายเลย" ¬
+			buttons {"ปิด"} default button 1 with title appTitle
+	on error
+		display dialog "ยังไม่มีบันทึก ให้ลองกดปุ่ม เอ็กพอร์ต ก่อนหนึ่งครั้ง" ¬
+			buttons {"ปิด"} default button 1 with title appTitle
+	end try
+end showLog
 
 
 -- ============================================================
@@ -67,10 +106,18 @@ on runWorkflow()
 		if not ensureAccessibility() then return
 
 		set outFolder to chooseOutputFolder()
-		if outFolder is "" then return
+		if outFolder is "" then
+			logLine("ผู้ใช้ยกเลิกตอนเลือกโฟลเดอร์")
+			return
+		end if
+		logLine("โฟลเดอร์ปลายทาง = " & outFolder)
 
 		set xmlPath to fetchTimeline()
-		if xmlPath is "" then return
+		if xmlPath is "" then
+			logLine("จบที่ขั้นไปเอาไทม์ไลน์ ไม่สำเร็จ")
+			return
+		end if
+		logLine("ได้ไทม์ไลน์มาแล้ว = " & xmlPath)
 
 		set gapSeconds to "0.2"
 		repeat
@@ -87,21 +134,27 @@ on runWorkflow()
 
 		set splitPath to (workPath & "/แยกแล้ว.fcpxml")
 		runSplit(xmlPath, gapSeconds, splitPath)
+		logLine("แยกงานเสร็จ ใช้ค่าช่องว่าง " & gapSeconds & " วินาที")
 
 		set namesFile to workPath & "/รายชื่อไฟล์.txt"
 		do shell script "/usr/bin/env python3 " & quoted form of (resourcesPath & "/tools/fcpxml_segments.py") & ¬
 			" " & quoted form of xmlPath & " --min-gap " & gapSeconds & " --names > " & quoted form of namesFile
 		set totalFiles to (do shell script "grep -c . " & quoted form of namesFile) as integer
 
+		logLine("ต้องได้ไฟล์ทั้งหมด " & totalFiles & " ไฟล์")
+
 		importTimeline(splitPath)
+		logLine("นำงานย่อยกลับเข้า Final Cut Pro แล้ว")
+
 		runExportStage(outFolder, namesFile, totalFiles)
+		logLine("จบรอบการทำงาน")
 
 	on error errorMessage number errorNumber
 		if errorNumber is -128 then return
+		logLine("พังกลางทาง " & errorMessage)
 		display dialog ¬
 			"เกิดปัญหาระหว่างทำงาน" & return & return & errorMessage & return & return & ¬
-			"ลองกดปุ่ม ตรวจสอบระบบ ที่หน้าแรก" & return & ¬
-			"แล้วถ่ายรูปผลที่ได้ส่งกลับมา" ¬
+			"กดปุ่ม ดูบันทึก ที่หน้าแรก แล้วส่งไฟล์บันทึกมาให้ผม" ¬
 			buttons {"ปิด"} default button 1 with title appTitle with icon caution
 	end try
 end runWorkflow
@@ -216,18 +269,25 @@ on fetchTimeline()
 	end if
 
 	display dialog ¬
-		"กำลังจะไปเอาไทม์ไลน์มา" & return & return & ¬
-		"ใช้เวลาไม่กี่วินาที" & return & ¬
+		"กำลังจะไปอ่านไทม์ไลน์" & return & return & ¬
+		"เดี๋ยวจะมีหน้าต่างเซฟของ Final Cut Pro เด้งขึ้นมาแวบหนึ่ง" & return & ¬
+		"นั่นคือขั้นตอนภายในของโปรแกรม ไม่ใช่ไฟล์ที่คุณต้องการ" & return & ¬
+		"โปรแกรมจะกดปิดเองทันที คุณไม่ต้องทำอะไร" & return & return & ¬
+		"ไฟล์ mov และ mxf ที่คุณต้องการ จะได้ในขั้นตอนถัดไป" & return & return & ¬
 		"ระหว่างนี้อย่าแตะเมาส์หรือคีย์บอร์ด" ¬
-		buttons {"เริ่มเลย"} default button 1 with title appTitle
+		buttons {"เข้าใจแล้ว เริ่มเลย"} default button 1 with title appTitle
 
 	-- กดเมนู แล้วกดปุ่มยืนยันในหน้าต่างที่เด้งขึ้นมา
 	-- ไม่ไปยุ่งกับที่เก็บไฟล์เลย ปล่อยให้มันเซฟตรงไหนก็ได้
 	-- เดี๋ยวเราไปตามหาไฟล์เอง ซึ่งทนทานกว่าการบังคับหน้าต่างมาก
+	logLine("กดเมนู Export XML")
 	try
 		clickMenuItem("File", "Export XML")
 		delay 2
 		confirmSheet()
+		logLine("กดปุ่มยืนยันในหน้าต่างเซฟแล้ว")
+	on error e
+		logLine("กดเมนูไม่สำเร็จ " & e)
 	end try
 
 	set foundPath to waitForNewTimeline(marker, 30)
@@ -325,6 +385,7 @@ on runExportStage(outFolder, namesFile, totalFiles)
 		"ไฟล์จะถูกเก็บไว้ที่" & return & outFolder ¬
 		buttons {"เลือกแล้ว ไปต่อ"} default button 1 with title appTitle
 
+	logLine("เริ่มขั้นเอ็กพอร์ต")
 	shareWith("Export File", "ไฟล์ mov", outFolder)
 	shareWith("MXF-50", "ไฟล์ mxf", outFolder)
 	monitorProgress(outFolder, namesFile, totalFiles)
@@ -345,6 +406,9 @@ on shareWith(destinationName, humanName, outFolder)
 			end tell
 		end tell
 		delay 2.5
+		logLine("เปิดหน้าต่าง Share " & destinationName & " สำเร็จ")
+	on error e
+		logLine("เปิดหน้าต่าง Share " & destinationName & " ไม่สำเร็จ " & e)
 	end try
 
 	if opened then
@@ -435,8 +499,10 @@ end progressBar
 on finishDialog(outFolder, totalFiles, wasCompleted)
 	if wasCompleted then
 		set headline to "เสร็จเรียบร้อย ได้ไฟล์ครบ " & totalFiles & " ไฟล์แล้ว"
+		logLine("สำเร็จ ได้ไฟล์ครบ " & totalFiles & " ไฟล์")
 	else
 		set headline to "หยุดรอแล้ว Final Cut Pro อาจยังสร้างไฟล์ต่ออยู่"
+		logLine("ผู้ใช้กดหยุดรอ")
 	end if
 	set answer to button returned of (display dialog ¬
 		headline & return & return & "ไฟล์ทั้งหมดอยู่ที่" & return & return & outFolder ¬
