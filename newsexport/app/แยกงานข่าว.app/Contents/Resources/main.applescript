@@ -59,6 +59,17 @@ end run
 -- เวลาเงียบหายไปจะได้ไม่ต้องเดาว่าค้างหรือกำลังทำงาน
 -- ============================================================
 
+
+
+
+on askWarn(theText, theButtons, defaultButton)
+	activate
+	delay 0.2
+	return button returned of (display dialog theText buttons theButtons ¬
+		default button defaultButton with title appTitle with icon caution)
+end askWarn
+
+
 on say(stepText)
 	-- บันทึกลงไฟล์ และแจ้งเตือนบนหน้าจอแบบไม่ขวางการทำงาน
 	logLine(stepText)
@@ -86,6 +97,7 @@ end logLine
 
 on showMainMenu()
 	repeat
+		activate
 		set choice to button returned of (display dialog ¬
 			"เปิดงานข่าวใน Final Cut Pro" & return & ¬
 			"แล้วคลิกที่ชื่องานนั้นหนึ่งครั้ง" & return & return & ¬
@@ -109,6 +121,7 @@ end showMainMenu
 
 on showOtherMenu()
 	repeat
+		activate
 		set choice to button returned of (display dialog ¬
 			"เมนูสำหรับตรวจสอบและแก้ปัญหา" & return & return & ¬
 			"เก็บไฟล์ที่ตกค้าง  ใช้เมื่อรอบก่อนหยุดกลางคัน" & return & ¬
@@ -129,11 +142,14 @@ end showOtherMenu
 on showLog()
 	try
 		do shell script "open -R " & quoted form of logPath
-		display dialog ¬
+		activate
+		activate
+	display dialog ¬
 			"เปิด Finder ให้แล้ว ไฟล์ชื่อ บันทึกการทำงาน.txt" & return & return & ¬
 			"ส่งไฟล์นี้กลับมาให้ผมได้เลย" ¬
 			buttons {"ปิด"} default button 1 with title appTitle
 	on error
+		activate
 		display dialog "ยังไม่มีบันทึก ลองกดปุ่ม เอ็กพอร์ต ก่อนหนึ่งครั้ง" ¬
 			buttons {"ปิด"} default button 1 with title appTitle
 	end try
@@ -145,7 +161,9 @@ on collectLeftovers()
 	try
 		set totalFiles to (do shell script "grep -c . " & quoted form of namesFile) as integer
 	on error
-		display dialog ¬
+		activate
+		activate
+	display dialog ¬
 			"ยังไม่มีรายชื่อไฟล์จากรอบก่อน" & return & ¬
 			"ต้องกดเอ็กพอร์ตอย่างน้อยหนึ่งครั้งก่อน" ¬
 			buttons {"ปิด"} default button 1 with title appTitle
@@ -176,7 +194,8 @@ on runWorkflow()
 		set gapSeconds to "0.2"
 		repeat
 			set reportText to runBrief(xmlPath, gapSeconds)
-			set answer to button returned of (display dialog ¬
+			activate
+		set answer to button returned of (display dialog ¬
 				reportText & return & return & "จำนวนก้อนถูกต้องไหม" ¬
 				buttons {"ยกเลิก", "ปรับจำนวนก้อน", "ถูกต้อง ไปต่อ"} ¬
 				default button "ถูกต้อง ไปต่อ" with title appTitle)
@@ -200,7 +219,9 @@ on runWorkflow()
 		say("กำลังนำงานย่อยกลับเข้า Final Cut Pro")
 		importTimeline(splitPath)
 
-		display dialog ¬
+		activate
+		activate
+	display dialog ¬
 			"กำลังจะสั่งเอ็กพอร์ต" & return & return & ¬
 			"โปรแกรมจะสั่ง Share สองรอบ" & return & ¬
 			"ปล่อยให้ Final Cut Pro เซฟที่ไหนก็ได้ ไม่ต้องสนใจ" & return & ¬
@@ -208,12 +229,15 @@ on runWorkflow()
 			"ระหว่างนี้อย่าแตะเมาส์และคีย์บอร์ด" ¬
 			buttons {"เริ่มเลย"} default button 1 with title appTitle
 
-		say("กำลังเลือกงานย่อยทั้งหมด")
-		selectEverythingInBrowser()
+		-- ไม่ไปยุ่งกับการเลือกงานเลย
+		--
+		-- Final Cut Pro เลือกงานที่เพิ่งนำเข้าให้ทั้งหมดอยู่แล้ว
+		-- ที่ผ่านมาโปรแกรมไปสั่งเลือกใหม่ ซึ่งอาจไปล้างการเลือกที่ถูกต้องทิ้ง
+		-- แล้วเหลือแค่ชิ้นเดียว จึงได้ไฟล์มาก้อนเดียว
+		--
+		-- สั่ง Share สองรอบติดกันเลย ไม่ต้องรอไฟล์รอบแรกเสร็จ
+		-- เพราะ Final Cut Pro รับงานเข้าคิวแล้วทยอยทำเองพร้อมกันได้
 		shareTo("Export File", "ไฟล์ mov")
-
-		say("กำลังเลือกงานย่อยทั้งหมดอีกครั้ง")
-		selectEverythingInBrowser()
 		shareTo("MXF-50", "ไฟล์ mxf")
 
 		monitorAndCollect(outFolder, namesFile, totalFiles)
@@ -222,7 +246,9 @@ on runWorkflow()
 	on error errorMessage number errorNumber
 		if errorNumber is -128 then return
 		logLine("พังกลางทาง " & errorMessage)
-		display dialog ¬
+		activate
+		activate
+	display dialog ¬
 			"เกิดปัญหา" & return & return & errorMessage & return & return & ¬
 			"ไฟล์ที่เอ็กพอร์ตไปแล้วยังอยู่ครบ ไม่หายไปไหน" & return & return & ¬
 			"กดปุ่ม เมนูอื่น แล้วเลือก เก็บไฟล์ที่ตกค้าง" & return & ¬
@@ -244,6 +270,7 @@ on ensureFinalCutRunning()
 		end timeout
 	end try
 	if isRunning then return true
+	activate
 	display dialog ¬
 		"ยังไม่ได้เปิด Final Cut Pro" & return & return & ¬
 		"ให้เปิดโปรแกรมและเปิดงานข่าวค้างไว้ แล้วลองใหม่" ¬
@@ -261,6 +288,7 @@ on ensureAccessibility()
 		end timeout
 		return true
 	on error
+		activate
 		set answer to button returned of (display dialog ¬
 			"ต้องเปิดสิทธิ์ให้โปรแกรมกดเมนูแทนคุณก่อน ทำครั้งเดียวจบ" & return & return & ¬
 			"1. กดปุ่ม เปิดหน้าตั้งค่า" & return & ¬
@@ -307,6 +335,7 @@ on fetchTimeline(outFolder)
 	do shell script "rm -f " & quoted form of marker & " && touch " & quoted form of marker
 
 	if menuState("File", "Export XML") is "disabled" then
+		activate
 		set answer to button returned of (display dialog ¬
 			"ยังไม่ได้เลือกงานข่าว" & return & return & ¬
 			"ใน Final Cut Pro ให้คลิกที่ ชื่องาน หนึ่งครั้ง" & return & ¬
@@ -317,6 +346,7 @@ on fetchTimeline(outFolder)
 		if answer is "ยกเลิก" then return ""
 	end if
 
+	activate
 	display dialog ¬
 		"กำลังจะอ่านไทม์ไลน์" & return & return & ¬
 		"จะมีหน้าต่างเซฟเด้งขึ้นมา โปรแกรมจะกดยืนยันเอง" & return & ¬
@@ -343,7 +373,8 @@ on fetchTimeline(outFolder)
 		return foundPath
 	end if
 
-	set answer to button returned of (display dialog ¬
+	activate
+		set answer to button returned of (display dialog ¬
 		"หาไฟล์ไทม์ไลน์ที่เพิ่งเซฟไม่เจอ" & return & return & ¬
 		"กดปุ่ม ชี้ให้ดู แล้วเลือกไฟล์นั้น" ¬
 		buttons {"ยกเลิก", "ชี้ให้ดู"} default button "ชี้ให้ดู" with title appTitle)
@@ -391,38 +422,41 @@ end importTimeline
 -- สั่งเอ็กพอร์ต
 -- ============================================================
 
-on selectEverythingInBrowser()
-	-- ย้ายโฟกัสไปที่ Browser แล้วเลือกทั้งหมด
-	-- Event ที่เพิ่งนำเข้ามีแต่งานของรอบนี้ จึงเลือกทั้งหมดได้ปลอดภัย
-	try
-		with timeout of uiTimeout seconds
-			tell application "System Events"
-				tell process fcpName
-					set frontmost to true
-					delay 0.4
-					set windowMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "Window")
-					set goToItem to (first menu item of windowMenu whose name starts with "Go To")
-					click (first menu item of menu 1 of goToItem whose name starts with "Libraries")
+
+
+
+on countPanelFields()
+	-- นับช่องกรอกในหน้าต่างเซฟ โดยดูในกระบวนการที่ถือหน้าต่างจริง
+	--
+	-- ที่ผ่านมานับผิดที่ ไปนับในตัว Final Cut Pro ซึ่งไม่มีหน้าต่างเซฟอยู่เลย
+	-- จึงได้ 0 ทุกครั้ง แล้วเข้าใจผิดว่าเลือกงานครบ ทั้งที่เลือกได้อันเดียว
+	--
+	-- ความหมายของผลลัพธ์
+	--   0 ช่อง  ถามหาแค่โฟลเดอร์ แปลว่าเลือกงานได้หลายอัน ถูกต้อง
+	--   มีช่อง  ถามชื่อไฟล์ด้วย แปลว่าเลือกได้อันเดียว จะได้ไฟล์ไม่ครบ
+	set total to 0
+	repeat with processName in panelProcesses()
+		try
+			with timeout of uiTimeout seconds
+				tell application "System Events"
+					tell process processName
+						repeat with windowRef in windows
+							try
+								set total to total + (count of text fields of windowRef)
+							end try
+							repeat with sheetRef in sheets of windowRef
+								try
+									set total to total + (count of text fields of sheetRef)
+								end try
+							end repeat
+						end repeat
+					end tell
 				end tell
-			end tell
-		end timeout
-	end try
-	delay 0.6
-	try
-		with timeout of uiTimeout seconds
-			tell application "System Events"
-				tell process fcpName
-					set editMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "Edit")
-					click (first menu item of editMenu whose name is "Select All")
-				end tell
-			end tell
-		end timeout
-		logLine("สั่งเลือกทั้งหมดแล้ว")
-	on error e
-		logLine("สั่งเลือกทั้งหมดไม่สำเร็จ " & e)
-	end try
-	delay 0.6
-end selectEverythingInBrowser
+			end timeout
+		end try
+	end repeat
+	return total
+end countPanelFields
 
 
 on shareTo(destinationName, humanName)
@@ -446,7 +480,9 @@ on shareTo(destinationName, humanName)
 	end try
 
 	if not opened then
-		display dialog ¬
+		activate
+		activate
+	display dialog ¬
 			"เปิดหน้าต่าง " & humanName & " ไม่สำเร็จ" & return & return & ¬
 			"ขอให้สั่งเอง เมนู File แล้ว Share แล้ว " & destinationName & return & ¬
 			"เซฟที่ไหนก็ได้ เดี๋ยวโปรแกรมตามไปเก็บให้" ¬
@@ -457,6 +493,30 @@ on shareTo(destinationName, humanName)
 	delay 2
 	if pressButtons({"Next…", "Next...", "Next"}) then logLine("กดปุ่ม Next แล้ว")
 	delay 2
+
+	-- ตรวจว่าเลือกงานได้ครบหรือไม่ ก่อนจะเซฟ
+	set fieldCount to countPanelFields()
+	logLine("หน้าต่างเซฟมีช่องกรอก " & fieldCount & " ช่อง")
+	if fieldCount > 0 then
+		say("เตือน เลือกงานได้ไม่ครบ")
+		set answer to askWarn(¬
+			"ดูเหมือนเลือกงานย่อยได้ไม่ครบ" & return & return & ¬
+			"ถ้าทำต่อ จะได้ไฟล์มาแค่ก้อนเดียว" & return & return & ¬
+			"ขอให้ไปที่ Final Cut Pro" & return & ¬
+			"คลิกงานย่อยอันแรก กด Shift ค้าง แล้วคลิกอันสุดท้าย" & return & ¬
+			"ให้เลือกได้ครบทุกอัน" & return & return & ¬
+			"เลือกครบแล้วกด เลือกครบแล้ว โปรแกรมจะเริ่มใหม่ให้", ¬
+			{"ทำต่อทั้งที่ได้ก้อนเดียว", "เลือกครบแล้ว"}, "เลือกครบแล้ว")
+		if answer is "เลือกครบแล้ว" then
+			pressButtons({"Cancel", "ยกเลิก"})
+			delay 1
+			pressButtons({"Cancel", "ยกเลิก"})
+			delay 1
+			-- เริ่มรอบนี้ใหม่ คราวนี้ผู้ใช้เลือกครบแล้ว
+			shareTo(destinationName, humanName)
+			return
+		end if
+	end if
 	-- กดยืนยันในหน้าต่างเซฟ โดยไม่แตะที่เก็บไฟล์
 	if pressButtons({"Save", "Choose", "Open", "Export"}) then
 		logLine("กดยืนยันหน้าต่างเซฟแล้ว")
@@ -536,6 +596,7 @@ on monitorAndCollect(outFolder, namesFile, totalFiles)
 				"กดปุ่ม หยุดรอ ได้เลย"
 		end if
 
+		activate
 		set reply to display dialog message ¬
 			buttons {"หยุดรอ", "เปิดโฟลเดอร์"} default button "หยุดรอ" ¬
 			giving up after 4 with title appTitle
@@ -557,7 +618,8 @@ on monitorAndCollect(outFolder, namesFile, totalFiles)
 			"ถ้ายังไม่ครบ ใช้ปุ่ม เมนูอื่น แล้ว เก็บไฟล์ที่ตกค้าง"
 	end if
 
-	set answer to button returned of (display dialog ¬
+	activate
+		set answer to button returned of (display dialog ¬
 		headline & return & return & "ไฟล์อยู่ที่" & return & outFolder ¬
 		buttons {"ปิด", "เปิดโฟลเดอร์"} default button "เปิดโฟลเดอร์" with title appTitle)
 	if answer is "เปิดโฟลเดอร์" then do shell script "open " & quoted form of outFolder
@@ -742,6 +804,7 @@ end runSplit
 
 on askGapSeconds(currentValue)
 	try
+		activate
 		return text returned of (display dialog ¬
 			"ปรับจำนวนก้อน" & return & return & ¬
 			"ได้ก้อนน้อยเกินไป ให้ลดตัวเลขลง เช่น 0.1" & return & ¬
