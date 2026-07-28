@@ -621,54 +621,101 @@ end clickMenu
 
 
 on waitForSheet(maxSeconds)
+	-- รอจนหน้าต่างเซฟโผล่ ไม่ว่ามันจะเป็นของกระบวนการไหน
+	-- นับทั้งแบบแผ่นซ้อนบนหน้าต่าง และแบบหน้าต่างแยกที่ระบบสร้างให้
 	repeat with i from 1 to maxSeconds
+		repeat with processName in panelProcesses()
+			try
+				with timeout of uiTimeout seconds
+					tell application "System Events"
+						tell process processName
+							repeat with windowRef in windows
+								if (count of sheets of windowRef) > 0 then
+									my logLine("เจอหน้าต่างเซฟแบบแผ่นซ้อน ใน " & processName)
+									return true
+								end if
+								try
+									if (exists button "Save" of windowRef) then
+										my logLine("เจอหน้าต่างเซฟแบบหน้าต่างแยก ใน " & processName)
+										return true
+									end if
+								end try
+							end repeat
+						end tell
+					end tell
+				end timeout
+			end try
+		end repeat
+		delay 1
+	end repeat
+	logLine("รอหน้าต่างเซฟจนครบเวลาแล้วไม่เจอ")
+	return false
+end waitForSheet
+
+
+on panelProcesses()
+	--
+	-- หัวใจของการแก้ปัญหาทั้งหมด
+	--
+	-- Final Cut Pro เป็นโปรแกรมจาก App Store ซึ่ง macOS บังคับให้อยู่ในกรอบความปลอดภัย
+	-- หน้าต่างเซฟและหน้าต่างเปิดไฟล์ของโปรแกรมแบบนี้
+	-- จะไม่ได้เป็นของตัวโปรแกรมเอง แต่ระบบแยกไปไว้อีกกระบวนการหนึ่งต่างหาก
+	--
+	-- ที่ผ่านมาโปรแกรมไปหาปุ่ม Save ในตัว Final Cut Pro จึงไม่มีวันเจอ
+	-- นี่คือสาเหตุที่กดปุ่มไม่ติด พิมพ์ไม่เข้า และบังคับที่เซฟไม่ได้ ทุกครั้ง
+	--
+	-- ตัวนี้จึงรวบรวมชื่อกระบวนการที่อาจถือหน้าต่างเซฟอยู่ ให้ครบทุกตัว
+	set names to {fcpName}
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events"
+				repeat with processRef in (every process whose name contains "openAndSavePanel")
+					set end of names to (name of processRef)
+				end repeat
+				repeat with processRef in (every process whose name contains "OpenAndSavePanel")
+					set end of names to (name of processRef)
+				end repeat
+			end tell
+		end timeout
+	end try
+	return names
+end panelProcesses
+
+
+on pressButtons(buttonNames)
+	-- กดปุ่มตัวแรกที่หาเจอ โดยกวาดทุกกระบวนการที่อาจถือหน้าต่างอยู่
+	--
+	-- ต้องมีเวลาจำกัดเสมอ เพราะตอน Final Cut Pro ทำงานหนัก มันตอบช้ามาก
+	-- ถ้าไม่จำกัดเวลา โปรแกรมจะค้างแล้วตายด้วย AppleEvent timed out
+	-- ซึ่งเป็นสาเหตุที่รอบก่อน ๆ หยุดหลังก้อนแรก
+	repeat with processName in panelProcesses()
 		try
 			with timeout of uiTimeout seconds
 				tell application "System Events"
-					tell process fcpName
+					tell process processName
 						repeat with windowRef in windows
-							if (count of sheets of windowRef) > 0 then return true
+							repeat with sheetRef in sheets of windowRef
+								repeat with buttonName in buttonNames
+									try
+										click button buttonName of sheetRef
+										my logLine("กดปุ่ม " & buttonName & " ใน " & processName & " สำเร็จ")
+										return true
+									end try
+								end repeat
+							end repeat
+							repeat with buttonName in buttonNames
+								try
+									click button buttonName of windowRef
+									my logLine("กดปุ่ม " & buttonName & " ใน " & processName & " สำเร็จ")
+									return true
+								end try
+							end repeat
 						end repeat
 					end tell
 				end tell
 			end timeout
 		end try
-		delay 1
 	end repeat
-	return false
-end waitForSheet
-
-
-on pressButtons(buttonNames)
-	-- กดปุ่มตัวแรกที่หาเจอ ทั้งในหน้าต่างและในแผ่นซ้อน
-	--
-	-- ต้องมีเวลาจำกัดเสมอ เพราะตอน Final Cut Pro ทำงานหนัก มันตอบช้ามาก
-	-- ถ้าไม่จำกัดเวลา โปรแกรมจะค้างแล้วตายด้วย AppleEvent timed out
-	-- ซึ่งเป็นสาเหตุที่รอบก่อน ๆ หยุดหลังก้อนแรก
-	try
-		with timeout of uiTimeout seconds
-			tell application "System Events"
-				tell process fcpName
-					repeat with windowRef in windows
-						repeat with sheetRef in sheets of windowRef
-							repeat with buttonName in buttonNames
-								try
-									click button buttonName of sheetRef
-									return true
-								end try
-							end repeat
-						end repeat
-						repeat with buttonName in buttonNames
-							try
-								click button buttonName of windowRef
-								return true
-							end try
-						end repeat
-					end repeat
-				end tell
-			end tell
-		end timeout
-	end try
 	return false
 end pressButtons
 
