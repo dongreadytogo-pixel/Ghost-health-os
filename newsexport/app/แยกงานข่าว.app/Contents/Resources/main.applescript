@@ -143,6 +143,10 @@ on runWorkflow()
 
 		logLine("ต้องได้ไฟล์ทั้งหมด " & totalFiles & " ไฟล์")
 
+		-- อ่านข้อมูลครบแล้ว ไฟล์ไทม์ไลน์ชั่วคราวไม่ต้องใช้อีก
+		-- ลบทิ้งทันที ผู้ใช้จะได้ไม่มีไฟล์ fcpxmld ค้างเกลื่อนไดรฟ์
+		cleanUpTempTimeline(xmlPath)
+
 		importTimeline(splitPath)
 		logLine("นำงานย่อยกลับเข้า Final Cut Pro แล้ว")
 
@@ -280,25 +284,37 @@ on fetchTimeline(outFolder)
 	-- กดเมนู แล้วกดปุ่มยืนยันในหน้าต่างที่เด้งขึ้นมา
 	-- ไม่ไปยุ่งกับที่เก็บไฟล์เลย ปล่อยให้มันเซฟตรงไหนก็ได้
 	-- เดี๋ยวเราไปตามหาไฟล์เอง ซึ่งทนทานกว่าการบังคับหน้าต่างมาก
-	logLine("กดเมนู Export XML")
+	-- ตั้งชื่อไฟล์ชั่วคราวไม่ซ้ำใคร ด้วยเวลาปัจจุบัน
+	-- ทำแบบนี้เพื่อสองอย่าง
+	-- หนึ่ง ไม่ไปชนไฟล์ชื่อเดิม จึงไม่มีหน้าต่างถามว่าจะเขียนทับไหม
+	-- สอง เรารู้ชื่อไฟล์แน่นอน จึงตามหาเจอทันที ไม่ต้องเดา
+	set stamp to do shell script "date +%Y%m%d-%H%M%S"
+	set tempName to "ghostexport-" & stamp
+
+	logLine("กดเมนู Export XML ตั้งชื่อชั่วคราวว่า " & tempName)
 	try
 		clickMenuItem("File", "Export XML")
 		delay 2
-		confirmSheet()
-		logLine("กดปุ่มยืนยันในหน้าต่างเซฟแล้ว")
+		nameAndSaveSheet(tempName)
+		logLine("ตั้งชื่อและกดเซฟแล้ว")
 	on error e
 		logLine("กดเมนูไม่สำเร็จ " & e)
 	end try
 
-	set foundPath to waitForNewTimeline(marker, outFolder, 20)
+	set foundPath to waitForNewTimeline(marker, outFolder, tempName, 20)
 	if foundPath is not "" then return foundPath
 
-	-- ยังไม่ได้ ลองกดปุ่มยืนยันซ้ำอีกครั้ง เผื่อหน้าต่างเพิ่งโผล่ช้า
-	logLine("ยังไม่เจอไฟล์ ลองกดยืนยันซ้ำ")
+	-- ยังไม่ได้ ลองปิดหน้าต่างที่อาจค้างอยู่ แล้วรออีกรอบ
+	logLine("ยังไม่เจอไฟล์ ลองเคลียร์หน้าต่างที่ค้าง")
 	try
-		confirmSheet()
+		dismissLeftoverSheets()
 	end try
-	set foundPath to waitForNewTimeline(marker, outFolder, 25)
+	set foundPath to waitForNewTimeline(marker, outFolder, tempName, 20)
+	if foundPath is not "" then return foundPath
+
+	-- ยังไม่เจออีก อาจเป็นเพราะตั้งชื่อไม่ติด ลองหาแบบไม่สนใจชื่อ
+	logLine("ลองหาแบบไม่สนใจชื่อไฟล์")
+	set foundPath to waitForNewTimeline(marker, outFolder, "", 10)
 	if foundPath is not "" then return foundPath
 
 	-- ทางออกสุดท้าย ให้ผู้ใช้ชี้ตำแหน่งเอง ใช้เวลาไม่กี่วินาที
@@ -325,7 +341,7 @@ on fetchTimeline(outFolder)
 end fetchTimeline
 
 
-on waitForNewTimeline(marker, outFolder, maxTries)
+on waitForNewTimeline(marker, outFolder, wantedName, maxTries)
 	-- ค้นหาไฟล์ที่ Final Cut Pro เพิ่งเซฟ
 	-- ส่งโฟลเดอร์ปลายทางเข้าไปด้วย เพราะห้องข่าวทำงานบนไดรฟ์เครือข่าย
 	-- ซึ่งมักเป็นที่เดียวกับที่ Final Cut Pro จำไว้เป็นที่เซฟล่าสุด
@@ -335,7 +351,8 @@ on waitForNewTimeline(marker, outFolder, maxTries)
 				quoted form of (resourcesPath & "/tools/find_recent.py") & ¬
 				" " & quoted form of marker & ¬
 				" " & quoted form of outFolder & ¬
-				" " & quoted form of workPath
+				" " & quoted form of workPath & ¬
+				" --name " & quoted form of wantedName
 			if found is not "" then
 				logLine("เจอไฟล์ไทม์ไลน์ที่ " & found)
 				delay 1.5 -- เผื่อเวลาให้เขียนไฟล์เสร็จ
@@ -351,34 +368,80 @@ on waitForNewTimeline(marker, outFolder, maxTries)
 end waitForNewTimeline
 
 
-on confirmSheet()
-	-- กดปุ่มยืนยันในหน้าต่างเซฟ โดยไม่แตะที่เก็บไฟล์
+on nameAndSaveSheet(tempName)
+	-- พิมพ์ชื่อไฟล์ชั่วคราวลงในหน้าต่างเซฟ แล้วกดเซฟ
+	-- ไม่ไปยุ่งกับที่เก็บไฟล์เลย ปล่อยให้เซฟที่เดิมที่ Final Cut Pro จำไว้
 	tell application "System Events"
 		tell process fcpName
 			set frontmost to true
+			delay 0.4
+			-- เลือกข้อความเดิมในช่องชื่อทั้งหมด แล้วพิมพ์ทับ
+			keystroke "a" using {command down}
 			delay 0.3
-			set didClick to false
-			try
-				repeat with sheetRef in sheets of window 1
-					repeat with buttonName in {"Save", "Export", "OK"}
-						try
-							click button buttonName of sheetRef
-							set didClick to true
-							exit repeat
-						end try
-					end repeat
-					if didClick then exit repeat
-				end repeat
-			end try
-			if not didClick then key code 36 -- ปุ่ม Return
+			keystroke tempName
+			delay 0.5
+			key code 36
 		end tell
 	end tell
-end confirmSheet
+	delay 1.5
+	-- เผื่อยังมีหน้าต่างถามอะไรค้างอยู่ ให้ตอบให้จบ
+	dismissLeftoverSheets()
+end nameAndSaveSheet
+
+
+on dismissLeftoverSheets()
+	-- ตอบหน้าต่างที่ Final Cut Pro อาจเด้งขึ้นมาหลังกดเซฟ
+	-- ที่พบบ่อยที่สุดคือ ถามว่าไฟล์ชื่อนี้มีอยู่แล้ว จะเขียนทับไหม
+	-- ถ้าไม่ตอบ ทุกอย่างจะค้างอยู่ตรงนั้น
+	repeat 3 times
+		set didAnswer to false
+		try
+			tell application "System Events"
+				tell process fcpName
+					set frontmost to true
+					repeat with windowRef in windows
+						repeat with sheetRef in sheets of windowRef
+							repeat with buttonName in {"Replace", "แทนที่", "Save", "Export", "OK"}
+								try
+									click button buttonName of sheetRef
+									set didAnswer to true
+									exit repeat
+								end try
+							end repeat
+							if didAnswer then exit repeat
+						end repeat
+						if didAnswer then exit repeat
+					end repeat
+				end tell
+			end tell
+		end try
+		if not didAnswer then exit repeat
+		logLine("ตอบหน้าต่างที่เด้งขึ้นมาแล้ว")
+		delay 1
+	end repeat
+end dismissLeftoverSheets
 
 
 -- ============================================================
 -- นำงานย่อยกลับเข้า Final Cut Pro
 -- ============================================================
+
+on cleanUpTempTimeline(xmlPath)
+	-- ลบเฉพาะไฟล์ชั่วคราวที่โปรแกรมสร้างเองเท่านั้น
+	-- ตรวจชื่อก่อนเสมอ เพื่อไม่ให้เผลอไปลบไฟล์ของผู้ใช้
+	try
+		set fileName to do shell script "basename " & quoted form of xmlPath
+		if fileName starts with "ghostexport-" then
+			do shell script "rm -rf " & quoted form of xmlPath
+			logLine("ลบไฟล์ไทม์ไลน์ชั่วคราวแล้ว " & xmlPath)
+		else
+			logLine("ไม่ลบ เพราะไม่ใช่ไฟล์ชั่วคราวของโปรแกรม " & fileName)
+		end if
+	on error e
+		logLine("ลบไฟล์ชั่วคราวไม่สำเร็จ " & e)
+	end try
+end cleanUpTempTimeline
+
 
 on importTimeline(splitPath)
 	-- วิธีนี้เชื่อถือได้กว่าการกดเมนูมาก

@@ -120,6 +120,8 @@ def main(argv=None):
     parser.add_argument("folders", nargs="*", help="โฟลเดอร์ที่ให้หาก่อนเป็นอันดับแรก")
     parser.add_argument("--explain", action="store_true",
                         help="บอกด้วยว่าไปหามาจากที่ไหนบ้าง สำหรับดูเวลามีปัญหา")
+    parser.add_argument("--name", default="",
+                        help="รับเฉพาะไฟล์ที่ชื่อขึ้นต้นด้วยข้อความนี้")
     args = parser.parse_args(argv)
 
     try:
@@ -133,6 +135,11 @@ def main(argv=None):
     def newest_among(paths):
         best_path, best_time = None, since
         for path in paths:
+            # ถ้าระบุชื่อมา ให้รับเฉพาะไฟล์ชื่อนั้น
+            # โปรแกรมตั้งชื่อไฟล์ชั่วคราวไม่ซ้ำใครไว้ก่อนเซฟ
+            # จึงหยิบได้ตรงตัว ไม่ต้องเดาจากเวลาอย่างเดียว
+            if args.name and not os.path.basename(path).startswith(args.name):
+                continue
             when = modified_at(path)
             if when is None or when <= best_time:
                 continue
