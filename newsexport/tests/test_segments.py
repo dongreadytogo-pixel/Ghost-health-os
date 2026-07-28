@@ -165,7 +165,8 @@ class TestSplit(unittest.TestCase):
         fixture = os.path.join(HERE, "sample-news.fcpxml")
         if not os.path.exists(fixture):
             import make_fixture  # noqa
-        cls.tree, cls.details, cls.fps = fcpxml_split.split(ET.parse(fixture), 1.0)
+        cls.tree, cls.details, cls.fps, cls.warnings = fcpxml_split.split(
+            ET.parse(fixture), 1.0)
         cls.root = cls.tree.getroot()
         cls.ET = ET
 
@@ -217,6 +218,33 @@ class TestSplit(unittest.TestCase):
         # 29.97 fps ต้องใช้ตัวส่วน 30000 ไม่ใช่ 30
         self.assertEqual(self.split_module.timescale_for(Fraction(30000, 1001)), 30000)
         self.assertEqual(self.split_module.timescale_for(Fraction(25)), 25)
+
+    def test_clean_timeline_reports_no_warning(self):
+        self.assertEqual(self.warnings, [])
+
+    def test_title_hanging_under_a_separator_gap_is_reported(self):
+        # ตัวอักษรที่ห้อยใต้ช่องว่างคั่นข่าว ต้องถูกเตือน ไม่ใช่หายเงียบ ๆ
+        spine = self.ET.fromstring(
+            '<spine>'
+            '  <asset-clip offset="0s" duration="250/25s" name="คลิป"/>'
+            '  <gap offset="250/25s" duration="175/25s" name="Gap">'
+            '    <title offset="250/25s" duration="50/25s" name="ชื่อเรื่องข่าว"/>'
+            '  </gap>'
+            '  <asset-clip offset="425/25s" duration="250/25s" name="คลิป"/>'
+            '</spine>')
+        warnings = self.split_module.find_orphaned_content(spine, [], 1.0)
+        self.assertEqual(len(warnings), 1)
+        self.assertEqual(warnings[0]["name"], "ชื่อเรื่องข่าว")
+
+    def test_content_under_a_short_gap_is_not_reported(self):
+        # ช่องว่างสั้นยังอยู่ในก้อนเดิม ของที่ห้อยอยู่จึงไม่ตกหล่น
+        spine = self.ET.fromstring(
+            '<spine>'
+            '  <gap offset="0s" duration="10/25s" name="Gap">'
+            '    <title offset="0s" duration="10/25s" name="ชื่อเรื่องข่าว"/>'
+            '  </gap>'
+            '</spine>')
+        self.assertEqual(self.split_module.find_orphaned_content(spine, [], 1.0), [])
 
     def test_write_time_lands_on_whole_frames(self):
         write_time = self.split_module.write_time

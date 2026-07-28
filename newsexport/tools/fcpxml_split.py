@@ -121,6 +121,45 @@ def slice_spine(spine, start, end, timescale):
     return new_spine
 
 
+def find_orphaned_content(spine, segments, min_gap):
+    """
+    ตรวจหาของที่จะ "ตกหล่น" ตอนแยกงาน
+
+    ในไทม์ไลน์ บางครั้งมีตัวอักษรหรือคลิปแปะห้อยอยู่ใต้ช่องว่าง
+    ถ้าช่องว่างนั้นถูกใช้เป็นตัวคั่นข่าว ของที่ห้อยอยู่จะหายไปด้วย
+    โปรแกรมจะไม่ลบเงียบ ๆ แต่จะเตือนให้ผู้ใช้รู้ก่อนเสมอ
+    """
+    threshold = Fraction(min_gap).limit_denominator(1000)
+    warnings = []
+    cursor = Fraction(0)
+
+    for element in spine:
+        if element.tag != "gap":
+            if element.tag in CLIP_TAGS:
+                offset_text = element.get("offset")
+                item_start = parse_time(offset_text) if offset_text is not None else cursor
+                cursor = item_start + parse_time(element.get("duration"))
+            continue
+
+        offset_text = element.get("offset")
+        item_start = parse_time(offset_text) if offset_text is not None else cursor
+        duration = parse_time(element.get("duration"))
+        cursor = item_start + duration
+
+        if duration < threshold:
+            continue  # ช่องว่างสั้น ยังอยู่ในก้อน ไม่ตกหล่น
+
+        for child in element:
+            if child.tag in CLIP_TAGS:
+                warnings.append({
+                    "at": item_start,
+                    "tag": child.tag,
+                    "name": child.get("name") or "(ไม่มีชื่อ)",
+                })
+
+    return warnings
+
+
 def build_segment_project(source_sequence, spine, name, duration, timescale):
     """สร้างงานย่อยหนึ่งอัน จากไทม์ไลน์ที่หั่นมาแล้ว"""
     project = ET.Element("project", {"name": name})
@@ -169,6 +208,8 @@ def split(tree, min_gap):
 
     event = ET.SubElement(library, "event", {"name": safe_filename(project_name)})
 
+    warnings = find_orphaned_content(spine, segments, min_gap)
+
     details = []
     for index, segment in enumerate(segments, start=1):
         start, end = segment["start"], segment["end"]
@@ -185,7 +226,7 @@ def split(tree, min_gap):
             "clips": len(sliced),
         })
 
-    return ET.ElementTree(new_root), details, fps
+    return ET.ElementTree(new_root), details, fps, warnings
 
 
 # ============================================================
@@ -203,7 +244,7 @@ def write_fcpxml(tree, path):
         handle.write("\n")
 
 
-def print_report(details, fps, output_path):
+def print_report(details, fps, output_path, warnings=()):
     print("")
     print("=" * 60)
     print("  แยกงานเรียบร้อยแล้ว")
@@ -216,6 +257,17 @@ def print_report(details, fps, output_path):
         print("     ช่วงเวลาเดิม %s ถึง %s   (%d ชิ้น)"
               % (item["startTimecode"], item["endTimecode"], item["clips"]))
     print("")
+
+    if warnings:
+        print("  " + "!" * 56)
+        print("  ⚠️  คำเตือน: มีของห้อยอยู่ใต้ช่องว่างที่ใช้คั่นข่าว %d ชิ้น" % len(warnings))
+        print("      ของพวกนี้จะไม่ถูกนำไปใส่ในงานย่อยอันไหนเลย")
+        for warning in warnings:
+            print("      • %s ที่ตำแหน่ง %s"
+                  % (warning["name"], format_timecode(warning["at"], fps)))
+        print("      ถ้าของพวกนี้สำคัญ กรุณาบอกผม แล้วผมจะปรับวิธีแยกให้")
+        print("  " + "!" * 56)
+        print("")
     print("  ไฟล์ผลลัพธ์ : %s" % output_path)
     print("")
     print("  ขั้นตอนต่อไป")
@@ -247,7 +299,7 @@ def main(argv=None):
         return 2
 
     try:
-        new_tree, details, fps = split(tree, args.min_gap)
+        new_tree, details, fps, warnings = split(tree, args.min_gap)
     except TimelineError as error:
         print("")
         print("เกิดปัญหา:")
@@ -261,7 +313,7 @@ def main(argv=None):
         output = base + "-แยกแล้ว" + (extension or ".fcpxml")
 
     write_fcpxml(new_tree, output)
-    print_report(details, fps, output)
+    print_report(details, fps, output, warnings)
     return 0
 
 
