@@ -171,6 +171,97 @@ on showLog()
 end showLog
 
 
+on dumpWindowTree(windowName)
+	--
+	-- จดโครงสร้างของหน้าต่างลงบันทึกให้ครบ
+	--
+	-- ทำไมต้องมี
+	-- ผู้พัฒนาไม่มี Final Cut Pro จึงมองไม่เห็นว่าช่อง Roles as
+	-- ถูกวางซ้อนอยู่ในชั้นไหน ที่ผ่านมาจึงต้องเดา และเดาผิดหลายรอบ
+	-- ตัวนี้จะจดของทุกชิ้นพร้อมชั้นที่มันอยู่ ทำให้เลิกเดาได้ถาวร
+	logLine("---- เริ่มจดโครงสร้างหน้าต่าง " & windowName & " ----")
+	try
+		with timeout of 30 seconds
+			tell application "System Events"
+				tell process fcpName
+					if not (exists window windowName) then
+						my logLine("ไม่มีหน้าต่างชื่อนี้ หน้าต่างที่มีคือ " & ((name of every window) as string))
+						return
+					end if
+					tell window windowName
+						repeat with a in UI elements
+							set aClass to (class of a) as string
+							set aName to ""
+							try
+								set aName to (name of a) as string
+							end try
+							set aValue to ""
+							try
+								set aValue to (value of a) as string
+							end try
+							my logLine("ชั้น1 " & aClass & " ชื่อ[" & aName & "] ค่า[" & aValue & "]")
+
+							repeat with b in UI elements of a
+								set bClass to (class of b) as string
+								set bName to ""
+								try
+									set bName to (name of b) as string
+								end try
+								set bValue to ""
+								try
+									set bValue to (value of b) as string
+								end try
+								my logLine("  ชั้น2 " & bClass & " ชื่อ[" & bName & "] ค่า[" & bValue & "]")
+
+								repeat with c in UI elements of b
+									set cClass to (class of c) as string
+									set cName to ""
+									try
+										set cName to (name of c) as string
+									end try
+									set cValue to ""
+									try
+										set cValue to (value of c) as string
+									end try
+									my logLine("    ชั้น3 " & cClass & " ชื่อ[" & cName & "] ค่า[" & cValue & "]")
+								end repeat
+							end repeat
+						end repeat
+					end tell
+				end tell
+			end tell
+		end timeout
+	on error e
+		logLine("จดโครงสร้างไม่สำเร็จ " & e)
+	end try
+	logLine("---- จบการจดโครงสร้าง ----")
+end dumpWindowTree
+
+
+on logPresetLocations()
+	-- หาไฟล์ preset ของ Roles ที่ผู้ใช้บันทึกไว้
+	-- ในเมนูมีคำสั่ง Reveal User Presets in Finder แปลว่ามันเป็นไฟล์จริงในเครื่อง
+	-- ถ้ารู้ตำแหน่ง อาจตั้งค่าได้โดยไม่ต้องพึ่งการกดปุ่มเลย
+	try
+		set found to do shell script ¬
+			"find ~/Library/Application\\ Support/ProApps ~/Library/Containers/com.apple.FinalCut/Data/Library/Application\\ Support " & ¬
+			"-maxdepth 4 -iname '*preset*' -o -maxdepth 4 -iname '*role*' 2>/dev/null | head -40"
+		if found is "" then
+			logLine("ไม่พบไฟล์ preset ในตำแหน่งที่คาดไว้")
+		else
+			logLine("ไฟล์ที่น่าจะเป็น preset")
+			logLine(found)
+		end if
+	on error e
+		logLine("หาไฟล์ preset ไม่สำเร็จ " & e)
+	end try
+	try
+		set folders to do shell script "ls ~/Library/Application\\ Support/ProApps 2>/dev/null"
+		logLine("ในโฟลเดอร์ ProApps มี " & folders)
+	end try
+end logPresetLocations
+
+
 on primeRolesSetting()
 	--
 	-- เปิดหน้าต่าง MXF-50 ขึ้นมาเฉย ๆ เพื่อให้ผู้ใช้ตั้ง Roles as เป็น 3 Stereo
@@ -237,6 +328,9 @@ on primeRolesSetting()
 
 	waitForWindowNamed("MXF-50", 15)
 	openRolesTab("MXF-50")
+	-- จดโครงสร้างจริงไว้เสมอ เพื่อให้ผู้พัฒนาเลิกเดาตำแหน่งช่อง Roles as
+	dumpWindowTree("MXF-50")
+	logPresetLocations()
 	set startValue to findRolesPopupValue("MXF-50")
 	logLine("ตั้งค่า Roles ครั้งเดียว ค่าเริ่มต้นคือ [" & startValue & "]")
 
@@ -632,61 +726,45 @@ end waitForWindowNamed
 
 on findRolesPopupValue(destinationName)
 	--
-	-- อ่านค่าช่อง Roles as โดยค้นลงไปทีละชั้น ลึกไม่เกิน 4 ชั้น
-	-- คืนค่าเป็นข้อความ ถ้าหาไม่เจอจะคืนค่าว่าง
+	-- อ่านค่าช่อง Roles as
+	--
+	-- สำคัญ ช่องนี้อาจไม่ใช่ช่องเลือกธรรมดา
+	-- เพราะในเมนูมีหัวข้อ PRESETS และคำสั่ง Save As อยู่ด้วย
+	-- macOS เรียกช่องแบบนั้นว่าปุ่มเมนู ไม่ใช่ช่องเลือก
+	-- ที่ผ่านมาผมค้นหาแต่ช่องเลือกอย่างเดียว จึงไม่มีวันเจอ
+	-- รอบนี้จึงรับทั้งสองชนิด
 	set foundValue to ""
 	try
 		with timeout of 20 seconds
 			tell application "System Events"
 				tell process fcpName
-					set targetWindow to missing value
-					try
-						set targetWindow to window destinationName
-					end try
-					if targetWindow is not missing value then
-						set thePopup to missing value
-						try
-							set thePopup to pop up button 1 of targetWindow
-						end try
-						if thePopup is missing value then
-							repeat with levelOne in UI elements of targetWindow
+					if not (exists window destinationName) then return ""
+					tell window destinationName
+						repeat with a in UI elements
+							set aClass to (class of a) as string
+							if aClass is "pop up button" or aClass is "menu button" then
 								try
-									set thePopup to pop up button 1 of levelOne
-									exit repeat
+									return (value of a) as string
 								end try
-							end repeat
-						end if
-						if thePopup is missing value then
-							repeat with levelOne in UI elements of targetWindow
-								repeat with levelTwo in UI elements of levelOne
+							end if
+							repeat with b in UI elements of a
+								set bClass to (class of b) as string
+								if bClass is "pop up button" or bClass is "menu button" then
 									try
-										set thePopup to pop up button 1 of levelTwo
-										exit repeat
+										return (value of b) as string
 									end try
-								end repeat
-								if thePopup is not missing value then exit repeat
-							end repeat
-						end if
-						if thePopup is missing value then
-							repeat with levelOne in UI elements of targetWindow
-								repeat with levelTwo in UI elements of levelOne
-									repeat with levelThree in UI elements of levelTwo
+								end if
+								repeat with c in UI elements of b
+									set cClass to (class of c) as string
+									if cClass is "pop up button" or cClass is "menu button" then
 										try
-											set thePopup to pop up button 1 of levelThree
-											exit repeat
+											return (value of c) as string
 										end try
-									end repeat
-									if thePopup is not missing value then exit repeat
+									end if
 								end repeat
-								if thePopup is not missing value then exit repeat
 							end repeat
-						end if
-						if thePopup is not missing value then
-							try
-								set foundValue to (value of thePopup) as string
-							end try
-						end if
-					end if
+						end repeat
+					end tell
 				end tell
 			end tell
 		end timeout
@@ -751,71 +829,68 @@ end openRolesTab
 
 
 on clickRolesChoice(destinationName, wantedSetting)
+	-- กดเลือกค่าที่ต้องการ รับได้ทั้งช่องเลือกและปุ่มเมนู
+	-- และเลือกเฉพาะตัวที่มีรายการชื่อตรงกับที่ต้องการอยู่จริงเท่านั้น
+	-- เพราะในหน้าต่างมีช่องเลือกอื่นด้วย เช่นช่อง Channels ที่เลือก Stereo หรือ Mono
 	try
-		with timeout of 20 seconds
+		with timeout of 25 seconds
 			tell application "System Events"
 				tell process fcpName
-					set targetWindow to missing value
-					try
-						set targetWindow to window destinationName
-					end try
-					if targetWindow is missing value then return false
-
-					set thePopup to missing value
-					try
-						set thePopup to pop up button 1 of targetWindow
-					end try
-					if thePopup is missing value then
-						repeat with levelOne in UI elements of targetWindow
-							try
-								set thePopup to pop up button 1 of levelOne
-								exit repeat
-							end try
-						end repeat
-					end if
-					if thePopup is missing value then
-						repeat with levelOne in UI elements of targetWindow
-							repeat with levelTwo in UI elements of levelOne
-								try
-									set thePopup to pop up button 1 of levelTwo
-									exit repeat
-								end try
-							end repeat
-							if thePopup is not missing value then exit repeat
-						end repeat
-					end if
-					if thePopup is missing value then
-						repeat with levelOne in UI elements of targetWindow
-							repeat with levelTwo in UI elements of levelOne
-								repeat with levelThree in UI elements of levelTwo
-									try
-										set thePopup to pop up button 1 of levelThree
-										exit repeat
-									end try
+					if not (exists window destinationName) then return false
+					tell window destinationName
+						repeat with a in UI elements
+							set aClass to (class of a) as string
+							if aClass is "pop up button" or aClass is "menu button" then
+								if my tryChoose(a, wantedSetting) then return true
+							end if
+							repeat with b in UI elements of a
+								set bClass to (class of b) as string
+								if bClass is "pop up button" or bClass is "menu button" then
+									if my tryChoose(b, wantedSetting) then return true
+								end if
+								repeat with c in UI elements of b
+									set cClass to (class of c) as string
+									if cClass is "pop up button" or cClass is "menu button" then
+										if my tryChoose(c, wantedSetting) then return true
+									end if
 								end repeat
-								if thePopup is not missing value then exit repeat
 							end repeat
-							if thePopup is not missing value then exit repeat
 						end repeat
-					end if
-
-					if thePopup is missing value then return false
-					click thePopup
-					delay 0.7
-					click menu item wantedSetting of menu 1 of thePopup
-					delay 0.8
-					return true
+					end tell
 				end tell
 			end tell
 		end timeout
 	on error e
 		logLine("กดเลือกค่าไม่สำเร็จ " & e)
-		try
-			tell application "System Events" to tell process fcpName to key code 53
-		end try
-		return false
 	end try
+	return false
 end clickRolesChoice
+
+
+on tryChoose(elementRef, wantedSetting)
+	-- เปิดช่องนั้นแล้วดูว่ามีรายการที่ต้องการไหม ถ้ามีก็เลือก ถ้าไม่มีก็ปิดแล้วไปตัวถัดไป
+	try
+		tell application "System Events"
+			click elementRef
+			delay 0.6
+			set itemNames to name of every menu item of menu 1 of elementRef
+			my logLine("ช่องนี้มีรายการ " & (itemNames as string))
+			if itemNames contains wantedSetting then
+				click menu item wantedSetting of menu 1 of elementRef
+				delay 0.6
+				my logLine("เลือก " & wantedSetting & " แล้ว")
+				return true
+			end if
+			key code 53
+			delay 0.3
+		end tell
+	on error
+		try
+			tell application "System Events" to key code 53
+		end try
+	end try
+	return false
+end tryChoose
 
 
 on setRolesTo(destinationName, wantedSetting)
@@ -853,8 +928,9 @@ on setRolesTo(destinationName, wantedSetting)
 		end if
 	end if
 
-	-- ตั้งเองไม่สำเร็จ ขอให้ผู้ใช้ช่วย โดยไม่ขวางการกดใด ๆ
+	-- ตั้งเองไม่สำเร็จ จดโครงสร้างไว้ก่อน แล้วขอให้ผู้ใช้ช่วย โดยไม่ขวางการกดใด ๆ
 	logLine("ตั้งค่าอัตโนมัติไม่สำเร็จ เปลี่ยนเป็นรอให้ผู้ใช้ตั้งเอง")
+	dumpWindowTree(destinationName)
 	say("กรุณาตั้ง Roles as เป็น " & wantedSetting & " ในหน้าต่าง " & destinationName)
 
 	-- ยกหน้าต่างของ Final Cut Pro ขึ้นมาให้ผู้ใช้กดได้สะดวก
