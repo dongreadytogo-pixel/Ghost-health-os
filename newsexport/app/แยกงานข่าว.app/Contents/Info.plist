@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>แยกงานข่าว</string>
+    <key>CFBundleDisplayName</key>
+    <string>แยกงานข่าว</string>
+    <key>CFBundleIdentifier</key>
+    <string>co.th.newsroom.fcpx-news-export</string>
+    <key>CFBundleVersion</key>
+    <string>1.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleExecutable</key>
+    <string>launcher</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+
+    <!-- ทำงานเบื้องหลัง ไม่ต้องมีไอคอนเด้งค้างใน Dock -->
+    <key>LSUIElement</key>
+    <false/>
+
+    <!-- ข้อความที่ macOS จะแสดงตอนขออนุญาตสั่งงาน Final Cut Pro -->
+    <key>NSAppleEventsUsageDescription</key>
+    <string>โปรแกรมนี้ต้องสั่งงาน Final Cut Pro เพื่อดึงไทม์ไลน์ออกมาแยกเป็นก้อน และนำกลับเข้าไปให้อัตโนมัติ</string>
+    <key>NSSystemAdministrationUsageDescription</key>
+    <string>โปรแกรมนี้ต้องกดเมนูของ Final Cut Pro แทนคุณ เพื่อให้ไม่ต้องกดเองทีละก้อน</string>
+</dict>
+</plist>
