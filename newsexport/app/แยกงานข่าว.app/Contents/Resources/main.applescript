@@ -298,7 +298,11 @@ on fetchTimeline(outFolder)
 		-- ถ้าพิมพ์ทั้งที่หน้าต่างยังไม่มา ตัวอักษรจะหายไปเฉย ๆ
 		-- แล้วหน้าต่างจะค้างรอให้ผู้ใช้พิมพ์ชื่อเอง ซึ่งเป็นสิ่งที่ต้องไม่เกิด
 		if waitForSheet(12) then
-			logLine("หน้าต่างเซฟโผล่แล้ว กำลังพิมพ์ชื่อ")
+			logLine("หน้าต่างเซฟโผล่แล้ว")
+			-- บังคับที่เซฟเข้าโฟลเดอร์ของโปรแกรมเอง
+			-- ทำได้แล้วเพราะเปลี่ยนมาใช้การวางแทนการพิมพ์
+			-- ผลคือรู้ตำแหน่งไฟล์แน่นอน ไม่ต้องกวาดหาทั้งเครื่องซึ่งช้ามาก
+			goToFolderSafely(workPath)
 			nameAndSaveSheet(tempName)
 			logLine("ตั้งชื่อและกดเซฟแล้ว")
 		else
@@ -308,7 +312,11 @@ on fetchTimeline(outFolder)
 		logLine("กดเมนูไม่สำเร็จ " & e)
 	end try
 
-	set foundPath to waitForNewTimeline(marker, outFolder, tempName, 20)
+	-- ดูที่ตำแหน่งที่เราบังคับไว้ก่อน วิธีนี้เร็วที่สุด
+	set exactPath to lookInWorkFolder(tempName, 15)
+	if exactPath is not "" then return exactPath
+
+	set foundPath to waitForNewTimeline(marker, outFolder, tempName, 15)
 	if foundPath is not "" then return foundPath
 
 	-- ยังไม่ได้ ลองปิดหน้าต่างที่อาจค้างอยู่ แล้วรออีกรอบ
@@ -316,7 +324,11 @@ on fetchTimeline(outFolder)
 	try
 		dismissLeftoverSheets()
 	end try
-	set foundPath to waitForNewTimeline(marker, outFolder, tempName, 20)
+	-- ดูที่ตำแหน่งที่เราบังคับไว้ก่อน วิธีนี้เร็วที่สุด
+	set exactPath to lookInWorkFolder(tempName, 15)
+	if exactPath is not "" then return exactPath
+
+	set foundPath to waitForNewTimeline(marker, outFolder, tempName, 15)
 	if foundPath is not "" then return foundPath
 
 	-- ยังไม่เจออีก อาจเป็นเพราะตั้งชื่อไม่ติด ลองหาแบบไม่สนใจชื่อ
@@ -346,6 +358,28 @@ on fetchTimeline(outFolder)
 		return ""
 	end try
 end fetchTimeline
+
+
+on lookInWorkFolder(tempName, maxTries)
+	-- ดูตรง ๆ ในโฟลเดอร์ของโปรแกรม ว่าไฟล์ที่เราตั้งชื่อไว้โผล่มาหรือยัง
+	-- ไม่ต้องค้นหาอะไรเลย จึงเร็วมากและไม่มีทางหยิบไฟล์ผิด
+	repeat with i from 1 to maxTries
+		try
+			set found to do shell script ¬
+				"ls -d " & quoted form of (workPath & "/" & tempName & ".fcpxmld") & ¬
+				" " & quoted form of (workPath & "/" & tempName & ".fcpxml") & ¬
+				" 2>/dev/null | head -1"
+			if found is not "" then
+				logLine("เจอไฟล์ที่ตำแหน่งที่บังคับไว้ " & found)
+				delay 1
+				return found
+			end if
+		end try
+		delay 1
+	end repeat
+	logLine("ไม่เจอที่ตำแหน่งที่บังคับไว้ จะไปค้นหาแทน")
+	return ""
+end lookInWorkFolder
 
 
 on waitForNewTimeline(marker, outFolder, wantedName, maxTries)
@@ -398,6 +432,47 @@ on waitForSheet(maxSeconds)
 end waitForSheet
 
 
+on typeTextSafely(theText)
+	-- ห้ามใช้ keystroke กับข้อความที่ไม่ใช่ภาษาอังกฤษเด็ดขาด
+	--
+	-- เหตุผล คำสั่ง keystroke จำลองการกดแป้นพิมพ์ตามผังแป้นที่ใช้อยู่
+	-- ถ้าผังแป้นเป็นภาษาอังกฤษ พอสั่งพิมพ์คำว่า เช้า พ จะได้ aaaa a ออกมาแทน
+	-- ซึ่งเคยทำให้ไฟล์ถูกตั้งชื่อผิดและเซฟผิดที่มาแล้ว
+	--
+	-- วิธีที่ถูกคือ ใส่ข้อความลงคลิปบอร์ด แล้วสั่งวาง
+	-- การวางไม่ผ่านผังแป้นพิมพ์ ตัวอักษรจึงตรงทุกตัวไม่ว่าภาษาอะไร
+	set the clipboard to theText
+	delay 0.3
+	tell application "System Events"
+		tell process fcpName
+			keystroke "a" using {command down}
+			delay 0.2
+			keystroke "v" using {command down}
+			delay 0.4
+		end tell
+	end tell
+end typeTextSafely
+
+
+on goToFolderSafely(folderPath)
+	-- พาหน้าต่างเซฟไปยังโฟลเดอร์ที่ต้องการ โดยใช้การวาง ไม่ใช่การพิมพ์
+	tell application "System Events"
+		tell process fcpName
+			set frontmost to true
+			keystroke "g" using {command down, shift down}
+		end tell
+	end tell
+	delay 1
+	typeTextSafely(folderPath)
+	tell application "System Events"
+		tell process fcpName
+			key code 36
+		end tell
+	end tell
+	delay 1.2
+end goToFolderSafely
+
+
 on nameAndSaveSheet(tempName)
 	-- พิมพ์ชื่อไฟล์ชั่วคราวลงในหน้าต่างเซฟ แล้วกดเซฟ
 	-- ไม่ไปยุ่งกับที่เก็บไฟล์เลย ปล่อยให้เซฟที่เดิมที่ Final Cut Pro จำไว้
@@ -422,16 +497,11 @@ on nameAndSaveSheet(tempName)
 	if didSetField then logLine("ใส่ชื่อลงช่องได้โดยตรง")
 
 	-- วิธีที่สอง ถ้าใส่ตรง ๆ ไม่ได้ ค่อยพิมพ์แทน
+	if not didSetField then typeTextSafely(tempName)
 	tell application "System Events"
 		tell process fcpName
 			set frontmost to true
-			delay 0.4
-			if not didSetField then
-				keystroke "a" using {command down}
-				delay 0.3
-				keystroke tempName
-				delay 0.5
-			end if
+			delay 0.3
 			key code 36
 		end tell
 	end tell
@@ -500,10 +570,10 @@ on importTimeline(splitPath)
 	-- เพราะเป็นการบอก macOS ให้เปิดไฟล์ด้วย Final Cut Pro ตรง ๆ
 	-- Final Cut Pro จะนำเข้าให้เองโดยไม่ต้องกดปุ่มอะไรเลย
 	do shell script "open -a " & quoted form of "/Applications/Final Cut Pro.app" & " " & quoted form of splitPath
-	delay 3
+	delay 2
 
 	-- ถ้ามีหน้าต่างถามเรื่องการนำเข้า ให้ตอบให้เอง
-	set answered to clickButtonAnywhere({"Import", "OK", "นำเข้า"}, 8)
+	set answered to clickButtonAnywhere({"Import", "OK", "นำเข้า"}, 5)
 	if answered then
 		logLine("ตอบหน้าต่างนำเข้าให้แล้ว")
 	else
@@ -539,22 +609,37 @@ on selectAllProjects()
 	-- ต้องย้ายโฟกัสไปที่หน้าต่าง Browser ก่อนเสมอ
 	-- ถ้าโฟกัสอยู่ที่ไทม์ไลน์ คำสั่งเลือกทั้งหมดจะไปเลือกคลิปในไทม์ไลน์แทน
 	-- ซึ่งจะทำให้เอ็กพอร์ตผิดทั้งหมด จึงต้องระวังจุดนี้ที่สุด
+	-- ย้ายโฟกัสไปที่ Browser ให้ได้ ลองสองวิธี
+	set movedFocus to false
 	try
 		tell application "System Events"
 			tell process fcpName
 				set frontmost to true
-				delay 0.5
+				delay 0.4
 				set windowMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "Window")
 				set goToItem to (first menu item of windowMenu whose name starts with "Go To")
 				click (first menu item of menu 1 of goToItem whose name starts with "Libraries")
 			end tell
 		end tell
-		delay 1
-		logLine("ย้ายโฟกัสไปที่ Browser แล้ว")
+		set movedFocus to true
+		logLine("ย้ายโฟกัสไป Browser ด้วยเมนูแล้ว")
 	on error e
-		logLine("ย้ายโฟกัสไป Browser ไม่สำเร็จ " & e)
-		return false
+		logLine("ย้ายโฟกัสด้วยเมนูไม่สำเร็จ " & e)
 	end try
+
+	-- วิธีสำรอง ใช้ปุ่มลัด Command 1 ซึ่งเป็นตัวเลข จึงไม่มีปัญหาเรื่องภาษา
+	try
+		tell application "System Events"
+			tell process fcpName
+				set frontmost to true
+				keystroke "1" using {command down}
+			end tell
+		end tell
+		set movedFocus to true
+		logLine("ย้ายโฟกัสด้วยปุ่มลัด Command 1 แล้ว")
+	end try
+	delay 0.8
+	if not movedFocus then return false
 
 	try
 		tell application "System Events"
@@ -603,35 +688,47 @@ on shareWith(destinationName, humanName, outFolder)
 	end if
 
 	-- ขั้นที่ 2 กดปุ่ม Next ในหน้าต่างตั้งค่า
-	delay 3
-	set clickedNext to clickButtonAnywhere({"Next…", "Next...", "Next"}, 10)
+	delay 1.5
+	set clickedNext to clickButtonAnywhere({"Next…", "Next...", "Next"}, 8)
 	if clickedNext then
 		logLine("กดปุ่ม Next แล้ว")
 	else
 		logLine("หาปุ่ม Next ไม่เจอ")
 	end if
 
-	-- ขั้นที่ 3 พาไปโฟลเดอร์ปลายทาง แล้วกดยืนยัน
-	delay 2.5
+	-- ขั้นที่ 3 ตรวจว่าเลือกงานครบหรือไม่ ก่อนจะเซฟ
+	--
+	-- ถ้าเลือกงานได้ครบทุกอัน Final Cut Pro จะถามหาโฟลเดอร์อย่างเดียว
+	-- แต่ถ้าเลือกได้อันเดียว มันจะถามชื่อไฟล์ด้วย คือมีช่องกรอกโผล่มา
+	-- จุดนี้เคยทำให้ได้ไฟล์มาแค่ก้อนเดียว จึงต้องดักไว้ก่อนเสมอ
+	delay 2
+	set fieldCount to countSaveFields()
+	logLine("หน้าต่างเซฟมีช่องกรอก " & fieldCount & " ช่อง")
+	if fieldCount > 0 then
+		logLine("เตือน อาจเลือกงานได้ไม่ครบ")
+		display dialog ¬
+			"ดูเหมือนเลือกงานย่อยได้ไม่ครบทุกอัน" & return & return & ¬
+			"ถ้าปล่อยไป จะได้ไฟล์มาแค่ก้อนเดียว" & return & return & ¬
+			"ขอให้กลับไปที่ Final Cut Pro" & return & ¬
+			"คลิกงานย่อยอันแรก กด Shift ค้าง แล้วคลิกอันสุดท้าย" & return & return & ¬
+			"ถ้าเลือกครบแล้วให้กด ยกเลิกแล้วเริ่มใหม่" ¬
+			buttons {"ทำต่อทั้งที่ได้ก้อนเดียว", "ยกเลิกแล้วเริ่มใหม่"} ¬
+			default button "ยกเลิกแล้วเริ่มใหม่" with title appTitle
+		if button returned of result is "ยกเลิกแล้วเริ่มใหม่" then
+			cancelEverything()
+			logLine("ผู้ใช้เลือกยกเลิกเพราะเลือกงานไม่ครบ")
+			error number -128
+		end if
+	end if
 	set saved to false
 	try
-		tell application "System Events"
-			tell process fcpName
-				set frontmost to true
-				keystroke "g" using {command down, shift down}
-				delay 1.2
-				keystroke outFolder
-				delay 0.8
-				key code 36
-				delay 1.5
-			end tell
-		end tell
-		logLine("พาไปโฟลเดอร์ปลายทางแล้ว")
+		goToFolderSafely(outFolder)
+		logLine("พาไปโฟลเดอร์ปลายทางแล้ว (ใช้วิธีวาง ไม่ใช่พิมพ์)")
 	on error e
 		logLine("พาไปโฟลเดอร์ไม่สำเร็จ " & e)
 	end try
 
-	set saved to clickButtonAnywhere({"Save", "Choose", "Open", "Export", "เลือก"}, 8)
+	set saved to clickButtonAnywhere({"Save", "Choose", "Open", "Export", "เลือก"}, 6)
 	if not saved then
 		-- ปุ่มยืนยันของหน้าต่างเลือกโฟลเดอร์บางแบบ กดด้วยปุ่ม Return ได้
 		try
@@ -642,8 +739,7 @@ on shareWith(destinationName, humanName, outFolder)
 
 	if saved then
 		logLine("สั่งเอ็กพอร์ต " & destinationName & " เรียบร้อย")
-		-- เผื่อมีหน้าต่างถามเขียนทับ ให้ตอบให้จบ
-		delay 1.5
+		delay 1
 		dismissLeftoverSheets()
 	else
 		logLine("กดยืนยันไม่สำเร็จ ขอให้ผู้ใช้ช่วย")
@@ -655,6 +751,27 @@ on shareWith(destinationName, humanName, outFolder)
 			buttons {"สั่งแล้ว"} default button 1 with title appTitle
 	end if
 end shareWith
+
+
+on countSaveFields()
+	-- นับช่องกรอกในหน้าต่างเซฟที่เปิดอยู่
+	-- ใช้แยกว่าเป็นหน้าต่างเลือกโฟลเดอร์ หรือหน้าต่างตั้งชื่อไฟล์
+	set total to 0
+	try
+		tell application "System Events"
+			tell process fcpName
+				repeat with windowRef in windows
+					repeat with sheetRef in sheets of windowRef
+						try
+							set total to total + (count of text fields of sheetRef)
+						end try
+					end repeat
+				end repeat
+			end tell
+		end tell
+	end try
+	return total
+end countSaveFields
 
 
 on clickButtonAnywhere(buttonNames, maxSeconds)

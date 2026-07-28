@@ -107,10 +107,17 @@ def modified_at(path):
 
 
 def search_rounds(home, extra_folders):
-    """คืนกลุ่มที่ต้องค้น เรียงจากเร็วไปช้า"""
+    """
+    คืนกลุ่มที่ต้องค้น เรียงจากเร็วไปช้า
+
+    เรื่องความเร็ว
+    ไดรฟ์เครือข่ายอ่านช้ากว่าไดรฟ์ในเครื่องมาก การเดินลึกหลายชั้นจึงกินเวลานาน
+    รอบสุดท้ายจึงจำกัดความลึกไว้แค่ 2 ชั้น พอให้เจอไฟล์ที่เพิ่งเซฟ
+    โดยไม่ต้องรื้อทั้งไดรฟ์
+    """
     yield [(folder, 2) for folder in extra_folders]
     yield [(os.path.join(home, name), 3) for name in HOME_FOLDERS]
-    yield [(volume, 4) for volume in mounted_volumes()]
+    yield [(volume, 2) for volume in mounted_volumes()]
 
 
 def main(argv=None):
