@@ -273,13 +273,13 @@ on fetchTimeline(outFolder)
 	end if
 
 	display dialog ¬
-		"กำลังจะไปอ่านไทม์ไลน์" & return & return & ¬
-		"เดี๋ยวจะมีหน้าต่างเซฟของ Final Cut Pro เด้งขึ้นมาแวบหนึ่ง" & return & ¬
-		"นั่นคือขั้นตอนภายในของโปรแกรม ไม่ใช่ไฟล์ที่คุณต้องการ" & return & ¬
-		"โปรแกรมจะกดปิดเองทันที คุณไม่ต้องทำอะไร" & return & return & ¬
-		"ไฟล์ mov และ mxf ที่คุณต้องการ จะได้ในขั้นตอนถัดไป" & return & return & ¬
-		"ระหว่างนี้อย่าแตะเมาส์หรือคีย์บอร์ด" ¬
-		buttons {"เข้าใจแล้ว เริ่มเลย"} default button 1 with title appTitle
+		"เลือกโฟลเดอร์เรียบร้อย ต่อจากนี้โปรแกรมทำเองทั้งหมด" & return & return & ¬
+		"จะมีหน้าต่างของ Final Cut Pro เด้งขึ้นมาหลายอัน" & return & ¬
+		"ทั้งหมดเป็นขั้นตอนภายใน โปรแกรมจะกดให้เอง" & return & return & ¬
+		"สำคัญที่สุด ระหว่างนี้อย่าแตะเมาส์และคีย์บอร์ดเลย" & return & ¬
+		"เพราะโปรแกรมกำลังกดปุ่มแทนคุณอยู่" & return & return & ¬
+		"ใช้เวลาประมาณหนึ่งถึงสองนาที" ¬
+		buttons {"เริ่มเลย"} default button 1 with title appTitle
 
 	-- กดเมนู แล้วกดปุ่มยืนยันในหน้าต่างที่เด้งขึ้นมา
 	-- ไม่ไปยุ่งกับที่เก็บไฟล์เลย ปล่อยให้มันเซฟตรงไหนก็ได้
@@ -294,9 +294,16 @@ on fetchTimeline(outFolder)
 	logLine("กดเมนู Export XML ตั้งชื่อชั่วคราวว่า " & tempName)
 	try
 		clickMenuItem("File", "Export XML")
-		delay 2
-		nameAndSaveSheet(tempName)
-		logLine("ตั้งชื่อและกดเซฟแล้ว")
+		-- ต้องรอให้หน้าต่างเซฟโผล่ขึ้นมาจริงก่อน
+		-- ถ้าพิมพ์ทั้งที่หน้าต่างยังไม่มา ตัวอักษรจะหายไปเฉย ๆ
+		-- แล้วหน้าต่างจะค้างรอให้ผู้ใช้พิมพ์ชื่อเอง ซึ่งเป็นสิ่งที่ต้องไม่เกิด
+		if waitForSheet(12) then
+			logLine("หน้าต่างเซฟโผล่แล้ว กำลังพิมพ์ชื่อ")
+			nameAndSaveSheet(tempName)
+			logLine("ตั้งชื่อและกดเซฟแล้ว")
+		else
+			logLine("รอหน้าต่างเซฟ 12 วินาทีแล้วไม่มา")
+		end if
 	on error e
 		logLine("กดเมนูไม่สำเร็จ " & e)
 	end try
@@ -368,18 +375,63 @@ on waitForNewTimeline(marker, outFolder, wantedName, maxTries)
 end waitForNewTimeline
 
 
+on waitForSheet(maxSeconds)
+	-- คอยดูว่าหน้าต่างเซฟของ Final Cut Pro โผล่มาหรือยัง
+	-- ตรวจทั้งแบบแผ่นซ้อนบนหน้าต่าง และแบบหน้าต่างแยก
+	repeat with i from 1 to maxSeconds
+		try
+			tell application "System Events"
+				tell process fcpName
+					repeat with windowRef in windows
+						if (count of sheets of windowRef) > 0 then return true
+					end repeat
+					-- บางรุ่นเปิดเป็นหน้าต่างแยก มีชื่อว่า Export XML
+					repeat with windowRef in windows
+						if name of windowRef contains "Export XML" then return true
+					end repeat
+				end tell
+			end tell
+		end try
+		delay 1
+	end repeat
+	return false
+end waitForSheet
+
+
 on nameAndSaveSheet(tempName)
 	-- พิมพ์ชื่อไฟล์ชั่วคราวลงในหน้าต่างเซฟ แล้วกดเซฟ
 	-- ไม่ไปยุ่งกับที่เก็บไฟล์เลย ปล่อยให้เซฟที่เดิมที่ Final Cut Pro จำไว้
+	set didSetField to false
+	-- วิธีที่หนึ่ง ใส่ค่าลงช่องชื่อโดยตรง แม่นยำที่สุด ไม่ต้องพึ่งการพิมพ์
+	try
+		tell application "System Events"
+			tell process fcpName
+				repeat with windowRef in windows
+					repeat with sheetRef in sheets of windowRef
+						try
+							set value of text field 1 of sheetRef to tempName
+							set didSetField to true
+							exit repeat
+						end try
+					end repeat
+					if didSetField then exit repeat
+				end repeat
+			end tell
+		end tell
+	end try
+	if didSetField then logLine("ใส่ชื่อลงช่องได้โดยตรง")
+
+	-- วิธีที่สอง ถ้าใส่ตรง ๆ ไม่ได้ ค่อยพิมพ์แทน
 	tell application "System Events"
 		tell process fcpName
 			set frontmost to true
 			delay 0.4
-			-- เลือกข้อความเดิมในช่องชื่อทั้งหมด แล้วพิมพ์ทับ
-			keystroke "a" using {command down}
-			delay 0.3
-			keystroke tempName
-			delay 0.5
+			if not didSetField then
+				keystroke "a" using {command down}
+				delay 0.3
+				keystroke tempName
+				delay 0.5
+			end if
 			key code 36
 		end tell
 	end tell
@@ -450,13 +502,14 @@ on importTimeline(splitPath)
 	do shell script "open -a " & quoted form of "/Applications/Final Cut Pro.app" & " " & quoted form of splitPath
 	delay 3
 
-	display dialog ¬
-		"แยกงานเรียบร้อยแล้ว" & return & return & ¬
-		"งานย่อยกำลังเข้าไปอยู่ใน Final Cut Pro" & return & ¬
-		"ชื่อลงท้าย -1 -2 -3 เรียงตามลำดับให้แล้ว" & return & return & ¬
-		"ถ้ามีหน้าต่างถามเรื่องการนำเข้า ให้กด Import" & return & ¬
-		"เสร็จแล้วกดปุ่มข้างล่าง" ¬
-		buttons {"เข้ามาแล้ว"} default button 1 with title appTitle
+	-- ถ้ามีหน้าต่างถามเรื่องการนำเข้า ให้ตอบให้เอง
+	set answered to clickButtonAnywhere({"Import", "OK", "นำเข้า"}, 8)
+	if answered then
+		logLine("ตอบหน้าต่างนำเข้าให้แล้ว")
+	else
+		logLine("ไม่มีหน้าต่างนำเข้าให้ตอบ")
+	end if
+	delay 2
 end importTimeline
 
 
@@ -465,21 +518,65 @@ end importTimeline
 -- ============================================================
 
 on runExportStage(outFolder, namesFile, totalFiles)
-	display dialog ¬
-		"ขั้นสุดท้าย" & return & return & ¬
-		"ให้เลือกงานย่อยทั้งหมดพร้อมกัน" & return & ¬
-		"คลิกอันแรก กด Shift ค้าง แล้วคลิกอันสุดท้าย" & return & return & ¬
-		"ไฟล์จะถูกเก็บไว้ที่" & return & outFolder ¬
-		buttons {"เลือกแล้ว ไปต่อ"} default button 1 with title appTitle
-
 	logLine("เริ่มขั้นเอ็กพอร์ต")
+
+	-- เลือกงานย่อยทั้งหมดให้เอง ผู้ใช้ไม่ต้องคลิกเลย
+	if not selectAllProjects() then
+		display dialog ¬
+			"เลือกงานย่อยให้อัตโนมัติไม่สำเร็จ" & return & return & ¬
+			"ขอให้คลิกอันแรก กด Shift ค้าง แล้วคลิกอันสุดท้าย" & return & ¬
+			"เสร็จแล้วกดปุ่มข้างล่าง" ¬
+			buttons {"เลือกแล้ว"} default button 1 with title appTitle
+	end if
+
 	shareWith("Export File", "ไฟล์ mov", outFolder)
 	shareWith("MXF-50", "ไฟล์ mxf", outFolder)
 	monitorProgress(outFolder, namesFile, totalFiles)
 end runExportStage
 
 
+on selectAllProjects()
+	-- ต้องย้ายโฟกัสไปที่หน้าต่าง Browser ก่อนเสมอ
+	-- ถ้าโฟกัสอยู่ที่ไทม์ไลน์ คำสั่งเลือกทั้งหมดจะไปเลือกคลิปในไทม์ไลน์แทน
+	-- ซึ่งจะทำให้เอ็กพอร์ตผิดทั้งหมด จึงต้องระวังจุดนี้ที่สุด
+	try
+		tell application "System Events"
+			tell process fcpName
+				set frontmost to true
+				delay 0.5
+				set windowMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "Window")
+				set goToItem to (first menu item of windowMenu whose name starts with "Go To")
+				click (first menu item of menu 1 of goToItem whose name starts with "Libraries")
+			end tell
+		end tell
+		delay 1
+		logLine("ย้ายโฟกัสไปที่ Browser แล้ว")
+	on error e
+		logLine("ย้ายโฟกัสไป Browser ไม่สำเร็จ " & e)
+		return false
+	end try
+
+	try
+		tell application "System Events"
+			tell process fcpName
+				set editMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "Edit")
+				click (first menu item of editMenu whose name is "Select All")
+			end tell
+		end tell
+		delay 0.8
+		logLine("เลือกงานย่อยทั้งหมดแล้ว")
+		return true
+	on error e
+		logLine("เลือกทั้งหมดไม่สำเร็จ " & e)
+		return false
+	end try
+end selectAllProjects
+
+
 on shareWith(destinationName, humanName, outFolder)
+	logLine("เริ่มสั่ง Share " & destinationName)
+
+	-- ขั้นที่ 1 เปิดหน้าต่างปลายทางจากเมนู
 	set opened to false
 	try
 		tell application "System Events"
@@ -492,27 +589,104 @@ on shareWith(destinationName, humanName, outFolder)
 				set opened to true
 			end tell
 		end tell
-		delay 2.5
-		logLine("เปิดหน้าต่าง Share " & destinationName & " สำเร็จ")
 	on error e
-		logLine("เปิดหน้าต่าง Share " & destinationName & " ไม่สำเร็จ " & e)
+		logLine("เปิดเมนู Share ไม่สำเร็จ " & e)
 	end try
 
-	if opened then
-		display dialog ¬
-			"หน้าต่างตั้งค่า " & humanName & " เปิดขึ้นมาแล้ว" & return & return & ¬
-			"กดปุ่ม Next แล้วเลือกโฟลเดอร์นี้" & return & return & outFolder & return & return & ¬
-			"สั่งเอ็กพอร์ตแล้วกดปุ่มข้างล่าง" ¬
-			buttons {"สั่งแล้ว"} default button 1 with title appTitle
-	else
+	if not opened then
 		display dialog ¬
 			"เปิดหน้าต่าง " & humanName & " ให้ไม่สำเร็จ" & return & return & ¬
-			"ขอให้ทำเอง ไปที่เมนู File แล้ว Share" & return & ¬
-			"แล้วเลือก " & destinationName & return & return & ¬
+			"ขอให้ทำเอง ไปที่เมนู File แล้ว Share แล้วเลือก " & destinationName & return & return & ¬
 			"เก็บไฟล์ไว้ที่" & return & outFolder ¬
+			buttons {"สั่งแล้ว"} default button 1 with title appTitle
+		return
+	end if
+
+	-- ขั้นที่ 2 กดปุ่ม Next ในหน้าต่างตั้งค่า
+	delay 3
+	set clickedNext to clickButtonAnywhere({"Next…", "Next...", "Next"}, 10)
+	if clickedNext then
+		logLine("กดปุ่ม Next แล้ว")
+	else
+		logLine("หาปุ่ม Next ไม่เจอ")
+	end if
+
+	-- ขั้นที่ 3 พาไปโฟลเดอร์ปลายทาง แล้วกดยืนยัน
+	delay 2.5
+	set saved to false
+	try
+		tell application "System Events"
+			tell process fcpName
+				set frontmost to true
+				keystroke "g" using {command down, shift down}
+				delay 1.2
+				keystroke outFolder
+				delay 0.8
+				key code 36
+				delay 1.5
+			end tell
+		end tell
+		logLine("พาไปโฟลเดอร์ปลายทางแล้ว")
+	on error e
+		logLine("พาไปโฟลเดอร์ไม่สำเร็จ " & e)
+	end try
+
+	set saved to clickButtonAnywhere({"Save", "Choose", "Open", "Export", "เลือก"}, 8)
+	if not saved then
+		-- ปุ่มยืนยันของหน้าต่างเลือกโฟลเดอร์บางแบบ กดด้วยปุ่ม Return ได้
+		try
+			tell application "System Events" to tell process fcpName to key code 36
+			set saved to true
+		end try
+	end if
+
+	if saved then
+		logLine("สั่งเอ็กพอร์ต " & destinationName & " เรียบร้อย")
+		-- เผื่อมีหน้าต่างถามเขียนทับ ให้ตอบให้จบ
+		delay 1.5
+		dismissLeftoverSheets()
+	else
+		logLine("กดยืนยันไม่สำเร็จ ขอให้ผู้ใช้ช่วย")
+		display dialog ¬
+			"เหลือขั้นสุดท้ายของ " & humanName & return & return & ¬
+			"ในหน้าต่างของ Final Cut Pro ให้เลือกโฟลเดอร์นี้" & return & ¬
+			outFolder & return & return & ¬
+			"แล้วกดปุ่มยืนยัน เสร็จแล้วกดปุ่มข้างล่าง" ¬
 			buttons {"สั่งแล้ว"} default button 1 with title appTitle
 	end if
 end shareWith
+
+
+on clickButtonAnywhere(buttonNames, maxSeconds)
+	-- หาปุ่มตามชื่อที่ให้มา ทั้งในหน้าต่างและในแผ่นซ้อน
+	-- Final Cut Pro วางปุ่มไว้ไม่เหมือนกันในแต่ละหน้าต่าง จึงต้องกวาดหาให้ทั่ว
+	repeat with i from 1 to maxSeconds
+		try
+			tell application "System Events"
+				tell process fcpName
+					repeat with windowRef in windows
+						repeat with sheetRef in sheets of windowRef
+							repeat with buttonName in buttonNames
+								try
+									click button buttonName of sheetRef
+									return true
+								end try
+							end repeat
+						end repeat
+						repeat with buttonName in buttonNames
+							try
+								click button buttonName of windowRef
+								return true
+							end try
+						end repeat
+					end repeat
+				end tell
+			end tell
+		end try
+		delay 1
+	end repeat
+	return false
+end clickButtonAnywhere
 
 
 on monitorProgress(outFolder, namesFile, totalFiles)
