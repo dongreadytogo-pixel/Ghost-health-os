@@ -461,168 +461,155 @@ end countPanelFields
 
 on setRolesTo(destinationName, wantedSetting)
 	--
-	-- ตั้งค่าแท็บ Roles ให้ถูกก่อนกด Next ทุกครั้ง
+	-- ตั้งค่าช่อง Roles as ให้เป็นค่าที่ห้องข่าวต้องการ
 	--
-	-- ไฟล์ mxf ของห้องข่าวต้องเป็น 3 Stereo คือเสียง 3 คู่ รวม 6 ช่อง
-	-- แต่ Final Cut Pro ตั้งค่าเริ่มต้นเป็น Multitrack MXF File
-	-- ซึ่งได้เสียงเป็น Mono ทีละช่อง ไม่ตรงกับที่ห้องข่าวต้องการ
+	-- บทเรียนสองรอบที่ผ่านมา
+	-- รอบแรก ไล่ดูของทุกชิ้นในหน้าต่าง ช้าเกินไปจนหมดเวลาก่อนเจอ
+	-- รอบสอง ชี้ตรงไปที่ระดับบนสุดของหน้าต่าง แต่ช่องนั้นไม่ได้อยู่ระดับบนสุด
 	--
-	-- บทเรียนจากรอบก่อน
-	-- เคยสั่งให้ไล่ดูของทุกชิ้นในหน้าต่างเพื่อหาช่องเลือก
-	-- แต่หน้าต่างนี้มีของเยอะมาก จึงใช้เวลาเกินกำหนดแล้วถูกตัดทิ้งก่อนเจอ
-	-- รอบนี้จึงเปลี่ยนเป็นชี้ตรงจุด ไม่ไล่ดูทั้งหน้าต่างอีก
-	--
-	-- โครงสร้างจริงที่เห็นจากหน้าจอ
-	--   หน้าต่างชื่อเดียวกับปลายทาง เช่น MXF-50
-	--   ข้างในมีแถบแท็บ Info  Settings  Roles
-	--   ใต้แท็บมีช่องเลือก Roles as ซึ่งเป็นช่องแรกของหน้าต่าง
+	-- รอบนี้ค้นลงไปทีละชั้นแบบมีขอบเขต ลึกไม่เกิน 4 ชั้น
+	-- เร็วพอที่จะไม่หมดเวลา และครอบคลุมพอที่จะเจอไม่ว่าช่องจะซ่อนอยู่ชั้นไหน
+	-- พร้อมจดโครงสร้างจริงไว้ในบันทึก เผื่อยังไม่เจอจะได้รู้ว่าต้องไปทางไหน
 
-	-- ขั้นที่ 1 เปิดแท็บ Roles
-	set openedTab to false
+	set beforeValue to ""
+	set afterValue to ""
+	set foundPopup to false
+
 	try
-		with timeout of uiTimeout seconds
+		with timeout of 25 seconds
 			tell application "System Events"
 				tell process fcpName
-					tell window destinationName
-						click radio button "Roles" of tab group 1
-						set openedTab to true
-					end tell
-				end tell
-			end tell
-		end timeout
-	end try
-	if not openedTab then
-		-- เผื่อแท็บไม่ได้อยู่ในกลุ่มแท็บ ให้หาแบบปุ่มวิทยุตรง ๆ
-		try
-			with timeout of uiTimeout seconds
-				tell application "System Events"
-					tell process fcpName
-						tell window destinationName
-							click (first radio button whose name is "Roles")
-							set openedTab to true
-						end tell
-					end tell
-				end tell
-			end timeout
-		end try
-	end if
-	logLine("เปิดแท็บ Roles " & (openedTab as string))
-	delay 1
+					set frontmost to true
+					delay 0.3
 
-	-- ขั้นที่ 2 อ่านค่าปัจจุบันของช่อง Roles as
-	set currentValue to ""
-	try
-		with timeout of uiTimeout seconds
-			tell application "System Events"
-				tell process fcpName
-					set currentValue to (value of pop up button 1 of window destinationName) as string
-				end tell
-			end tell
-		end timeout
-	end try
-	if currentValue is "" then
-		-- เผื่อชื่อหน้าต่างไม่ตรงกับชื่อปลายทาง ให้ใช้หน้าต่างหน้าสุดแทน
-		logLine("อ่านจากหน้าต่างชื่อ " & destinationName & " ไม่ได้ ลองหน้าต่างหน้าสุด")
-		try
-			with timeout of uiTimeout seconds
-				tell application "System Events"
-					tell process fcpName
-						set windowNames to name of every window
-						my logLine("หน้าต่างที่เปิดอยู่ " & (windowNames as string))
-						click radio button "Roles" of tab group 1 of window 1
-						delay 0.8
-						set currentValue to (value of pop up button 1 of window 1) as string
-					end tell
-				end tell
-			end timeout
-		end try
-	end if
-	logLine("ค่า Roles as ตอนนี้คือ " & currentValue)
+					-- เลือกหน้าต่างที่จะทำงานด้วย
+					set targetWindow to missing value
+					try
+						set targetWindow to window destinationName
+					end try
+					if targetWindow is missing value then
+						try
+							set targetWindow to window 1
+						end try
+					end if
 
-	if currentValue is wantedSetting then
-		logLine("เป็น " & wantedSetting & " อยู่แล้ว ไม่ต้องเปลี่ยน")
-		return true
-	end if
+					if targetWindow is not missing value then
+						my logLine("ใช้หน้าต่างชื่อ " & (name of targetWindow))
+						my logLine("ของชั้นบนสุดในหน้าต่าง " & ((class of every UI element of targetWindow) as string))
 
-	-- ขั้นที่ 3 เปิดช่องเลือกแล้วเลือกค่าที่ต้องการ
-	set didSet to false
-	try
-		with timeout of uiTimeout seconds
-			tell application "System Events"
-				tell process fcpName
-					tell window destinationName
-						click pop up button 1
-						delay 0.6
-						click menu item wantedSetting of menu 1 of pop up button 1
-						set didSet to true
-					end tell
+						-- เปิดแท็บ Roles ก่อน ลองทั้งแบบในกลุ่มแท็บ และแบบปุ่มวิทยุตรง ๆ
+						try
+							click radio button "Roles" of tab group 1 of targetWindow
+							my logLine("เปิดแท็บ Roles จากกลุ่มแท็บแล้ว")
+						on error
+							try
+								click (first radio button of targetWindow whose name is "Roles")
+								my logLine("เปิดแท็บ Roles จากปุ่มวิทยุแล้ว")
+							on error
+								my logLine("เปิดแท็บ Roles ไม่สำเร็จ")
+							end try
+						end try
+						delay 1
+
+						-- ค้นหาช่องเลือกทีละชั้น ลึกไม่เกิน 4 ชั้น
+						set thePopup to missing value
+
+						try
+							set thePopup to pop up button 1 of targetWindow
+						end try
+
+						if thePopup is missing value then
+							repeat with levelOne in UI elements of targetWindow
+								try
+									set thePopup to pop up button 1 of levelOne
+									exit repeat
+								end try
+							end repeat
+						end if
+
+						if thePopup is missing value then
+							repeat with levelOne in UI elements of targetWindow
+								repeat with levelTwo in UI elements of levelOne
+									try
+										set thePopup to pop up button 1 of levelTwo
+										exit repeat
+									end try
+								end repeat
+								if thePopup is not missing value then exit repeat
+							end repeat
+						end if
+
+						if thePopup is missing value then
+							repeat with levelOne in UI elements of targetWindow
+								repeat with levelTwo in UI elements of levelOne
+									repeat with levelThree in UI elements of levelTwo
+										try
+											set thePopup to pop up button 1 of levelThree
+											exit repeat
+										end try
+									end repeat
+									if thePopup is not missing value then exit repeat
+								end repeat
+								if thePopup is not missing value then exit repeat
+							end repeat
+						end if
+
+						if thePopup is not missing value then
+							set foundPopup to true
+							try
+								set beforeValue to (value of thePopup) as string
+							end try
+							my logLine("เจอช่องเลือกแล้ว ค่าปัจจุบัน " & beforeValue)
+
+							if beforeValue is not wantedSetting then
+								try
+									click thePopup
+									delay 0.7
+									click menu item wantedSetting of menu 1 of thePopup
+									delay 0.8
+								on error e
+									my logLine("เลือกค่าไม่สำเร็จ " & e)
+									try
+										key code 53
+									end try
+								end try
+							end if
+
+							try
+								set afterValue to (value of thePopup) as string
+							end try
+						else
+							my logLine("ค้นครบ 4 ชั้นแล้วยังไม่เจอช่องเลือก")
+						end if
+					else
+						my logLine("หาหน้าต่างของ Final Cut Pro ไม่เจอเลย")
+					end if
 				end tell
 			end tell
 		end timeout
 	on error e
-		logLine("เลือกค่าจากหน้าต่างชื่อปลายทางไม่สำเร็จ " & e)
-		try
-			tell application "System Events" to tell process fcpName to key code 53
-		end try
-		-- ลองอีกครั้งกับหน้าต่างหน้าสุด
-		try
-			with timeout of uiTimeout seconds
-				tell application "System Events"
-					tell process fcpName
-						tell window 1
-							click pop up button 1
-							delay 0.6
-							click menu item wantedSetting of menu 1 of pop up button 1
-							set didSet to true
-						end tell
-					end tell
-				end tell
-			end timeout
-			logLine("เลือกค่าจากหน้าต่างหน้าสุดสำเร็จ")
-		on error e2
-			logLine("เลือกค่าจากหน้าต่างหน้าสุดก็ไม่สำเร็จ " & e2)
-		end try
+		logLine("ตั้งค่า Roles พังกลางทาง " & e)
 	end try
-	delay 1
 
-	-- ขั้นที่ 4 อ่านค่าซ้ำเพื่อพิสูจน์ว่าเปลี่ยนจริง ห้ามเชื่อว่าคลิกแล้วสำเร็จ
-	set afterValue to ""
-	try
-		with timeout of uiTimeout seconds
-			tell application "System Events"
-				tell process fcpName
-					set afterValue to (value of pop up button 1 of window destinationName) as string
-				end tell
-			end tell
-		end timeout
-	end try
-	if afterValue is "" then
-		try
-			with timeout of uiTimeout seconds
-				tell application "System Events"
-					tell process fcpName
-						set afterValue to (value of pop up button 1 of window 1) as string
-					end tell
-				end tell
-			end timeout
-		end try
-	end if
-	logLine("ค่า Roles as หลังตั้งคือ " & afterValue)
+	logLine("Roles as ก่อนตั้ง [" & beforeValue & "] หลังตั้ง [" & afterValue & "]")
 
-	if afterValue is wantedSetting then
-		say("ตั้ง Roles เป็น " & wantedSetting & " แล้ว")
+	if afterValue is wantedSetting or beforeValue is wantedSetting then
+		say("Roles เป็น " & wantedSetting & " เรียบร้อย")
 		return true
 	end if
 
-	logLine("ตั้งค่า Roles ไม่สำเร็จ")
 	say("ตั้งค่า Roles ให้ไม่สำเร็จ")
+	if foundPopup then
+		set detail to "ตอนนี้ช่อง Roles as เป็น " & beforeValue
+	else
+		set detail to "โปรแกรมหาช่อง Roles as ไม่เจอ"
+	end if
 	askWarn(¬
 		"ตั้งค่าแท็บ Roles ให้อัตโนมัติไม่สำเร็จ" & return & return & ¬
+		detail & return & return & ¬
 		"ในหน้าต่าง " & destinationName & " ที่เปิดอยู่" & return & ¬
-		"ให้ไปที่แท็บ Roles" & return & ¬
-		"แล้วเปลี่ยนช่อง Roles as จาก " & currentValue & return & ¬
-		"ให้เป็น " & wantedSetting & return & return & ¬
-		"ตั้งเสร็จแล้วกดปุ่มข้างล่าง", ¬
+		"ให้ไปแท็บ Roles แล้วตั้ง Roles as ให้เป็น " & wantedSetting & return & return & ¬
+		"ตั้งเสร็จแล้วกดปุ่มข้างล่าง โปรแกรมจะไปต่อเอง", ¬
 		{"ตั้งแล้ว"}, "ตั้งแล้ว")
 	return false
 end setRolesTo
