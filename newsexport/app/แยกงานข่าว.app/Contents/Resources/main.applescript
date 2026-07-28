@@ -62,12 +62,7 @@ end run
 
 
 
-on askWarn(theText, theButtons, defaultButton)
-	activate
-	delay 0.2
-	return button returned of (display dialog theText buttons theButtons ¬
-		default button defaultButton with title appTitle with icon caution)
-end askWarn
+
 
 
 on say(stepText)
@@ -459,30 +454,15 @@ on countPanelFields()
 end countPanelFields
 
 
-on setRolesTo(destinationName, wantedSetting)
+on findRolesPopupValue(destinationName)
 	--
-	-- ตั้งค่าช่อง Roles as ให้เป็นค่าที่ห้องข่าวต้องการ
-	--
-	-- บทเรียนสองรอบที่ผ่านมา
-	-- รอบแรก ไล่ดูของทุกชิ้นในหน้าต่าง ช้าเกินไปจนหมดเวลาก่อนเจอ
-	-- รอบสอง ชี้ตรงไปที่ระดับบนสุดของหน้าต่าง แต่ช่องนั้นไม่ได้อยู่ระดับบนสุด
-	--
-	-- รอบนี้ค้นลงไปทีละชั้นแบบมีขอบเขต ลึกไม่เกิน 4 ชั้น
-	-- เร็วพอที่จะไม่หมดเวลา และครอบคลุมพอที่จะเจอไม่ว่าช่องจะซ่อนอยู่ชั้นไหน
-	-- พร้อมจดโครงสร้างจริงไว้ในบันทึก เผื่อยังไม่เจอจะได้รู้ว่าต้องไปทางไหน
-
-	set beforeValue to ""
-	set afterValue to ""
-	set foundPopup to false
-
+	-- อ่านค่าช่อง Roles as โดยค้นลงไปทีละชั้น ลึกไม่เกิน 4 ชั้น
+	-- คืนค่าเป็นข้อความ ถ้าหาไม่เจอจะคืนค่าว่าง
+	set foundValue to ""
 	try
-		with timeout of 25 seconds
+		with timeout of 20 seconds
 			tell application "System Events"
 				tell process fcpName
-					set frontmost to true
-					delay 0.3
-
-					-- เลือกหน้าต่างที่จะทำงานด้วย
 					set targetWindow to missing value
 					try
 						set targetWindow to window destinationName
@@ -492,32 +472,11 @@ on setRolesTo(destinationName, wantedSetting)
 							set targetWindow to window 1
 						end try
 					end if
-
 					if targetWindow is not missing value then
-						my logLine("ใช้หน้าต่างชื่อ " & (name of targetWindow))
-						my logLine("ของชั้นบนสุดในหน้าต่าง " & ((class of every UI element of targetWindow) as string))
-
-						-- เปิดแท็บ Roles ก่อน ลองทั้งแบบในกลุ่มแท็บ และแบบปุ่มวิทยุตรง ๆ
-						try
-							click radio button "Roles" of tab group 1 of targetWindow
-							my logLine("เปิดแท็บ Roles จากกลุ่มแท็บแล้ว")
-						on error
-							try
-								click (first radio button of targetWindow whose name is "Roles")
-								my logLine("เปิดแท็บ Roles จากปุ่มวิทยุแล้ว")
-							on error
-								my logLine("เปิดแท็บ Roles ไม่สำเร็จ")
-							end try
-						end try
-						delay 1
-
-						-- ค้นหาช่องเลือกทีละชั้น ลึกไม่เกิน 4 ชั้น
 						set thePopup to missing value
-
 						try
 							set thePopup to pop up button 1 of targetWindow
 						end try
-
 						if thePopup is missing value then
 							repeat with levelOne in UI elements of targetWindow
 								try
@@ -526,7 +485,6 @@ on setRolesTo(destinationName, wantedSetting)
 								end try
 							end repeat
 						end if
-
 						if thePopup is missing value then
 							repeat with levelOne in UI elements of targetWindow
 								repeat with levelTwo in UI elements of levelOne
@@ -538,7 +496,6 @@ on setRolesTo(destinationName, wantedSetting)
 								if thePopup is not missing value then exit repeat
 							end repeat
 						end if
-
 						if thePopup is missing value then
 							repeat with levelOne in UI elements of targetWindow
 								repeat with levelTwo in UI elements of levelOne
@@ -553,143 +510,285 @@ on setRolesTo(destinationName, wantedSetting)
 								if thePopup is not missing value then exit repeat
 							end repeat
 						end if
-
 						if thePopup is not missing value then
-							set foundPopup to true
 							try
-								set beforeValue to (value of thePopup) as string
+								set foundValue to (value of thePopup) as string
 							end try
-							my logLine("เจอช่องเลือกแล้ว ค่าปัจจุบัน " & beforeValue)
-
-							if beforeValue is not wantedSetting then
-								try
-									click thePopup
-									delay 0.7
-									click menu item wantedSetting of menu 1 of thePopup
-									delay 0.8
-								on error e
-									my logLine("เลือกค่าไม่สำเร็จ " & e)
-									try
-										key code 53
-									end try
-								end try
-							end if
-
-							try
-								set afterValue to (value of thePopup) as string
-							end try
-						else
-							my logLine("ค้นครบ 4 ชั้นแล้วยังไม่เจอช่องเลือก")
 						end if
-					else
-						my logLine("หาหน้าต่างของ Final Cut Pro ไม่เจอเลย")
 					end if
 				end tell
 			end tell
 		end timeout
-	on error e
-		logLine("ตั้งค่า Roles พังกลางทาง " & e)
 	end try
-
-	logLine("Roles as ก่อนตั้ง [" & beforeValue & "] หลังตั้ง [" & afterValue & "]")
-
-	if afterValue is wantedSetting or beforeValue is wantedSetting then
-		say("Roles เป็น " & wantedSetting & " เรียบร้อย")
-		return true
-	end if
-
-	say("ตั้งค่า Roles ให้ไม่สำเร็จ")
-	if foundPopup then
-		set detail to "ตอนนี้ช่อง Roles as เป็น " & beforeValue
-	else
-		set detail to "โปรแกรมหาช่อง Roles as ไม่เจอ"
-	end if
-	askWarn(¬
-		"ตั้งค่าแท็บ Roles ให้อัตโนมัติไม่สำเร็จ" & return & return & ¬
-		detail & return & return & ¬
-		"ในหน้าต่าง " & destinationName & " ที่เปิดอยู่" & return & ¬
-		"ให้ไปแท็บ Roles แล้วตั้ง Roles as ให้เป็น " & wantedSetting & return & return & ¬
-		"ตั้งเสร็จแล้วกดปุ่มข้างล่าง โปรแกรมจะไปต่อเอง", ¬
-		{"ตั้งแล้ว"}, "ตั้งแล้ว")
-	return false
-end setRolesTo
+	return foundValue
+end findRolesPopupValue
 
 
-on shareTo(destinationName, humanName, rolesSetting)
-	say("กำลังสั่งสร้าง " & humanName)
-	set opened to false
+on openRolesTab(destinationName)
 	try
 		with timeout of uiTimeout seconds
 			tell application "System Events"
 				tell process fcpName
 					set frontmost to true
 					delay 0.3
-					set fileMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "File")
-					set shareItem to (first menu item of fileMenu whose name starts with "Share")
-					click (first menu item of menu 1 of shareItem whose name starts with destinationName)
-					set opened to true
+					set targetWindow to missing value
+					try
+						set targetWindow to window destinationName
+					end try
+					if targetWindow is missing value then
+						try
+							set targetWindow to window 1
+						end try
+					end if
+					if targetWindow is not missing value then
+						my logLine("หน้าต่างที่ใช้ " & (name of targetWindow))
+						my logLine("ของชั้นบนสุด " & ((class of every UI element of targetWindow) as string))
+						try
+							click radio button "Roles" of tab group 1 of targetWindow
+						on error
+							click (first radio button of targetWindow whose name is "Roles")
+						end try
+					end if
+				end tell
+			end tell
+		end timeout
+		delay 1
+		return true
+	on error e
+		logLine("เปิดแท็บ Roles ไม่สำเร็จ " & e)
+		return false
+	end try
+end openRolesTab
+
+
+on clickRolesChoice(destinationName, wantedSetting)
+	try
+		with timeout of 20 seconds
+			tell application "System Events"
+				tell process fcpName
+					set targetWindow to missing value
+					try
+						set targetWindow to window destinationName
+					end try
+					if targetWindow is missing value then
+						try
+							set targetWindow to window 1
+						end try
+					end if
+					if targetWindow is missing value then return false
+
+					set thePopup to missing value
+					try
+						set thePopup to pop up button 1 of targetWindow
+					end try
+					if thePopup is missing value then
+						repeat with levelOne in UI elements of targetWindow
+							try
+								set thePopup to pop up button 1 of levelOne
+								exit repeat
+							end try
+						end repeat
+					end if
+					if thePopup is missing value then
+						repeat with levelOne in UI elements of targetWindow
+							repeat with levelTwo in UI elements of levelOne
+								try
+									set thePopup to pop up button 1 of levelTwo
+									exit repeat
+								end try
+							end repeat
+							if thePopup is not missing value then exit repeat
+						end repeat
+					end if
+					if thePopup is missing value then
+						repeat with levelOne in UI elements of targetWindow
+							repeat with levelTwo in UI elements of levelOne
+								repeat with levelThree in UI elements of levelTwo
+									try
+										set thePopup to pop up button 1 of levelThree
+										exit repeat
+									end try
+								end repeat
+								if thePopup is not missing value then exit repeat
+							end repeat
+							if thePopup is not missing value then exit repeat
+						end repeat
+					end if
+
+					if thePopup is missing value then return false
+					click thePopup
+					delay 0.7
+					click menu item wantedSetting of menu 1 of thePopup
+					delay 0.8
+					return true
 				end tell
 			end tell
 		end timeout
 	on error e
-		logLine("เปิดเมนู Share ไม่สำเร็จ " & e)
+		logLine("กดเลือกค่าไม่สำเร็จ " & e)
+		try
+			tell application "System Events" to tell process fcpName to key code 53
+		end try
+		return false
 	end try
+end clickRolesChoice
 
-	if not opened then
-		activate
-		activate
-	display dialog ¬
-			"เปิดหน้าต่าง " & humanName & " ไม่สำเร็จ" & return & return & ¬
-			"ขอให้สั่งเอง เมนู File แล้ว Share แล้ว " & destinationName & return & ¬
-			"เซฟที่ไหนก็ได้ เดี๋ยวโปรแกรมตามไปเก็บให้" ¬
-			buttons {"สั่งแล้ว"} default button 1 with title appTitle
-		return
+
+on setRolesTo(destinationName, wantedSetting)
+	--
+	-- ตั้งค่าช่อง Roles as ให้เป็นค่าที่ห้องข่าวต้องการ
+	--
+	-- ความผิดพลาดร้ายแรงของรุ่นก่อน
+	-- ตอนตั้งค่าอัตโนมัติไม่สำเร็จ โปรแกรมเปิดหน้าต่างเตือนขึ้นมาบอกให้ผู้ใช้ตั้งเอง
+	-- แต่หน้าต่างเตือนนั้นบล็อกทุกอย่างไว้ ผู้ใช้จึงกดอะไรไม่ได้เลย
+	-- กลายเป็นบอกให้ทำ แล้วตัวเองขวางไม่ให้ทำ
+	--
+	-- รุ่นนี้จึงไม่เปิดหน้าต่างเตือนขวางไว้อีก
+	-- ใช้การแจ้งเตือนแบบไม่ขวาง แล้วเฝ้าดูค่าไปเรื่อย ๆ
+	-- พอผู้ใช้ตั้งเองเสร็จ โปรแกรมจะรู้เองแล้วไปต่อทันที
+
+	openRolesTab(destinationName)
+	set beforeValue to findRolesPopupValue(destinationName)
+	logLine("Roles as ตอนนี้คือ [" & beforeValue & "]")
+
+	if beforeValue is wantedSetting then
+		say("Roles เป็น " & wantedSetting & " อยู่แล้ว")
+		return true
 	end if
 
-	delay 2
-	-- ตั้งค่า Roles ให้ถูกก่อนเสมอ ก่อนจะกด Next
-	if rolesSetting is not "" then setRolesTo(destinationName, rolesSetting)
-
-	if pressButtons({"Next…", "Next...", "Next"}) then logLine("กดปุ่ม Next แล้ว")
-	delay 2
-
-	-- ตรวจว่าเลือกงานได้ครบหรือไม่ ก่อนจะเซฟ
-	set fieldCount to countPanelFields()
-	logLine("หน้าต่างเซฟมีช่องกรอก " & fieldCount & " ช่อง")
-	if fieldCount > 0 then
-		say("เตือน เลือกงานได้ไม่ครบ")
-		set answer to askWarn(¬
-			"ดูเหมือนเลือกงานย่อยได้ไม่ครบ" & return & return & ¬
-			"ถ้าทำต่อ จะได้ไฟล์มาแค่ก้อนเดียว" & return & return & ¬
-			"ขอให้ไปที่ Final Cut Pro" & return & ¬
-			"คลิกงานย่อยอันแรก กด Shift ค้าง แล้วคลิกอันสุดท้าย" & return & ¬
-			"ให้เลือกได้ครบทุกอัน" & return & return & ¬
-			"เลือกครบแล้วกด เลือกครบแล้ว โปรแกรมจะเริ่มใหม่ให้", ¬
-			{"ทำต่อทั้งที่ได้ก้อนเดียว", "เลือกครบแล้ว"}, "เลือกครบแล้ว")
-		if answer is "เลือกครบแล้ว" then
-			pressButtons({"Cancel", "ยกเลิก"})
-			delay 1
-			pressButtons({"Cancel", "ยกเลิก"})
-			delay 1
-			-- เริ่มรอบนี้ใหม่ คราวนี้ผู้ใช้เลือกครบแล้ว
-			shareTo(destinationName, humanName, rolesSetting)
-			return
+	if clickRolesChoice(destinationName, wantedSetting) then
+		set afterValue to findRolesPopupValue(destinationName)
+		logLine("Roles as หลังตั้งคือ [" & afterValue & "]")
+		if afterValue is wantedSetting then
+			say("ตั้ง Roles เป็น " & wantedSetting & " แล้ว")
+			return true
 		end if
 	end if
-	-- กดยืนยันในหน้าต่างเซฟ โดยไม่แตะที่เก็บไฟล์
-	if pressButtons({"Save", "Choose", "Open", "Export"}) then
-		logLine("กดยืนยันหน้าต่างเซฟแล้ว")
-	else
+
+	-- ตั้งเองไม่สำเร็จ ขอให้ผู้ใช้ช่วย โดยไม่ขวางการกดใด ๆ
+	logLine("ตั้งค่าอัตโนมัติไม่สำเร็จ เปลี่ยนเป็นรอให้ผู้ใช้ตั้งเอง")
+	say("กรุณาตั้ง Roles as เป็น " & wantedSetting & " ในหน้าต่าง " & destinationName)
+
+	-- ยกหน้าต่างของ Final Cut Pro ขึ้นมาให้ผู้ใช้กดได้สะดวก
+	try
+		tell application "Final Cut Pro" to activate
+	end try
+
+	repeat with i from 1 to 90
+		delay 2
+		set nowValue to findRolesPopupValue(destinationName)
+		if nowValue is wantedSetting then
+			logLine("ผู้ใช้ตั้งค่าเองเรียบร้อยแล้ว")
+			say("ตั้ง Roles เรียบร้อย ทำงานต่อ")
+			return true
+		end if
+		if nowValue is "" then
+			-- หน้าต่างหายไปแล้ว แปลว่าผู้ใช้กดต่อไปเองหรือปิดไปแล้ว
+			logLine("ไม่พบหน้าต่างแล้ว ถือว่าผู้ใช้จัดการต่อเอง")
+			return false
+		end if
+		if i mod 10 is 0 then
+			say("ยังรอให้ตั้ง Roles as เป็น " & wantedSetting & " อยู่")
+		end if
+	end repeat
+
+	logLine("รอครบเวลาแล้วยังไม่ได้ตั้ง")
+	return false
+end setRolesTo
+
+
+on shareTo(destinationName, humanName, rolesSetting)
+	--
+	-- สั่งเอ็กพอร์ตหนึ่งแบบ
+	--
+	-- กฎเหล็กของรุ่นนี้
+	-- ห้ามเปิดหน้าต่างที่บล็อกทุกอย่าง ในจังหวะที่ผู้ใช้ต้องไปกดใน Final Cut Pro
+	-- รุ่นก่อนทำแบบนั้น กลายเป็นบอกให้ผู้ใช้ไปตั้งค่า แล้วตัวเองขวางไม่ให้ตั้ง
+	-- ถ้าต้องให้ผู้ใช้ช่วย ให้ใช้การแจ้งเตือนแบบไม่ขวาง แล้วเฝ้าดูเอง
+
+	say("กำลังสั่งสร้าง " & humanName)
+
+	repeat with attemptNumber from 1 to 3
+		set opened to false
 		try
 			with timeout of uiTimeout seconds
-				tell application "System Events" to tell process fcpName to key code 36
+				tell application "System Events"
+					tell process fcpName
+						set frontmost to true
+						delay 0.3
+						set fileMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "File")
+						set shareItem to (first menu item of fileMenu whose name starts with "Share")
+						click (first menu item of menu 1 of shareItem whose name starts with destinationName)
+						set opened to true
+					end tell
+				end tell
 			end timeout
-			logLine("ใช้ปุ่ม Return แทน")
+		on error e
+			logLine("เปิดเมนู Share ไม่สำเร็จ " & e)
 		end try
-	end if
-	delay 1.5
-	pressButtons({"Replace", "แทนที่"})
-	say("สั่ง " & humanName & " เรียบร้อย")
+
+		if not opened then
+			say("เปิดหน้าต่าง " & humanName & " ไม่สำเร็จ")
+			return false
+		end if
+
+		delay 2
+		-- ตั้งค่า Roles ให้ถูกก่อน ถ้าปลายทางนี้ต้องใช้
+		if rolesSetting is not "" then setRolesTo(destinationName, rolesSetting)
+
+		if pressButtons({"Next…", "Next...", "Next"}) then logLine("กดปุ่ม Next แล้ว")
+		delay 2
+
+		-- ตรวจว่าเลือกงานครบหรือไม่
+		-- ถ้าครบ หน้าต่างจะถามหาแค่โฟลเดอร์ ไม่มีช่องกรอกชื่อไฟล์
+		set fieldCount to countPanelFields()
+		logLine("รอบที่ " & attemptNumber & " หน้าต่างเซฟมีช่องกรอก " & fieldCount & " ช่อง")
+
+		if fieldCount is 0 then
+			-- เลือกครบแล้ว เซฟได้เลย
+			if pressButtons({"Save", "Choose", "Open", "Export"}) then
+				logLine("กดยืนยันหน้าต่างเซฟแล้ว")
+			else
+				try
+					with timeout of uiTimeout seconds
+						tell application "System Events" to tell process fcpName to key code 36
+					end timeout
+					logLine("ใช้ปุ่ม Return แทน")
+				end try
+			end if
+			delay 1.5
+			pressButtons({"Replace", "แทนที่"})
+			say("สั่ง " & humanName & " เรียบร้อย")
+			return true
+		end if
+
+		-- เลือกไม่ครบ ยกเลิกแล้วขอให้ผู้ใช้เลือกใหม่ โดยไม่ขวางการกด
+		logLine("เลือกงานไม่ครบ ยกเลิกแล้วรอให้ผู้ใช้เลือก")
+		pressButtons({"Cancel", "ยกเลิก"})
+		delay 1
+		pressButtons({"Cancel", "ยกเลิก"})
+		delay 1
+
+		if attemptNumber is 3 then exit repeat
+
+		say("เลือกงานย่อยไม่ครบ กรุณาเลือกให้ครบใน Final Cut Pro")
+		try
+			tell application "Final Cut Pro" to activate
+		end try
+
+		-- ให้เวลาผู้ใช้เลือก โดยไม่มีหน้าต่างอะไรขวางเลย
+		repeat with waited from 1 to 6
+			delay 5
+			if waited is 3 then
+				say("ยังรออยู่ เลือกอันแรก กด Shift ค้าง แล้วคลิกอันสุดท้าย")
+			end if
+		end repeat
+		say("กำลังลองสั่ง " & humanName & " อีกครั้ง")
+	end repeat
+
+	logLine("ลองครบ 3 รอบแล้วยังเลือกไม่ครบ")
+	say("ยังเลือกงานไม่ครบ ข้าม " & humanName & " ไปก่อน")
+	return false
 end shareTo
 
 
@@ -755,7 +854,9 @@ on monitorAndCollect(outFolder, namesFile, totalFiles)
 				"กดปุ่ม หยุดรอ ได้เลย"
 		end if
 
-		activate
+		-- ยกหน้าต่างขึ้นหน้าเฉพาะรอบแรก
+		-- ถ้ายกทุกรอบ จะแย่งโฟกัสจากผู้ใช้ตลอดเวลา ทำอย่างอื่นไม่ได้เลย
+		if roundNumber is 1 then activate
 		set reply to display dialog message ¬
 			buttons {"หยุดรอ", "เปิดโฟลเดอร์"} default button "หยุดรอ" ¬
 			giving up after 4 with title appTitle
