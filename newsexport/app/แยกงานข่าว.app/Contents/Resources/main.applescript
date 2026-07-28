@@ -67,13 +67,13 @@ on showMainMenu()
 			"จากนั้นกดปุ่ม เอ็กพอร์ต" & return & return & ¬
 			"โปรแกรมจะไปเอาไทม์ไลน์มาเอง แยกเป็นก้อน" & return & ¬
 			"แล้วเอ็กพอร์ตให้ครบทุกก้อน ทั้ง mov และ mxf" ¬
-			buttons {"ดูบันทึก", "ตรวจสอบระบบ", "เอ็กพอร์ต"} ¬
+			buttons {"ดูบันทึก", "ทดสอบละเอียด", "เอ็กพอร์ต"} ¬
 			default button "เอ็กพอร์ต" with title appTitle)
 
 		if choice is "ดูบันทึก" then
 			showLog()
-		else if choice is "ตรวจสอบระบบ" then
-			runDiagnostics()
+		else if choice is "ทดสอบละเอียด" then
+			runDeepTest()
 		else
 			runWorkflow()
 		end if
@@ -770,6 +770,248 @@ on finishDialog(outFolder, totalFiles, wasCompleted)
 		buttons {"ปิด", "เปิดโฟลเดอร์"} default button "เปิดโฟลเดอร์" with title appTitle)
 	if answer is "เปิดโฟลเดอร์" then do shell script "open " & quoted form of outFolder
 end finishDialog
+
+
+-- ============================================================
+-- ทดสอบละเอียด
+-- ------------------------------------------------------------
+-- ตัวนี้มีไว้เพื่ออย่างเดียว คือเก็บของจริงจากเครื่องผู้ใช้
+-- ว่าเมนูชื่ออะไรจริง ๆ ปุ่มชื่ออะไรจริง ๆ หน้าต่างมีอะไรบ้าง
+--
+-- เพราะผู้พัฒนาไม่มี Final Cut Pro จึงทดสอบเองไม่ได้
+-- ที่ผ่านมาต้องเดาชื่อเมนูและชื่อปุ่ม ซึ่งเดาผิดหลายรอบ
+-- ตัวนี้จะจบการเดา ด้วยการไปอ่านของจริงมาเลย
+--
+-- ปลอดภัย เพราะเปิดหน้าต่างขึ้นมาดูแล้วกดยกเลิกทุกครั้ง
+-- ไม่มีการเซฟ ไม่มีการเอ็กพอร์ต ไม่แตะงานของผู้ใช้
+-- ============================================================
+
+on runDeepTest()
+	if not ensureFinalCutRunning() then return
+	if not ensureAccessibility() then return
+
+	display dialog ¬
+		"ตัวนี้จะไปอ่านชื่อเมนูและชื่อปุ่มจริงในเครื่องคุณ" & return & return & ¬
+		"ไม่มีการเซฟ ไม่มีการเอ็กพอร์ต ไม่แตะงานของคุณ" & return & ¬
+		"เปิดหน้าต่างขึ้นมาดูแล้วกดยกเลิกทุกครั้ง" & return & return & ¬
+		"ใช้เวลาประมาณ 30 วินาที" & return & ¬
+		"ระหว่างนี้อย่าแตะเมาส์และคีย์บอร์ด" ¬
+		buttons {"เริ่มทดสอบ"} default button 1 with title appTitle
+
+	set reportPath to workPath & "/ผลทดสอบละเอียด.txt"
+	do shell script "rm -f " & quoted form of reportPath
+	writeReport(reportPath, "===== ผลทดสอบละเอียด =====")
+	writeReport(reportPath, "เวลา " & ((current date) as string))
+
+	-- ข้อมูลเครื่อง เผื่อชื่อเมนูต่างกันตามรุ่น
+	try
+		writeReport(reportPath, "macOS " & (do shell script "sw_vers -productVersion"))
+		writeReport(reportPath, "Final Cut Pro " & (do shell script "/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' '/Applications/Final Cut Pro.app/Contents/Info.plist'"))
+	end try
+
+	-- ส่วนที่หนึ่ง รายชื่อเมนูจริง
+	writeReport(reportPath, "")
+	writeReport(reportPath, "--- เมนู File ทั้งหมด ---")
+	writeReport(reportPath, listMenuItems("File"))
+
+	writeReport(reportPath, "")
+	writeReport(reportPath, "--- เมนูย่อยของ Share ---")
+	writeReport(reportPath, listSubMenuItems("File", "Share"))
+
+	writeReport(reportPath, "")
+	writeReport(reportPath, "--- เมนูย่อยของ Window แล้ว Go To ---")
+	writeReport(reportPath, listSubMenuItems("Window", "Go To"))
+
+	writeReport(reportPath, "")
+	writeReport(reportPath, "--- เมนู Edit ทั้งหมด ---")
+	writeReport(reportPath, listMenuItems("Edit"))
+
+	writeReport(reportPath, "")
+	writeReport(reportPath, "--- สถานะเมนูที่โปรแกรมต้องใช้ ---")
+	writeReport(reportPath, "Export XML = " & menuItemState("File", "Export XML"))
+	writeReport(reportPath, "Share Export File = " & shareItemState("Export File"))
+	writeReport(reportPath, "Share MXF-50 = " & shareItemState("MXF-50"))
+
+	-- ส่วนที่สอง เปิดหน้าต่างเซฟขึ้นมาดูโครงสร้างจริง แล้วยกเลิก
+	writeReport(reportPath, "")
+	writeReport(reportPath, "--- หน้าต่าง Export XML มีอะไรบ้าง ---")
+	try
+		clickMenuItem("File", "Export XML")
+		if waitForSheet(12) then
+			writeReport(reportPath, describeWindows())
+		else
+			writeReport(reportPath, "หน้าต่างไม่โผล่ภายใน 12 วินาที")
+		end if
+	on error e
+		writeReport(reportPath, "เปิดไม่สำเร็จ " & e)
+	end try
+	cancelEverything()
+
+	-- ส่วนที่สาม เปิดหน้าต่าง Share ขึ้นมาดู แล้วยกเลิก
+	writeReport(reportPath, "")
+	writeReport(reportPath, "--- หน้าต่าง Share Export File มีอะไรบ้าง ---")
+	try
+		tell application "System Events"
+			tell process fcpName
+				set frontmost to true
+				delay 0.4
+				set fileMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "File")
+				set shareItem to (first menu item of fileMenu whose name starts with "Share")
+				click (first menu item of menu 1 of shareItem whose name starts with "Export File")
+			end tell
+		end tell
+		delay 4
+		writeReport(reportPath, describeWindows())
+	on error e
+		writeReport(reportPath, "เปิดไม่สำเร็จ " & e)
+	end try
+	cancelEverything()
+
+	writeReport(reportPath, "")
+	writeReport(reportPath, "===== จบผลทดสอบ =====")
+
+	do shell script "open -R " & quoted form of reportPath
+	display dialog ¬
+		"ทดสอบเสร็จแล้ว" & return & return & ¬
+		"เปิด Finder ให้แล้ว ไฟล์ชื่อ ผลทดสอบละเอียด.txt" & return & return & ¬
+		"ส่งไฟล์นี้กลับมาให้ผม" & return & ¬
+		"ในนั้นมีชื่อเมนูและชื่อปุ่มจริงของเครื่องคุณครบทุกอัน" & return & ¬
+		"ผมจะแก้ได้ตรงจุดในรอบเดียว ไม่ต้องเดาอีก" ¬
+		buttons {"ปิด"} default button 1 with title appTitle
+end runDeepTest
+
+
+on writeReport(reportPath, theText)
+	try
+		do shell script "echo " & quoted form of theText & " >> " & quoted form of reportPath
+	end try
+end writeReport
+
+
+on listMenuItems(menuName)
+	try
+		tell application "System Events"
+			tell process fcpName
+				set theNames to name of every menu item of menu 1 of ¬
+					(first menu bar item of menu bar 1 whose name is menuName)
+			end tell
+		end tell
+		return joinNames(theNames)
+	on error e
+		return "อ่านไม่ได้ " & e
+	end try
+end listMenuItems
+
+
+on listSubMenuItems(menuName, parentPrefix)
+	try
+		tell application "System Events"
+			tell process fcpName
+				set parentMenu to menu 1 of (first menu bar item of menu bar 1 whose name is menuName)
+				set parentItem to (first menu item of parentMenu whose name starts with parentPrefix)
+				set theNames to name of every menu item of menu 1 of parentItem
+			end tell
+		end tell
+		return joinNames(theNames)
+	on error e
+		return "อ่านไม่ได้ " & e
+	end try
+end listSubMenuItems
+
+
+on joinNames(theNames)
+	set output to ""
+	repeat with aName in theNames
+		if aName is not missing value then
+			set output to output & "   [" & aName & "]" & return
+		end if
+	end repeat
+	if output is "" then return "   ไม่มีรายการ"
+	return output
+end joinNames
+
+
+on describeWindows()
+	-- บอกว่าตอนนี้มีหน้าต่างอะไรอยู่ และในนั้นมีปุ่มกับช่องกรอกอะไรบ้าง
+	set output to ""
+	try
+		tell application "System Events"
+			tell process fcpName
+				repeat with windowRef in windows
+					set output to output & "หน้าต่าง [" & (name of windowRef) & "]" & return
+					try
+						set buttonNames to name of every button of windowRef
+						set output to output & "   ปุ่ม " & my joinInline(buttonNames) & return
+					end try
+					try
+						set fieldCount to count of text fields of windowRef
+						set output to output & "   ช่องกรอก " & fieldCount & " ช่อง" & return
+					end try
+					repeat with sheetRef in sheets of windowRef
+						set output to output & "   แผ่นซ้อนในหน้าต่างนี้" & return
+						try
+							set buttonNames to name of every button of sheetRef
+							set output to output & "      ปุ่ม " & my joinInline(buttonNames) & return
+						end try
+						try
+							set fieldCount to count of text fields of sheetRef
+							set output to output & "      ช่องกรอก " & fieldCount & " ช่อง" & return
+						end try
+					end repeat
+				end repeat
+			end tell
+		end tell
+	on error e
+		set output to output & "อ่านไม่ได้ " & e
+	end try
+	if output is "" then return "ไม่พบหน้าต่าง"
+	return output
+end describeWindows
+
+
+on joinInline(theNames)
+	set output to ""
+	repeat with aName in theNames
+		if aName is not missing value then set output to output & "[" & aName & "] "
+	end repeat
+	if output is "" then return "ไม่มีปุ่ม"
+	return output
+end joinInline
+
+
+on cancelEverything()
+	-- ปิดทุกหน้าต่างที่เปิดค้างไว้ ด้วยการกดยกเลิก
+	-- ต้องแน่ใจว่าไม่มีอะไรค้าง เพราะนี่เป็นแค่การทดสอบ
+	repeat 4 times
+		set didCancel to false
+		try
+			tell application "System Events"
+				tell process fcpName
+					set frontmost to true
+					repeat with windowRef in windows
+						repeat with sheetRef in sheets of windowRef
+							try
+								click button "Cancel" of sheetRef
+								set didCancel to true
+							end try
+						end repeat
+						try
+							click button "Cancel" of windowRef
+							set didCancel to true
+						end try
+					end repeat
+				end tell
+			end tell
+		end try
+		if not didCancel then exit repeat
+		delay 1
+	end repeat
+	-- กันเหนียว กดปุ่ม Escape อีกครั้ง
+	try
+		tell application "System Events" to tell process fcpName to key code 53
+	end try
+	delay 1
+end cancelEverything
 
 
 -- ============================================================
