@@ -454,6 +454,44 @@ on countPanelFields()
 end countPanelFields
 
 
+on waitForWindowNamed(windowName, maxSeconds)
+	--
+	-- รอจนหน้าต่างชื่อที่ต้องการโผล่ขึ้นมาจริง
+	--
+	-- หลักฐานจากผลทดสอบบนเครื่องจริง
+	-- หน้าต่างของ Share ชื่อตรงกับปลายทาง เช่น Export File หรือ MXF-50
+	-- แต่ในรายการหน้าต่างมีหน้าต่างไม่มีชื่อปนอยู่ด้วยหลายอัน
+	-- ที่ผ่านมาโปรแกรมใช้หน้าต่างที่หนึ่ง จึงไปโดนหน้าต่างเปล่าที่ไม่มีอะไรข้างใน
+	-- และหน้าต่างจริงใช้เวลาโผล่ ถ้ารีบเข้าไปอ่านจะยังไม่มี
+	repeat with i from 1 to maxSeconds
+		try
+			with timeout of uiTimeout seconds
+				tell application "System Events"
+					tell process fcpName
+						if exists window windowName then
+							my logLine("เจอหน้าต่างชื่อ " & windowName & " แล้ว")
+							return true
+						end if
+					end tell
+				end tell
+			end timeout
+		end try
+		delay 1
+	end repeat
+	-- ยังไม่เจอ จดรายชื่อหน้าต่างทั้งหมดไว้ดู
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events"
+				tell process fcpName
+					my logLine("รอหน้าต่าง " & windowName & " ไม่เจอ หน้าต่างที่มีคือ " & ((name of every window) as string))
+				end tell
+			end tell
+		end timeout
+	end try
+	return false
+end waitForWindowNamed
+
+
 on findRolesPopupValue(destinationName)
 	--
 	-- อ่านค่าช่อง Roles as โดยค้นลงไปทีละชั้น ลึกไม่เกิน 4 ชั้น
@@ -467,11 +505,6 @@ on findRolesPopupValue(destinationName)
 					try
 						set targetWindow to window destinationName
 					end try
-					if targetWindow is missing value then
-						try
-							set targetWindow to window 1
-						end try
-					end if
 					if targetWindow is not missing value then
 						set thePopup to missing value
 						try
@@ -535,18 +568,36 @@ on openRolesTab(destinationName)
 					try
 						set targetWindow to window destinationName
 					end try
-					if targetWindow is missing value then
-						try
-							set targetWindow to window 1
-						end try
-					end if
 					if targetWindow is not missing value then
 						my logLine("หน้าต่างที่ใช้ " & (name of targetWindow))
 						my logLine("ของชั้นบนสุด " & ((class of every UI element of targetWindow) as string))
+						-- จดว่าในหน้าต่างมีอะไรบ้าง เผื่อยังหาไม่เจอจะได้รู้ว่าต้องไปทางไหน
+						try
+							my logLine("ปุ่มในหน้าต่าง " & ((name of every button of targetWindow) as string))
+						end try
+						try
+							my logLine("จำนวนกลุ่มย่อย " & ((count of groups of targetWindow) as string) & ¬
+								" กลุ่มแท็บ " & ((count of tab groups of targetWindow) as string) & ¬
+								" ช่องเลือก " & ((count of pop up buttons of targetWindow) as string))
+						end try
 						try
 							click radio button "Roles" of tab group 1 of targetWindow
 						on error
-							click (first radio button of targetWindow whose name is "Roles")
+							try
+								click (first radio button of targetWindow whose name is "Roles")
+							on error
+								-- แท็บอาจซ่อนอยู่ในกลุ่มย่อย ให้ไล่หาลงไปอีกชั้น
+								repeat with groupRef in UI elements of targetWindow
+									try
+										click (first radio button of groupRef whose name is "Roles")
+										exit repeat
+									end try
+									try
+										click radio button "Roles" of tab group 1 of groupRef
+										exit repeat
+									end try
+								end repeat
+							end try
 						end try
 					end if
 				end tell
@@ -570,11 +621,6 @@ on clickRolesChoice(destinationName, wantedSetting)
 					try
 						set targetWindow to window destinationName
 					end try
-					if targetWindow is missing value then
-						try
-							set targetWindow to window 1
-						end try
-					end if
 					if targetWindow is missing value then return false
 
 					set thePopup to missing value
@@ -647,6 +693,10 @@ on setRolesTo(destinationName, wantedSetting)
 	-- ใช้การแจ้งเตือนแบบไม่ขวาง แล้วเฝ้าดูค่าไปเรื่อย ๆ
 	-- พอผู้ใช้ตั้งเองเสร็จ โปรแกรมจะรู้เองแล้วไปต่อทันที
 
+	-- ต้องรอหน้าต่างโผล่ก่อนเสมอ ห้ามรีบเข้าไปอ่าน
+	if not waitForWindowNamed(destinationName, 15) then
+		logLine("ไม่เจอหน้าต่าง " & destinationName & " จึงตั้ง Roles ไม่ได้")
+	end if
 	openRolesTab(destinationName)
 	set beforeValue to findRolesPopupValue(destinationName)
 	logLine("Roles as ตอนนี้คือ [" & beforeValue & "]")
@@ -732,7 +782,11 @@ on shareTo(destinationName, humanName, rolesSetting)
 			return false
 		end if
 
-		delay 2
+		-- รอหน้าต่างของปลายทางโผล่ก่อน
+		-- ผลทดสอบบนเครื่องจริงบอกว่าหน้าต่างชื่อตรงกับปลายทาง เช่น MXF-50
+		-- แต่ใช้เวลาโผล่ ถ้ารีบทำงานต่อจะเจอแต่หน้าต่างเปล่า
+		waitForWindowNamed(destinationName, 15)
+
 		-- ตั้งค่า Roles ให้ถูกก่อน ถ้าปลายทางนี้ต้องใช้
 		if rolesSetting is not "" then setRolesTo(destinationName, rolesSetting)
 
