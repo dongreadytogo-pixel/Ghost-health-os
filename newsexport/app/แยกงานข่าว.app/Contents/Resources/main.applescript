@@ -118,7 +118,27 @@ on showOtherMenu()
 	repeat
 		activate
 		set choice to button returned of (display dialog ¬
-			"เมนูสำหรับตรวจสอบและแก้ปัญหา" & return & return & ¬
+			"เมนูเพิ่มเติม" & return & return & ¬
+			"ตั้งค่า Roles   เปิดหน้าต่าง MXF-50 ให้คุณตั้ง 3 Stereo" & return & ¬
+			"               ทำครั้งเดียว ไม่มีการเอ็กพอร์ตไฟล์" & return & return & ¬
+			"แก้ปัญหา       ดูบันทึก และเก็บไฟล์ที่ตกค้าง" ¬
+			buttons {"กลับ", "แก้ปัญหา", "ตั้งค่า Roles"} ¬
+			default button "กลับ" with title appTitle)
+		if choice is "กลับ" then return
+		if choice is "ตั้งค่า Roles" then
+			primeRolesSetting()
+		else
+			showTroubleMenu()
+		end if
+	end repeat
+end showOtherMenu
+
+
+on showTroubleMenu()
+	repeat
+		activate
+		set choice to button returned of (display dialog ¬
+			"แก้ปัญหา" & return & return & ¬
 			"เก็บไฟล์ที่ตกค้าง  ใช้เมื่อรอบก่อนหยุดกลางคัน" & return & ¬
 			"                  จะไปตามเก็บไฟล์มาให้ครบ" & return & return & ¬
 			"ดูบันทึก          ไฟล์บอกว่าโปรแกรมทำอะไรไปบ้าง" ¬
@@ -131,7 +151,7 @@ on showOtherMenu()
 			collectLeftovers()
 		end if
 	end repeat
-end showOtherMenu
+end showTroubleMenu
 
 
 on showLog()
@@ -149,6 +169,124 @@ on showLog()
 			buttons {"ปิด"} default button 1 with title appTitle
 	end try
 end showLog
+
+
+on primeRolesSetting()
+	--
+	-- เปิดหน้าต่าง MXF-50 ขึ้นมาเฉย ๆ เพื่อให้ผู้ใช้ตั้ง Roles as เป็น 3 Stereo
+	--
+	-- ทำไมต้องมีเมนูนี้
+	-- ช่อง Roles as มีอยู่เฉพาะในหน้าต่างของ Share เท่านั้น
+	-- ปกติหน้าต่างนี้จะโผล่ก็ต่อเมื่อกำลังจะเอ็กพอร์ตจริง
+	-- ผู้ใช้จึงไม่มีจังหวะไหนเลยที่จะตั้งค่านี้ล่วงหน้าได้
+	--
+	-- เมนูนี้เปิดหน้าต่างนั้นขึ้นมาให้ตั้งค่าอย่างเดียว แล้วปิดทิ้ง
+	-- ไม่มีการเอ็กพอร์ตไฟล์ใด ๆ เกิดขึ้น
+	-- Final Cut Pro มักจำค่าที่ตั้งล่าสุดไว้ให้ รอบต่อ ๆ ไปจึงถูกต้องเอง
+
+	if not ensureFinalCutRunning() then return
+	if not ensureAccessibility() then return
+
+	activate
+	display dialog ¬
+		"ตั้งค่า Roles ครั้งเดียว" & return & return & ¬
+		"โปรแกรมจะเปิดหน้าต่าง MXF-50 ขึ้นมาให้" & return & ¬
+		"ไม่มีการเอ็กพอร์ตไฟล์ใด ๆ ทั้งสิ้น" & return & return & ¬
+		"ในหน้าต่างนั้นให้คุณ" & return & ¬
+		"1. ไปที่แท็บ Roles" & return & ¬
+		"2. ตั้งช่อง Roles as ให้เป็น 3 Stereo" & return & return & ¬
+		"พอตั้งเสร็จ โปรแกรมจะรู้เองแล้วปิดหน้าต่างให้" & return & ¬
+		"คุณไม่ต้องกดปุ่มอะไรบอกมันเลย" & return & return & ¬
+		"ต้องเลือกงานในหน้าต่าง Browser ไว้ก่อนหนึ่งชิ้น" ¬
+		buttons {"เปิดให้เลย"} default button 1 with title appTitle
+
+	if menuState("File", "Share") is "disabled" then
+		activate
+		display dialog ¬
+			"เมนู Share กดไม่ได้" & return & return & ¬
+			"ให้คลิกเลือกงานในหน้าต่าง Browser ไว้หนึ่งชิ้นก่อน" & return & ¬
+			"แล้วลองใหม่อีกครั้ง" ¬
+			buttons {"ปิด"} default button 1 with title appTitle with icon caution
+		return
+	end if
+
+	set opened to false
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events"
+				tell process fcpName
+					set frontmost to true
+					delay 0.3
+					set fileMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "File")
+					set shareItem to (first menu item of fileMenu whose name starts with "Share")
+					click (first menu item of menu 1 of shareItem whose name starts with "MXF-50")
+					set opened to true
+				end tell
+			end tell
+		end timeout
+	on error e
+		logLine("เปิดหน้าต่าง MXF-50 ไม่สำเร็จ " & e)
+	end try
+
+	if not opened then
+		activate
+		display dialog "เปิดหน้าต่าง MXF-50 ไม่สำเร็จ" ¬
+			buttons {"ปิด"} default button 1 with title appTitle with icon caution
+		return
+	end if
+
+	waitForWindowNamed("MXF-50", 15)
+	openRolesTab("MXF-50")
+	set startValue to findRolesPopupValue("MXF-50")
+	logLine("ตั้งค่า Roles ครั้งเดียว ค่าเริ่มต้นคือ [" & startValue & "]")
+
+	-- ลองตั้งให้เองก่อน ถ้าได้ก็จบเลย
+	if startValue is not "3 Stereo" then
+		clickRolesChoice("MXF-50", "3 Stereo")
+	end if
+
+	say("ตั้ง Roles as เป็น 3 Stereo ในหน้าต่างที่เปิดอยู่")
+	try
+		tell application "Final Cut Pro" to activate
+	end try
+
+	-- เฝ้าดูเงียบ ๆ ไม่ขวางการกดใด ๆ
+	set didSet to false
+	repeat with i from 1 to 90
+		delay 2
+		set nowValue to findRolesPopupValue("MXF-50")
+		if nowValue is "3 Stereo" then
+			set didSet to true
+			exit repeat
+		end if
+		if nowValue is "" then exit repeat
+		if i mod 15 is 0 then say("ยังรอให้ตั้ง 3 Stereo อยู่")
+	end repeat
+
+	-- ปิดหน้าต่างให้ ไม่ต้องเอ็กพอร์ตอะไร
+	pressButtons({"Cancel", "ยกเลิก"})
+	delay 1
+
+	activate
+	if didSet then
+		logLine("ตั้งค่า Roles ครั้งเดียวสำเร็จ")
+		display dialog ¬
+			"ตั้งค่าเรียบร้อยแล้ว" & return & return & ¬
+			"Roles as เป็น 3 Stereo แล้ว" & return & ¬
+			"ปิดหน้าต่างให้แล้ว ไม่มีไฟล์ไหนถูกสร้าง" & return & return & ¬
+			"Final Cut Pro มักจำค่านี้ไว้ให้" & return & ¬
+			"รอบเอ็กพอร์ตต่อไปจึงน่าจะถูกต้องเอง" ¬
+			buttons {"เข้าใจแล้ว"} default button 1 with title appTitle
+	else
+		logLine("ตั้งค่า Roles ครั้งเดียวไม่สำเร็จ")
+		activate
+		display dialog ¬
+			"ยังไม่ได้ตั้งเป็น 3 Stereo" & return & return & ¬
+			"ปิดหน้าต่างให้แล้ว ไม่มีไฟล์ไหนถูกสร้าง" & return & return & ¬
+			"ลองใหม่ได้จากเมนูเดิม" ¬
+			buttons {"ปิด"} default button 1 with title appTitle
+	end if
+end primeRolesSetting
 
 
 on collectLeftovers()
