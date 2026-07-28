@@ -133,7 +133,10 @@ on runWorkflow()
 		end repeat
 
 		set splitPath to (workPath & "/แยกแล้ว.fcpxml")
-		runSplit(xmlPath, gapSeconds, splitPath)
+		-- ตั้งชื่อ Event ไม่ให้ซ้ำของเดิม กันงานเก่าปนกับงานใหม่
+		set eventName to "แยกงาน " & (do shell script "date +%d-%m' '%H%M")
+		runSplit(xmlPath, gapSeconds, splitPath, eventName)
+		logLine("Event ที่จะนำเข้าชื่อ " & eventName)
 		logLine("แยกงานเสร็จ ใช้ค่าช่องว่าง " & gapSeconds & " วินาที")
 
 		set namesFile to workPath & "/รายชื่อไฟล์.txt"
@@ -588,59 +591,54 @@ end importTimeline
 -- ============================================================
 
 on runExportStage(outFolder, namesFile, totalFiles)
-	logLine("เริ่มขั้นเอ็กพอร์ต")
-
-	-- เลือกงานย่อยทั้งหมดให้เอง ผู้ใช้ไม่ต้องคลิกเลย
-	if not selectAllProjects() then
-		display dialog ¬
-			"เลือกงานย่อยให้อัตโนมัติไม่สำเร็จ" & return & return & ¬
-			"ขอให้คลิกอันแรก กด Shift ค้าง แล้วคลิกอันสุดท้าย" & return & ¬
-			"เสร็จแล้วกดปุ่มข้างล่าง" ¬
-			buttons {"เลือกแล้ว"} default button 1 with title appTitle
-	end if
-
+	logLine("เริ่มขั้นเอ็กพอร์ต ต้องได้ " & totalFiles & " ไฟล์")
 	shareWith("Export File", "ไฟล์ mov", outFolder)
 	shareWith("MXF-50", "ไฟล์ mxf", outFolder)
 	monitorProgress(outFolder, namesFile, totalFiles)
 end runExportStage
 
 
-on selectAllProjects()
-	-- ต้องย้ายโฟกัสไปที่หน้าต่าง Browser ก่อนเสมอ
-	-- ถ้าโฟกัสอยู่ที่ไทม์ไลน์ คำสั่งเลือกทั้งหมดจะไปเลือกคลิปในไทม์ไลน์แทน
-	-- ซึ่งจะทำให้เอ็กพอร์ตผิดทั้งหมด จึงต้องระวังจุดนี้ที่สุด
-	-- ย้ายโฟกัสไปที่ Browser ให้ได้ ลองสองวิธี
-	set movedFocus to false
+on focusBrowser(strategyNumber)
+	-- ย้ายโฟกัสไปที่ Browser ด้วยวิธีต่างกัน เผื่อวิธีหนึ่งไม่ได้ผล
 	try
-		tell application "System Events"
-			tell process fcpName
-				set frontmost to true
-				delay 0.4
-				set windowMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "Window")
-				set goToItem to (first menu item of windowMenu whose name starts with "Go To")
-				click (first menu item of menu 1 of goToItem whose name starts with "Libraries")
+		if strategyNumber is 1 then
+			tell application "System Events"
+				tell process fcpName
+					set frontmost to true
+					delay 0.4
+					set windowMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "Window")
+					set goToItem to (first menu item of windowMenu whose name starts with "Go To")
+					click (first menu item of menu 1 of goToItem whose name starts with "Libraries")
+				end tell
 			end tell
-		end tell
-		set movedFocus to true
-		logLine("ย้ายโฟกัสไป Browser ด้วยเมนูแล้ว")
-	on error e
-		logLine("ย้ายโฟกัสด้วยเมนูไม่สำเร็จ " & e)
-	end try
-
-	-- วิธีสำรอง ใช้ปุ่มลัด Command 1 ซึ่งเป็นตัวเลข จึงไม่มีปัญหาเรื่องภาษา
-	try
-		tell application "System Events"
-			tell process fcpName
-				set frontmost to true
-				keystroke "1" using {command down}
+		else if strategyNumber is 2 then
+			tell application "System Events"
+				tell process fcpName
+					set frontmost to true
+					delay 0.3
+					keystroke "1" using {command down}
+				end tell
 			end tell
-		end tell
-		set movedFocus to true
-		logLine("ย้ายโฟกัสด้วยปุ่มลัด Command 1 แล้ว")
+		else
+			-- วิธีสุดท้าย กดปุ่ม Escape เพื่อออกจากช่องกรอกใด ๆ ก่อน แล้วค่อยลองใหม่
+			tell application "System Events"
+				tell process fcpName
+					set frontmost to true
+					key code 53
+					delay 0.3
+					keystroke "1" using {command down}
+				end tell
+			end tell
+		end if
+		delay 0.7
+		return true
+	on error
+		return false
 	end try
-	delay 0.8
-	if not movedFocus then return false
+end focusBrowser
 
+
+on selectAllInBrowser()
 	try
 		tell application "System Events"
 			tell process fcpName
@@ -648,89 +646,104 @@ on selectAllProjects()
 				click (first menu item of editMenu whose name is "Select All")
 			end tell
 		end tell
-		delay 0.8
-		logLine("เลือกงานย่อยทั้งหมดแล้ว")
+		delay 0.6
+		return true
+	on error
+		try
+			tell application "System Events"
+				tell process fcpName to keystroke "a" using {command down}
+			end tell
+			delay 0.6
+			return true
+		on error
+			return false
+		end try
+	end try
+end selectAllInBrowser
+
+
+on openShareDestination(destinationName)
+	try
+		tell application "System Events"
+			tell process fcpName
+				set frontmost to true
+				delay 0.3
+				set fileMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "File")
+				set shareItem to (first menu item of fileMenu whose name starts with "Share")
+				click (first menu item of menu 1 of shareItem whose name starts with destinationName)
+			end tell
+		end tell
 		return true
 	on error e
-		logLine("เลือกทั้งหมดไม่สำเร็จ " & e)
+		logLine("เปิดเมนู Share ไม่สำเร็จ " & e)
 		return false
 	end try
-end selectAllProjects
+end openShareDestination
 
 
 on shareWith(destinationName, humanName, outFolder)
 	logLine("เริ่มสั่ง Share " & destinationName)
 
-	-- ขั้นที่ 1 เปิดหน้าต่างปลายทางจากเมนู
-	set opened to false
-	try
-		tell application "System Events"
-			tell process fcpName
-				set frontmost to true
-				delay 0.4
-				set fileMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "File")
-				set shareItem to (first menu item of fileMenu whose name starts with "Share")
-				click (first menu item of menu 1 of shareItem whose name starts with destinationName)
-				set opened to true
-			end tell
-		end tell
-	on error e
-		logLine("เปิดเมนู Share ไม่สำเร็จ " & e)
-	end try
-
-	if not opened then
-		display dialog ¬
-			"เปิดหน้าต่าง " & humanName & " ให้ไม่สำเร็จ" & return & return & ¬
-			"ขอให้ทำเอง ไปที่เมนู File แล้ว Share แล้วเลือก " & destinationName & return & return & ¬
-			"เก็บไฟล์ไว้ที่" & return & outFolder ¬
-			buttons {"สั่งแล้ว"} default button 1 with title appTitle
-		return
-	end if
-
-	-- ขั้นที่ 2 กดปุ่ม Next ในหน้าต่างตั้งค่า
-	delay 1.5
-	set clickedNext to clickButtonAnywhere({"Next…", "Next...", "Next"}, 8)
-	if clickedNext then
-		logLine("กดปุ่ม Next แล้ว")
-	else
-		logLine("หาปุ่ม Next ไม่เจอ")
-	end if
-
-	-- ขั้นที่ 3 ตรวจว่าเลือกงานครบหรือไม่ ก่อนจะเซฟ
+	-- ลองเลือกงานหลายวิธี แล้วพิสูจน์ทุกครั้งว่าเลือกครบจริง
 	--
-	-- ถ้าเลือกงานได้ครบทุกอัน Final Cut Pro จะถามหาโฟลเดอร์อย่างเดียว
-	-- แต่ถ้าเลือกได้อันเดียว มันจะถามชื่อไฟล์ด้วย คือมีช่องกรอกโผล่มา
-	-- จุดนี้เคยทำให้ได้ไฟล์มาแค่ก้อนเดียว จึงต้องดักไว้ก่อนเสมอ
-	delay 2
-	set fieldCount to countSaveFields()
-	logLine("หน้าต่างเซฟมีช่องกรอก " & fieldCount & " ช่อง")
-	if fieldCount > 0 then
-		logLine("เตือน อาจเลือกงานได้ไม่ครบ")
-		display dialog ¬
-			"ดูเหมือนเลือกงานย่อยได้ไม่ครบทุกอัน" & return & return & ¬
-			"ถ้าปล่อยไป จะได้ไฟล์มาแค่ก้อนเดียว" & return & return & ¬
-			"ขอให้กลับไปที่ Final Cut Pro" & return & ¬
-			"คลิกงานย่อยอันแรก กด Shift ค้าง แล้วคลิกอันสุดท้าย" & return & return & ¬
-			"ถ้าเลือกครบแล้วให้กด ยกเลิกแล้วเริ่มใหม่" ¬
-			buttons {"ทำต่อทั้งที่ได้ก้อนเดียว", "ยกเลิกแล้วเริ่มใหม่"} ¬
-			default button "ยกเลิกแล้วเริ่มใหม่" with title appTitle
-		if button returned of result is "ยกเลิกแล้วเริ่มใหม่" then
-			cancelEverything()
-			logLine("ผู้ใช้เลือกยกเลิกเพราะเลือกงานไม่ครบ")
-			error number -128
+	-- วิธีพิสูจน์ ถ้าเลือกครบทุกอัน Final Cut Pro จะถามหาโฟลเดอร์อย่างเดียว
+	-- แต่ถ้าเลือกได้อันเดียว มันจะมีช่องกรอกชื่อไฟล์โผล่มาด้วย
+	-- จุดนี้คือสิ่งที่ทำให้เคยได้ไฟล์มาแค่ก้อนเดียว จึงต้องพิสูจน์ก่อนเซฟเสมอ
+	set ready to false
+	repeat with strategyNumber from 1 to 3
+		if not focusBrowser(strategyNumber) then
+			logLine("ย้ายโฟกัสวิธีที่ " & strategyNumber & " ไม่สำเร็จ")
 		end if
+		if not selectAllInBrowser() then
+			logLine("สั่งเลือกทั้งหมดวิธีที่ " & strategyNumber & " ไม่สำเร็จ")
+		end if
+
+		if not openShareDestination(destinationName) then exit repeat
+		delay 2
+		if not clickButtonAnywhere({"Next…", "Next...", "Next"}, 8) then
+			logLine("หาปุ่ม Next ไม่เจอ")
+		end if
+		delay 1.5
+
+		set fieldCount to countSaveFields()
+		logLine("วิธีที่ " & strategyNumber & " หน้าต่างเซฟมีช่องกรอก " & fieldCount & " ช่อง")
+		if fieldCount is 0 then
+			set ready to true
+			exit repeat
+		end if
+
+		-- มีช่องกรอก แปลว่าเลือกได้อันเดียว ต้องถอยออกมาลองวิธีถัดไป
+		logLine("เลือกไม่ครบ ถอยออกมาลองวิธีถัดไป")
+		cancelEverything()
+		delay 1
+	end repeat
+
+	if not ready then
+		logLine("ลองครบทุกวิธีแล้วยังเลือกไม่ครบ")
+		cancelEverything()
+		display dialog ¬
+			"เลือกงานย่อยให้ครบอัตโนมัติไม่สำเร็จ" & return & return & ¬
+			"ถ้าปล่อยไปจะได้ไฟล์มาไม่ครบ" & return & return & ¬
+			"ขอให้ไปที่ Final Cut Pro" & return & ¬
+			"คลิกงานย่อยอันแรก กด Shift ค้าง แล้วคลิกอันสุดท้าย" & return & return & ¬
+			"เลือกครบแล้วกดปุ่มข้างล่าง" ¬
+			buttons {"เลือกครบแล้ว"} default button 1 with title appTitle
+		if not openShareDestination(destinationName) then return
+		delay 2
+		clickButtonAnywhere({"Next…", "Next...", "Next"}, 8)
+		delay 1.5
 	end if
-	set saved to false
+
+	-- ถึงตรงนี้แปลว่าอยู่ในหน้าต่างเลือกโฟลเดอร์แล้ว
 	try
 		goToFolderSafely(outFolder)
-		logLine("พาไปโฟลเดอร์ปลายทางแล้ว (ใช้วิธีวาง ไม่ใช่พิมพ์)")
+		logLine("พาไปโฟลเดอร์ปลายทางแล้ว")
 	on error e
 		logLine("พาไปโฟลเดอร์ไม่สำเร็จ " & e)
 	end try
 
-	set saved to clickButtonAnywhere({"Save", "Choose", "Open", "Export", "เลือก"}, 6)
+	set saved to clickButtonAnywhere({"Save", "Choose", "Open", "Export"}, 6)
 	if not saved then
-		-- ปุ่มยืนยันของหน้าต่างเลือกโฟลเดอร์บางแบบ กดด้วยปุ่ม Return ได้
 		try
 			tell application "System Events" to tell process fcpName to key code 36
 			set saved to true
@@ -742,12 +755,10 @@ on shareWith(destinationName, humanName, outFolder)
 		delay 1
 		dismissLeftoverSheets()
 	else
-		logLine("กดยืนยันไม่สำเร็จ ขอให้ผู้ใช้ช่วย")
+		logLine("กดยืนยันไม่สำเร็จ")
 		display dialog ¬
 			"เหลือขั้นสุดท้ายของ " & humanName & return & return & ¬
-			"ในหน้าต่างของ Final Cut Pro ให้เลือกโฟลเดอร์นี้" & return & ¬
-			outFolder & return & return & ¬
-			"แล้วกดปุ่มยืนยัน เสร็จแล้วกดปุ่มข้างล่าง" ¬
+			"เลือกโฟลเดอร์นี้แล้วกดยืนยัน" & return & outFolder ¬
 			buttons {"สั่งแล้ว"} default button 1 with title appTitle
 	end if
 end shareWith
@@ -1259,10 +1270,11 @@ on runBrief(inputPath, gapSeconds)
 end runBrief
 
 
-on runSplit(inputPath, gapSeconds, outputPath)
+on runSplit(inputPath, gapSeconds, outputPath, eventName)
 	return do shell script "/usr/bin/env python3 " & ¬
 		quoted form of (resourcesPath & "/tools/fcpxml_split.py") & ¬
 		" " & quoted form of inputPath & " --min-gap " & gapSeconds & ¬
+		" --event-name " & quoted form of eventName & ¬
 		" -o " & quoted form of outputPath
 end runSplit
 

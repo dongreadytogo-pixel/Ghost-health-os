@@ -538,6 +538,106 @@ class TestFindRecentTimeline(unittest.TestCase):
         self.assertEqual(code, 1)
 
 
+class TestManyBlocks(unittest.TestCase):
+    """
+    งานข่าวจริงอาจมี 30 ก้อนขึ้นไป ต้องได้ครบทุกก้อน เร็ว และไม่เพี้ยน
+    ข้อสอบชุดนี้จึงสร้างไทม์ไลน์ 30 ก้อนขึ้นมาทดสอบจริง
+    """
+
+    BLOCKS = 30
+    CLIPS_PER_BLOCK = 3
+    PROJECT = "OA690729_1 (ลบ) ข่าวเช้าทั้งหมด(กรุงเทพ)-"
+
+    @classmethod
+    def setUpClass(cls):
+        import xml.etree.ElementTree as ET
+        import fcpxml_split
+        cls.ET = ET
+        cls.split_module = fcpxml_split
+
+        def fcp_time(seconds):
+            fraction = Fraction(seconds).limit_denominator(25000)
+            return "%d/%ds" % (fraction.numerator * 25, 25 * fraction.denominator)
+
+        parts, cursor, number = [], Fraction(0), 0
+        for block in range(cls.BLOCKS):
+            for length in (7, 5, 9):
+                number += 1
+                parts.append(
+                    '<asset-clip ref="r2" offset="%s" name="ข่าว %d" start="0s" '
+                    'duration="%s" format="r1" audioRole="dialogue"/>'
+                    % (fcp_time(cursor), number, fcp_time(length)))
+                cursor += length
+            if block < cls.BLOCKS - 1:
+                parts.append('<gap name="Gap" offset="%s" start="0s" duration="%s"/>'
+                             % (fcp_time(cursor), fcp_time(6)))
+                cursor += 6
+
+        document = (
+            '<?xml version="1.0" encoding="UTF-8"?><fcpxml version="1.14"><resources>'
+            '<format id="r1" name="FFVideoFormat1080i50" frameDuration="200/5000s"'
+            ' width="1920" height="1080"/>'
+            '<asset id="r2" name="A" start="0s" duration="9999s" hasVideo="1"'
+            ' hasAudio="1" format="r1"><media-rep kind="original-media"'
+            ' src="file:///x.mov"/></asset>'
+            '</resources><library><event name="test">'
+            '<project name="%s"><sequence format="r1" duration="%s" tcStart="0s"'
+            ' tcFormat="NDF" audioLayout="stereo" audioRate="48k"><spine>%s</spine>'
+            '</sequence></project></event></library></fcpxml>'
+            % (cls.PROJECT, fcp_time(cursor), "".join(parts)))
+
+        started = time.time()
+        tree = ET.ElementTree(ET.fromstring(document))
+        cls.tree, cls.details, cls.fps, cls.warnings = fcpxml_split.split(
+            tree, ns.DEFAULT_MIN_GAP, "แยกงาน ทดสอบ")
+        cls.elapsed = time.time() - started
+        cls.root = cls.tree.getroot()
+
+    def test_all_thirty_blocks_are_found(self):
+        self.assertEqual(len(self.details), self.BLOCKS)
+        self.assertEqual(len(list(self.root.iter("project"))), self.BLOCKS)
+
+    def test_numbering_runs_one_to_thirty_in_order(self):
+        names = [p.get("name") for p in self.root.iter("project")]
+        for index, name in enumerate(names, start=1):
+            self.assertEqual(name, self.PROJECT.rstrip("- ") + "-%d" % index)
+
+    def test_no_clip_is_lost_across_thirty_blocks(self):
+        total = sum(len(list(p.find("sequence").find("spine")))
+                    for p in self.root.iter("project"))
+        self.assertEqual(total, self.BLOCKS * self.CLIPS_PER_BLOCK)
+
+    def test_audio_roles_survive_on_every_clip(self):
+        # ถ้า Roles หายแม้คลิปเดียว ไฟล์ mxf แบบ 3 Stereo จะเสีย
+        with_roles = sum(
+            1 for p in self.root.iter("project")
+            for clip in p.find("sequence").find("spine")
+            if clip.get("audioRole"))
+        self.assertEqual(with_roles, self.BLOCKS * self.CLIPS_PER_BLOCK)
+
+    def test_every_block_starts_at_zero(self):
+        for project in self.root.iter("project"):
+            first = list(project.find("sequence").find("spine"))[0]
+            self.assertEqual(ns.parse_time(first.get("offset")), Fraction(0))
+
+    def test_sixty_output_filenames_are_produced(self):
+        names = []
+        for index in range(1, self.BLOCKS + 1):
+            names += ns.build_filenames(self.PROJECT, index, ["mov", "mxf"])
+        self.assertEqual(len(names), self.BLOCKS * 2)
+        self.assertEqual(names[-1], self.PROJECT.rstrip("- ") + "-30.mxf")
+        self.assertEqual(len(set(names)), len(names))  # ห้ามมีชื่อซ้ำ
+
+    def test_thirty_blocks_split_quickly(self):
+        # ต้องเร็วพอที่จะไม่รู้สึกว่าค้าง แม้งานใหญ่
+        self.assertLess(self.elapsed, 2.0)
+
+    def test_event_name_is_the_one_we_asked_for(self):
+        # ชื่อ Event ต้องไม่ซ้ำของเดิม ไม่งั้นงานเก่าจะปนกับงานใหม่
+        event = self.root.find(".//event")
+        self.assertEqual(event.get("name"), "แยกงาน ทดสอบ")
+
+
 class TestNameListOutput(unittest.TestCase):
     """รายชื่อไฟล์ที่ส่งให้ตัวนับเปอร์เซ็นต์ ต้องเรียงและครบถ้วน"""
 

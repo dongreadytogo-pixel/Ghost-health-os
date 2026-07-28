@@ -178,7 +178,7 @@ def build_segment_project(source_sequence, spine, name, duration, timescale):
     return project
 
 
-def split(tree, min_gap):
+def split(tree, min_gap, event_name=None):
     """แยกไฟล์ทั้งไฟล์ออกเป็นงานย่อยหลายอัน คืนค่าเป็น (ต้นไม้ใหม่, รายการก้อน)"""
     root = tree.getroot()
     project, sequence = find_sequence(root)
@@ -209,7 +209,14 @@ def split(tree, min_gap):
     if source_library is not None and source_library.get("location"):
         library.set("location", source_library.get("location"))
 
-    event = ET.SubElement(library, "event", {"name": safe_filename(project_name)})
+    # ชื่อ Event ต้องไม่ซ้ำของเดิม
+    #
+    # ถ้าใช้ชื่อเดิมทุกครั้ง พอนำเข้าซ้ำ Final Cut Pro จะเอาไปรวมกับ Event เดิม
+    # ทำให้ข้างในมีงานปนกันระหว่างรอบเก่ากับรอบใหม่
+    # เวลาสั่งเลือกทั้งหมดเพื่อเอ็กพอร์ต จะได้ไฟล์เกินและซ้ำ
+    # ยิ่งงานที่มี 30 ก้อน ยิ่งพลาดง่ายและตรวจยาก
+    event = ET.SubElement(library, "event",
+                          {"name": event_name or safe_filename(project_name)})
 
     warnings = find_orphaned_content(spine, segments, min_gap)
 
@@ -287,6 +294,8 @@ def main(argv=None):
         description="แยกไทม์ไลน์ข่าวออกเป็นงานย่อย อันละหนึ่งก้อน")
     parser.add_argument("fcpxml", help="ไฟล์ .fcpxml ที่ Export มาจาก Final Cut Pro")
     parser.add_argument("-o", "--output", help="ชื่อไฟล์ผลลัพธ์ (ค่าเริ่มต้นคือเติม -แยกแล้ว)")
+    parser.add_argument("--event-name", default=None,
+                        help="ชื่อ Event ที่จะสร้างในไฟล์ผลลัพธ์ ควรไม่ซ้ำของเดิม")
     parser.add_argument("--min-gap", type=float, default=DEFAULT_MIN_GAP,
                         help="ช่องว่างกี่วินาทีขึ้นไปจึงถือว่าคั่นข่าว (ค่าเริ่มต้น %g)"
                              % DEFAULT_MIN_GAP)
@@ -308,7 +317,7 @@ def main(argv=None):
         return 2
 
     try:
-        new_tree, details, fps, warnings = split(tree, args.min_gap)
+        new_tree, details, fps, warnings = split(tree, args.min_gap, args.event_name)
     except TimelineError as error:
         print("")
         print("เกิดปัญหา:")
