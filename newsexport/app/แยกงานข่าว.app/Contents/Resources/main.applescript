@@ -459,104 +459,172 @@ on countPanelFields()
 end countPanelFields
 
 
-on setRolesTo(wantedSetting)
+on setRolesTo(destinationName, wantedSetting)
 	--
-	-- ตั้งค่าแท็บ Roles ให้ถูกก่อนเซฟทุกครั้ง
+	-- ตั้งค่าแท็บ Roles ให้ถูกก่อนกด Next ทุกครั้ง
 	--
 	-- ไฟล์ mxf ของห้องข่าวต้องเป็น 3 Stereo คือเสียง 3 คู่ รวม 6 ช่อง
-	-- แต่ค่านี้ไม่ได้ติดมากับปลายทางที่บันทึกไว้เสมอไป
-	-- พอสั่ง Share งานคนละอัน Final Cut Pro อาจตั้งกลับเป็นค่าอื่นให้
-	-- ที่ผ่านมาโปรแกรมกด Next ไปเลยโดยไม่ตรวจ ไฟล์ที่ได้จึงตั้งค่าผิด
+	-- แต่ Final Cut Pro ตั้งค่าเริ่มต้นเป็น Multitrack MXF File
+	-- ซึ่งได้เสียงเป็น Mono ทีละช่อง ไม่ตรงกับที่ห้องข่าวต้องการ
 	--
-	-- ขั้นตอนคือ เปิดแท็บ Roles ก่อน แล้วค่อยตั้งค่าในช่อง Roles as
-	set clickedTab to false
+	-- บทเรียนจากรอบก่อน
+	-- เคยสั่งให้ไล่ดูของทุกชิ้นในหน้าต่างเพื่อหาช่องเลือก
+	-- แต่หน้าต่างนี้มีของเยอะมาก จึงใช้เวลาเกินกำหนดแล้วถูกตัดทิ้งก่อนเจอ
+	-- รอบนี้จึงเปลี่ยนเป็นชี้ตรงจุด ไม่ไล่ดูทั้งหน้าต่างอีก
+	--
+	-- โครงสร้างจริงที่เห็นจากหน้าจอ
+	--   หน้าต่างชื่อเดียวกับปลายทาง เช่น MXF-50
+	--   ข้างในมีแถบแท็บ Info  Settings  Roles
+	--   ใต้แท็บมีช่องเลือก Roles as ซึ่งเป็นช่องแรกของหน้าต่าง
+
+	-- ขั้นที่ 1 เปิดแท็บ Roles
+	set openedTab to false
 	try
 		with timeout of uiTimeout seconds
 			tell application "System Events"
 				tell process fcpName
-					repeat with windowRef in windows
-						try
-							repeat with tabGroupRef in tab groups of windowRef
-								repeat with radioRef in radio buttons of tabGroupRef
-									if (name of radioRef) is "Roles" then
-										click radioRef
-										set clickedTab to true
-									end if
-								end repeat
-							end repeat
-						end try
-						try
-							repeat with radioRef in radio buttons of windowRef
-								if (name of radioRef) is "Roles" then
-									click radioRef
-									set clickedTab to true
-								end if
-							end repeat
-						end try
-					end repeat
+					tell window destinationName
+						click radio button "Roles" of tab group 1
+						set openedTab to true
+					end tell
 				end tell
 			end tell
 		end timeout
 	end try
-	if clickedTab then
-		logLine("เปิดแท็บ Roles แล้ว")
-	else
-		logLine("หาแท็บ Roles ไม่เจอ")
+	if not openedTab then
+		-- เผื่อแท็บไม่ได้อยู่ในกลุ่มแท็บ ให้หาแบบปุ่มวิทยุตรง ๆ
+		try
+			with timeout of uiTimeout seconds
+				tell application "System Events"
+					tell process fcpName
+						tell window destinationName
+							click (first radio button whose name is "Roles")
+							set openedTab to true
+						end tell
+					end tell
+				end tell
+			end timeout
+		end try
 	end if
+	logLine("เปิดแท็บ Roles " & (openedTab as string))
 	delay 1
 
-	-- หาช่องเลือกที่มีตัวเลือกตามที่ต้องการ แล้วเลือกให้
+	-- ขั้นที่ 2 อ่านค่าปัจจุบันของช่อง Roles as
+	set currentValue to ""
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events"
+				tell process fcpName
+					set currentValue to (value of pop up button 1 of window destinationName) as string
+				end tell
+			end tell
+		end timeout
+	end try
+	if currentValue is "" then
+		-- เผื่อชื่อหน้าต่างไม่ตรงกับชื่อปลายทาง ให้ใช้หน้าต่างหน้าสุดแทน
+		logLine("อ่านจากหน้าต่างชื่อ " & destinationName & " ไม่ได้ ลองหน้าต่างหน้าสุด")
+		try
+			with timeout of uiTimeout seconds
+				tell application "System Events"
+					tell process fcpName
+						set windowNames to name of every window
+						my logLine("หน้าต่างที่เปิดอยู่ " & (windowNames as string))
+						click radio button "Roles" of tab group 1 of window 1
+						delay 0.8
+						set currentValue to (value of pop up button 1 of window 1) as string
+					end tell
+				end tell
+			end timeout
+		end try
+	end if
+	logLine("ค่า Roles as ตอนนี้คือ " & currentValue)
+
+	if currentValue is wantedSetting then
+		logLine("เป็น " & wantedSetting & " อยู่แล้ว ไม่ต้องเปลี่ยน")
+		return true
+	end if
+
+	-- ขั้นที่ 3 เปิดช่องเลือกแล้วเลือกค่าที่ต้องการ
 	set didSet to false
 	try
 		with timeout of uiTimeout seconds
 			tell application "System Events"
 				tell process fcpName
-					repeat with windowRef in windows
-						repeat with elementRef in (entire contents of windowRef)
-							try
-								if class of elementRef is pop up button then
-									set currentValue to (value of elementRef) as string
-									my logLine("พบช่องเลือก ค่าปัจจุบัน " & currentValue)
-									if currentValue is wantedSetting then
-										set didSet to true
-									else
-										try
-											click elementRef
-											delay 0.4
-											click menu item wantedSetting of menu 1 of elementRef
-											set didSet to true
-											my logLine("ตั้งค่าเป็น " & wantedSetting & " แล้ว")
-										on error
-											try
-												key code 53
-											end try
-										end try
-									end if
-								end if
-							end try
-							if didSet then exit repeat
-						end repeat
-						if didSet then exit repeat
-					end repeat
+					tell window destinationName
+						click pop up button 1
+						delay 0.6
+						click menu item wantedSetting of menu 1 of pop up button 1
+						set didSet to true
+					end tell
+				end tell
+			end tell
+		end timeout
+	on error e
+		logLine("เลือกค่าจากหน้าต่างชื่อปลายทางไม่สำเร็จ " & e)
+		try
+			tell application "System Events" to tell process fcpName to key code 53
+		end try
+		-- ลองอีกครั้งกับหน้าต่างหน้าสุด
+		try
+			with timeout of uiTimeout seconds
+				tell application "System Events"
+					tell process fcpName
+						tell window 1
+							click pop up button 1
+							delay 0.6
+							click menu item wantedSetting of menu 1 of pop up button 1
+							set didSet to true
+						end tell
+					end tell
+				end tell
+			end timeout
+			logLine("เลือกค่าจากหน้าต่างหน้าสุดสำเร็จ")
+		on error e2
+			logLine("เลือกค่าจากหน้าต่างหน้าสุดก็ไม่สำเร็จ " & e2)
+		end try
+	end try
+	delay 1
+
+	-- ขั้นที่ 4 อ่านค่าซ้ำเพื่อพิสูจน์ว่าเปลี่ยนจริง ห้ามเชื่อว่าคลิกแล้วสำเร็จ
+	set afterValue to ""
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events"
+				tell process fcpName
+					set afterValue to (value of pop up button 1 of window destinationName) as string
 				end tell
 			end tell
 		end timeout
 	end try
-
-	if didSet then
-		logLine("แท็บ Roles เป็น " & wantedSetting & " เรียบร้อย")
-	else
-		logLine("ตั้งค่า Roles ไม่สำเร็จ")
-		say("ตั้งค่า Roles ให้ไม่สำเร็จ")
-		set answer to askWarn(¬
-			"ตั้งค่าแท็บ Roles ให้อัตโนมัติไม่สำเร็จ" & return & return & ¬
-			"ในหน้าต่างของ Final Cut Pro ที่เปิดอยู่" & return & ¬
-			"ให้ไปที่แท็บ Roles" & return & ¬
-			"แล้วตั้ง Roles as ให้เป็น " & wantedSetting & return & return & ¬
-			"ตั้งเสร็จแล้วกดปุ่มข้างล่าง", ¬
-			{"ตั้งแล้ว"}, "ตั้งแล้ว")
+	if afterValue is "" then
+		try
+			with timeout of uiTimeout seconds
+				tell application "System Events"
+					tell process fcpName
+						set afterValue to (value of pop up button 1 of window 1) as string
+					end tell
+				end tell
+			end timeout
+		end try
 	end if
-	delay 0.5
+	logLine("ค่า Roles as หลังตั้งคือ " & afterValue)
+
+	if afterValue is wantedSetting then
+		say("ตั้ง Roles เป็น " & wantedSetting & " แล้ว")
+		return true
+	end if
+
+	logLine("ตั้งค่า Roles ไม่สำเร็จ")
+	say("ตั้งค่า Roles ให้ไม่สำเร็จ")
+	askWarn(¬
+		"ตั้งค่าแท็บ Roles ให้อัตโนมัติไม่สำเร็จ" & return & return & ¬
+		"ในหน้าต่าง " & destinationName & " ที่เปิดอยู่" & return & ¬
+		"ให้ไปที่แท็บ Roles" & return & ¬
+		"แล้วเปลี่ยนช่อง Roles as จาก " & currentValue & return & ¬
+		"ให้เป็น " & wantedSetting & return & return & ¬
+		"ตั้งเสร็จแล้วกดปุ่มข้างล่าง", ¬
+		{"ตั้งแล้ว"}, "ตั้งแล้ว")
+	return false
 end setRolesTo
 
 
@@ -593,7 +661,7 @@ on shareTo(destinationName, humanName, rolesSetting)
 
 	delay 2
 	-- ตั้งค่า Roles ให้ถูกก่อนเสมอ ก่อนจะกด Next
-	if rolesSetting is not "" then setRolesTo(rolesSetting)
+	if rolesSetting is not "" then setRolesTo(destinationName, rolesSetting)
 
 	if pressButtons({"Next…", "Next...", "Next"}) then logLine("กดปุ่ม Next แล้ว")
 	delay 2
