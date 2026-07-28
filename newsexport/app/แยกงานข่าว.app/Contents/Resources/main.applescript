@@ -726,41 +726,30 @@ end waitForWindowNamed
 
 on findRolesPopupValue(destinationName)
 	--
-	-- อ่านค่าช่อง Roles as
+	-- อ่านค่าปัจจุบันของช่อง Roles as
 	--
-	-- สำคัญ ช่องนี้อาจไม่ใช่ช่องเลือกธรรมดา
-	-- เพราะในเมนูมีหัวข้อ PRESETS และคำสั่ง Save As อยู่ด้วย
-	-- macOS เรียกช่องแบบนั้นว่าปุ่มเมนู ไม่ใช่ช่องเลือก
-	-- ที่ผ่านมาผมค้นหาแต่ช่องเลือกอย่างเดียว จึงไม่มีวันเจอ
-	-- รอบนี้จึงรับทั้งสองชนิด
+	-- ใช้หลักเดียวกับตอนเลือก คือหาช่องที่มีรายการ 3 Stereo อยู่ข้างใน
+	-- ไม่อ้างอิงชนิดของช่องเลย เพราะเดาผิดมาหลายรอบแล้ว
 	set foundValue to ""
 	try
-		with timeout of 20 seconds
+		with timeout of 25 seconds
 			tell application "System Events"
 				tell process fcpName
 					if not (exists window destinationName) then return ""
 					tell window destinationName
 						repeat with a in UI elements
-							set aClass to (class of a) as string
-							if aClass is "pop up button" or aClass is "menu button" then
-								try
-									return (value of a) as string
-								end try
-							end if
+							set foundValue to my valueIfHas(a, "3 Stereo")
+							if foundValue is not "" then return foundValue
 							repeat with b in UI elements of a
-								set bClass to (class of b) as string
-								if bClass is "pop up button" or bClass is "menu button" then
-									try
-										return (value of b) as string
-									end try
-								end if
+								set foundValue to my valueIfHas(b, "3 Stereo")
+								if foundValue is not "" then return foundValue
 								repeat with c in UI elements of b
-									set cClass to (class of c) as string
-									if cClass is "pop up button" or cClass is "menu button" then
-										try
-											return (value of c) as string
-										end try
-									end if
+									set foundValue to my valueIfHas(c, "3 Stereo")
+									if foundValue is not "" then return foundValue
+									repeat with d in UI elements of c
+										set foundValue to my valueIfHas(d, "3 Stereo")
+										if foundValue is not "" then return foundValue
+									end repeat
 								end repeat
 							end repeat
 						end repeat
@@ -769,90 +758,124 @@ on findRolesPopupValue(destinationName)
 			end tell
 		end timeout
 	end try
-	return foundValue
+	return ""
 end findRolesPopupValue
 
 
-on openRolesTab(destinationName)
+on valueIfHas(elementRef, markerName)
+	-- ถ้าของชิ้นนี้มีรายการชื่อ markerName อยู่ข้างใน แปลว่าเป็นช่อง Roles as
+	-- ให้คืนค่าปัจจุบันของมันกลับไป ถ้าไม่ใช่ก็คืนค่าว่าง
 	try
-		with timeout of uiTimeout seconds
+		tell application "System Events"
+			set itemNames to name of every menu item of menu 1 of elementRef
+			if itemNames contains markerName then
+				return (value of elementRef) as string
+			end if
+		end tell
+	end try
+	return ""
+end valueIfHas
+
+
+on openRolesTab(destinationName)
+	--
+	-- กดแท็บ Roles โดยไม่สนใจว่ามันเป็นชนิดอะไร
+	--
+	-- ที่ผ่านมาผมเดาชนิดของมันผิดหลายรอบ
+	-- เดาว่าเป็นปุ่มวิทยุในกลุ่มแท็บบ้าง เป็นปุ่มวิทยุตรง ๆ บ้าง
+	-- รอบนี้เลิกเดา ใช้วิธีหาสิ่งที่ชื่อ Roles แล้วกดมัน ไม่ว่าจะเป็นชนิดใด
+	set clicked to false
+	try
+		with timeout of 25 seconds
 			tell application "System Events"
 				tell process fcpName
 					set frontmost to true
 					delay 0.3
-					set targetWindow to missing value
-					try
-						set targetWindow to window destinationName
-					end try
-					if targetWindow is not missing value then
-						my logLine("หน้าต่างที่ใช้ " & (name of targetWindow))
-						my logLine("ของชั้นบนสุด " & ((class of every UI element of targetWindow) as string))
-						-- จดว่าในหน้าต่างมีอะไรบ้าง เผื่อยังหาไม่เจอจะได้รู้ว่าต้องไปทางไหน
-						try
-							my logLine("ปุ่มในหน้าต่าง " & ((name of every button of targetWindow) as string))
-						end try
-						try
-							my logLine("จำนวนกลุ่มย่อย " & ((count of groups of targetWindow) as string) & ¬
-								" กลุ่มแท็บ " & ((count of tab groups of targetWindow) as string) & ¬
-								" ช่องเลือก " & ((count of pop up buttons of targetWindow) as string))
-						end try
-						try
-							click radio button "Roles" of tab group 1 of targetWindow
-						on error
-							try
-								click (first radio button of targetWindow whose name is "Roles")
-							on error
-								-- แท็บอาจซ่อนอยู่ในกลุ่มย่อย ให้ไล่หาลงไปอีกชั้น
-								repeat with groupRef in UI elements of targetWindow
-									try
-										click (first radio button of groupRef whose name is "Roles")
+					if not (exists window destinationName) then return false
+					tell window destinationName
+						repeat with a in UI elements
+							if my nameOf(a) is "Roles" then
+								click a
+								set clicked to true
+								exit repeat
+							end if
+							repeat with b in UI elements of a
+								if my nameOf(b) is "Roles" then
+									click b
+									set clicked to true
+									exit repeat
+								end if
+								repeat with c in UI elements of b
+									if my nameOf(c) is "Roles" then
+										click c
+										set clicked to true
 										exit repeat
-									end try
-									try
-										click radio button "Roles" of tab group 1 of groupRef
-										exit repeat
-									end try
+									end if
+									repeat with d in UI elements of c
+										if my nameOf(d) is "Roles" then
+											click d
+											set clicked to true
+											exit repeat
+										end if
+									end repeat
+									if clicked then exit repeat
 								end repeat
-							end try
-						end try
-					end if
+								if clicked then exit repeat
+							end repeat
+							if clicked then exit repeat
+						end repeat
+					end tell
 				end tell
 			end tell
 		end timeout
-		delay 1
-		return true
 	on error e
-		logLine("เปิดแท็บ Roles ไม่สำเร็จ " & e)
-		return false
+		logLine("กดแท็บ Roles พังกลางทาง " & e)
 	end try
+	if clicked then
+		logLine("กดแท็บ Roles สำเร็จ")
+	else
+		logLine("หาแท็บชื่อ Roles ไม่เจอในสี่ชั้นแรก")
+	end if
+	delay 1
+	return clicked
 end openRolesTab
 
 
-on clickRolesChoice(destinationName, wantedSetting)
-	-- กดเลือกค่าที่ต้องการ รับได้ทั้งช่องเลือกและปุ่มเมนู
-	-- และเลือกเฉพาะตัวที่มีรายการชื่อตรงกับที่ต้องการอยู่จริงเท่านั้น
-	-- เพราะในหน้าต่างมีช่องเลือกอื่นด้วย เช่นช่อง Channels ที่เลือก Stereo หรือ Mono
+on nameOf(elementRef)
 	try
-		with timeout of 25 seconds
+		return (name of elementRef) as string
+	on error
+		return ""
+	end try
+end nameOf
+
+
+on clickRolesChoice(destinationName, wantedSetting)
+	--
+	-- หาช่องที่มีรายการชื่อที่ต้องการอยู่ข้างใน แล้วเลือกมัน
+	--
+	-- เลิกอ้างอิงชนิดของช่องโดยสิ้นเชิง
+	-- เพราะเดาผิดมาหลายรอบ ทั้งช่องเลือกและปุ่มเมนู
+	--
+	-- วิธีใหม่ ดูที่ของจริงเลยว่าใครมีรายการ 3 Stereo อยู่ข้างใน
+	-- ถ้ามี แปลว่านั่นคือช่องที่ถูกต้องแน่นอน ไม่ว่ามันจะเป็นชนิดอะไร
+	-- และไม่ต้องกดอะไรมั่วเพื่อลองด้วย จึงไม่มีทางไปกดโดนปุ่มอื่นผิด
+	set didChoose to false
+	try
+		with timeout of 30 seconds
 			tell application "System Events"
 				tell process fcpName
 					if not (exists window destinationName) then return false
 					tell window destinationName
 						repeat with a in UI elements
-							set aClass to (class of a) as string
-							if aClass is "pop up button" or aClass is "menu button" then
-								if my tryChoose(a, wantedSetting) then return true
-							end if
+							if my chooseIfHas(a, wantedSetting) then return true
 							repeat with b in UI elements of a
-								set bClass to (class of b) as string
-								if bClass is "pop up button" or bClass is "menu button" then
-									if my tryChoose(b, wantedSetting) then return true
-								end if
+								if my chooseIfHas(b, wantedSetting) then return true
 								repeat with c in UI elements of b
-									set cClass to (class of c) as string
-									if cClass is "pop up button" or cClass is "menu button" then
-										if my tryChoose(c, wantedSetting) then return true
-									end if
+									if my chooseIfHas(c, wantedSetting) then return true
+									repeat with d in UI elements of c
+										if my chooseIfHas(d, wantedSetting) then return true
+									end repeat
 								end repeat
 							end repeat
 						end repeat
@@ -861,36 +884,43 @@ on clickRolesChoice(destinationName, wantedSetting)
 			end tell
 		end timeout
 	on error e
-		logLine("กดเลือกค่าไม่สำเร็จ " & e)
+		logLine("เลือกค่าพังกลางทาง " & e)
 	end try
-	return false
+	return didChoose
 end clickRolesChoice
 
 
-on tryChoose(elementRef, wantedSetting)
-	-- เปิดช่องนั้นแล้วดูว่ามีรายการที่ต้องการไหม ถ้ามีก็เลือก ถ้าไม่มีก็ปิดแล้วไปตัวถัดไป
+on chooseIfHas(elementRef, wantedSetting)
+	-- ดูว่าของชิ้นนี้มีรายการที่ต้องการอยู่ข้างในไหม โดยยังไม่ต้องกดอะไร
+	-- ถ้ามีจึงค่อยกดเปิดแล้วเลือก
+	set itemNames to {}
+	try
+		tell application "System Events"
+			set itemNames to name of every menu item of menu 1 of elementRef
+		end tell
+	on error
+		return false
+	end try
+	if itemNames does not contain wantedSetting then return false
+
+	my logLine("เจอช่องที่มีรายการ " & wantedSetting & " แล้ว รายการทั้งหมด " & (itemNames as string))
 	try
 		tell application "System Events"
 			click elementRef
 			delay 0.6
-			set itemNames to name of every menu item of menu 1 of elementRef
-			my logLine("ช่องนี้มีรายการ " & (itemNames as string))
-			if itemNames contains wantedSetting then
-				click menu item wantedSetting of menu 1 of elementRef
-				delay 0.6
-				my logLine("เลือก " & wantedSetting & " แล้ว")
-				return true
-			end if
-			key code 53
-			delay 0.3
+			click menu item wantedSetting of menu 1 of elementRef
+			delay 0.8
 		end tell
-	on error
+		my logLine("เลือก " & wantedSetting & " เรียบร้อย")
+		return true
+	on error e
+		my logLine("กดเลือกไม่สำเร็จ " & e)
 		try
 			tell application "System Events" to key code 53
 		end try
+		return false
 	end try
-	return false
-end tryChoose
+end chooseIfHas
 
 
 on setRolesTo(destinationName, wantedSetting)
@@ -913,6 +943,10 @@ on setRolesTo(destinationName, wantedSetting)
 	openRolesTab(destinationName)
 	set beforeValue to findRolesPopupValue(destinationName)
 	logLine("Roles as ตอนนี้คือ [" & beforeValue & "]")
+	if beforeValue is "" then
+		-- อ่านค่าไม่ได้ แปลว่ายังหาช่องไม่เจอ จดผังไว้ทันทีเพื่อหาสาเหตุ
+		dumpWindowTree(destinationName)
+	end if
 
 	if beforeValue is wantedSetting then
 		say("Roles เป็น " & wantedSetting & " อยู่แล้ว")
