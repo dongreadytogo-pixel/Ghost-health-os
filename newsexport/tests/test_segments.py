@@ -8,6 +8,7 @@
 
 import os
 import sys
+import time
 import unittest
 from fractions import Fraction
 
@@ -343,6 +344,100 @@ class TestSplit(unittest.TestCase):
         write_time = self.split_module.write_time
         self.assertEqual(write_time(Fraction(0), 25), "0s")
         self.assertEqual(write_time(Fraction(35), 25), "875/25s")
+
+
+class TestProgressCounting(unittest.TestCase):
+    """ตัวนับเปอร์เซ็นต์ต้องไม่นับไฟล์ที่ยังเขียนไม่เสร็จว่าเสร็จแล้ว"""
+
+    def setUp(self):
+        import tempfile
+        import watch_outputs
+        self.watch = watch_outputs
+        self.temp = tempfile.mkdtemp()
+        self.names = ["ก้อน-1.mov", "ก้อน-1.mxf", "ก้อน-2.mov", "ก้อน-2.mxf"]
+        self.namesFile = os.path.join(self.temp, "names.txt")
+        with open(self.namesFile, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(self.names) + "\n")
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.temp, ignore_errors=True)
+
+    def write(self, name, size):
+        with open(os.path.join(self.temp, name), "wb") as handle:
+            handle.write(b"x" * size)
+
+    def run_watch(self):
+        import io
+        import contextlib
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            self.watch.main([self.temp, self.namesFile, "--settle", "0.2"])
+        lines = buffer.getvalue().split("\n")
+        return int(lines[0]), int(lines[1]), int(lines[2]), lines[3]
+
+    def test_empty_folder_reports_zero(self):
+        done, working, total, last = self.run_watch()
+        self.assertEqual((done, working, total), (0, 0, 4))
+        self.assertEqual(last, "")
+
+    def test_settled_files_count_as_done(self):
+        self.write("ก้อน-1.mov", 100)
+        self.write("ก้อน-1.mxf", 100)
+        done, working, total, last = self.run_watch()
+        self.assertEqual((done, working, total), (2, 0, 4))
+        self.assertEqual(last, "ก้อน-1.mxf")
+
+    def test_growing_file_counts_as_working_not_done(self):
+        import threading
+        self.write("ก้อน-1.mov", 100)
+        path = os.path.join(self.temp, "ก้อน-2.mov")
+        with open(path, "wb") as handle:
+            handle.write(b"x" * 10)
+        stop = threading.Event()
+
+        def grow():
+            while not stop.is_set():
+                with open(path, "ab") as handle:
+                    handle.write(b"y" * 64)
+                time.sleep(0.01)
+
+        worker = threading.Thread(target=grow)
+        worker.start()
+        try:
+            done, working, total, _ = self.run_watch()
+        finally:
+            stop.set()
+            worker.join()
+        self.assertEqual(done, 1)
+        self.assertEqual(working, 1)
+        self.assertEqual(total, 4)
+
+    def test_zero_byte_file_is_not_done(self):
+        # ไฟล์ขนาดศูนย์คือเพิ่งเปิดไว้ ยังไม่ได้เขียนอะไรลงไป
+        self.write("ก้อน-1.mov", 0)
+        done, working, total, _ = self.run_watch()
+        self.assertEqual((done, working), (0, 1))
+
+    def test_all_present_reports_complete(self):
+        for name in self.names:
+            self.write(name, 50)
+        done, working, total, _ = self.run_watch()
+        self.assertEqual((done, working, total), (4, 0, 4))
+
+
+class TestNameListOutput(unittest.TestCase):
+    """รายชื่อไฟล์ที่ส่งให้ตัวนับเปอร์เซ็นต์ ต้องเรียงและครบถ้วน"""
+
+    def test_two_extensions_per_segment_in_order(self):
+        names = []
+        for index in range(1, 4):
+            names += ns.build_filenames("ข่าวเช้า-", index, ["mov", "mxf"])
+        self.assertEqual(names, [
+            "ข่าวเช้า-1.mov", "ข่าวเช้า-1.mxf",
+            "ข่าวเช้า-2.mov", "ข่าวเช้า-2.mxf",
+            "ข่าวเช้า-3.mov", "ข่าวเช้า-3.mxf",
+        ])
 
 
 if __name__ == "__main__":

@@ -396,6 +396,8 @@ def main(argv=None):
     parser.add_argument("--json", action="store_true", help="แสดงผลเป็นข้อมูลสำหรับโปรแกรม")
     parser.add_argument("--brief", action="store_true",
                         help="แสดงผลแบบสั้น สำหรับใส่ในหน้าต่างของโปรแกรม")
+    parser.add_argument("--names", action="store_true",
+                        help="แสดงเฉพาะรายชื่อไฟล์ที่จะได้ บรรทัดละหนึ่งชื่อ")
     args = parser.parse_args(argv)
 
     try:
@@ -439,6 +441,10 @@ def main(argv=None):
     if args.json:
         print(json.dumps(build_json(project_name, fps, segments, extensions),
                          ensure_ascii=False, indent=2))
+    elif args.names:
+        for index in range(1, len(segments) + 1):
+            for filename in build_filenames(project_name, index, extensions):
+                print(filename)
     elif args.brief:
         print(brief_report(project_name, fps, segments, extensions))
     else:
