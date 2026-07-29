@@ -130,6 +130,7 @@ on showOtherMenu()
 			"สร้างแทร็กเสียง  ให้โปรแกรมกด Add Audio Track ให้ครบสามแทร็ก", ¬
 			"ตรวจค่า Roles  เปิดหน้าต่าง MXF-50 ขึ้นมาดูว่าตั้งได้จริงไหม", ¬
 			"ตรวจ preset  อ่านไฟล์ 3 Stereo ในเครื่องว่าถูกต้องไหม", ¬
+			"เก็บไฟล์ตั้งค่ามาให้ผม  รวมไฟล์ preset และ destination ไว้บนหน้าจอ", ¬
 			"ดูค่าที่ตั้งไว้  อ่านค่า Roles ที่เครื่องนี้บันทึกไว้ในไฟล์", ¬
 			"จำค่านี้ไว้  ถ่ายสำเนาค่าที่ตั้งถูกแล้ว เก็บไว้ใช้ทีหลัง", ¬
 			"ใส่ค่าที่จำไว้กลับ  ใช้เมื่อค่า Roles เปลี่ยนไปเอง", ¬
@@ -150,6 +151,8 @@ on showOtherMenu()
 			primeRolesSetting()
 		else if choice starts with "ตรวจ preset" then
 			checkRolePreset()
+		else if choice starts with "เก็บไฟล์ตั้งค่ามาให้ผม" then
+			collectSettingFiles()
 		else if choice starts with "ดูค่าที่ตั้งไว้" then
 			reportRolesSettings()
 		else if choice starts with "จำค่านี้ไว้" then
@@ -422,6 +425,56 @@ on installRolePreset()
 			buttons {"ตกลง"} default button "ตกลง" with title appTitle with icon caution
 	end try
 end installRolePreset
+
+
+on collectSettingFiles()
+	--
+	-- ไปเก็บไฟล์ตั้งค่าทุกไฟล์มาวางไว้บนหน้าจอ
+	--
+	-- ทำไมต้องมีปุ่มนี้
+	-- ไฟล์พวกนี้อยู่ในโฟลเดอร์ที่ macOS ซ่อนเอาไว้
+	-- บอกทางให้ผู้ใช้เดินไปเองก็ได้ แต่ผิดพลาดง่ายและเสียเวลา
+	-- ให้โปรแกรมไปเก็บมาให้เลยดีกว่า จบในปุ่มเดียว
+	--
+	-- เก็บสองอย่าง
+	--   rolepreset  คือ preset ของ Roles เช่นไฟล์ 3 Stereo
+	--   fcpdest     คือไฟล์ของปลายทาง เช่น MXF-50
+	--
+	-- คัดลอกอย่างเดียว ไม่ย้ายและไม่ลบของเดิม
+	--
+	set folderName to "ไฟล์ตั้งค่า Final Cut " & (do shell script "date +%d-%m-%H%M")
+	set targetFolder to (do shell script "echo $HOME") & "/Desktop/" & folderName
+
+	set copiedCount to ""
+	try
+		set copiedCount to do shell script "/usr/bin/env python3 " & ¬
+			quoted form of (resourcesPath & "/tools/roles_presets.py") & ¬
+			" collect " & quoted form of targetFolder
+	on error e
+		logLine("เก็บไฟล์ตั้งค่าไม่สำเร็จ " & e)
+		activate
+		display dialog ¬
+			"ไม่พบไฟล์ตั้งค่าในเครื่องนี้" & return & return & ¬
+			"ลองอีกทางหนึ่ง" & return & ¬
+			"เปิดหน้าต่าง MXF-50 กดที่ช่อง Roles as" & return & ¬
+			"แล้วเลือก Reveal User Presets in Finder" ¬
+			buttons {"ตกลง"} default button "ตกลง" with title appTitle with icon caution
+		return
+	end try
+
+	logLine("เก็บไฟล์ตั้งค่าได้ " & copiedCount & " ไฟล์ ไว้ที่ " & targetFolder)
+	try
+		do shell script "open " & quoted form of targetFolder
+	end try
+	activate
+	display dialog ¬
+		"เก็บไฟล์ตั้งค่ามาให้แล้ว " & copiedCount & " ไฟล์" & return & return & ¬
+		"อยู่บนหน้าจอ ในโฟลเดอร์ชื่อ" & return & folderName & return & return & ¬
+		"ลากทั้งโฟลเดอร์ไปวางในช่องแชทได้เลย" & return & ¬
+		"หรือจะเปิดเข้าไปแล้วลากทีละไฟล์ก็ได้" & return & return & ¬
+		"ของเดิมในเครื่องไม่ถูกแตะ เป็นการคัดลอกอย่างเดียว" ¬
+		buttons {"ตกลง"} default button "ตกลง" with title appTitle
+end collectSettingFiles
 
 
 on reportRolesSettings()

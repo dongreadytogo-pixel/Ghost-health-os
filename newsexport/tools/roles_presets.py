@@ -425,6 +425,79 @@ def install_role_preset(source, roots):
     return destination, "ติดตั้งแล้วที่ %s" % destination
 
 
+# ============================================================
+# รวบรวมไฟล์ตั้งค่าไปไว้ในที่ที่ผู้ใช้หยิบได้
+# ------------------------------------------------------------
+# ไฟล์ที่ต้องการดูอยู่ในโฟลเดอร์ที่ macOS ซ่อนไว้
+# บอกทางให้ผู้ใช้เดินไปเองก็ได้ แต่ผิดพลาดง่ายและเสียเวลา
+# ให้โปรแกรมไปเก็บมาวางบนหน้าจอเลยดีกว่า จบในปุ่มเดียว
+# ============================================================
+
+# นามสกุลของไฟล์ที่เกี่ยวข้องกับการส่งออกและ Roles
+WANTED_EXTENSIONS = (".rolepreset", ".fcpdest", ".fcpxdest", ".fcpsetting")
+
+# ที่ที่ควรไปค้นเพิ่ม นอกเหนือจากโฟลเดอร์ตั้งค่าหลัก
+# จำกัดขอบเขตไว้ ไม่ไล่ทั้งเครื่อง เพราะจะช้าและได้ของที่ไม่เกี่ยวมาด้วย
+EXTRA_SEARCH_ROOTS = (
+    "~/Library/Application Support",
+    "~/Library/Containers/com.apple.FinalCut",
+    "~/Movies",
+)
+
+
+def find_by_extension(extensions=WANTED_EXTENSIONS, extra=(), max_depth=7):
+    """หาไฟล์ตามนามสกุลที่ต้องการ ในที่ที่น่าจะอยู่"""
+    roots = existing_roots(list(EXTRA_SEARCH_ROOTS) + list(extra))
+    found = []
+    seen = set()
+    for path, _size, _mtime in list_setting_files(roots, max_depth):
+        if not path.endswith(extensions):
+            continue
+        real = os.path.realpath(path)
+        if real in seen:
+            continue
+        seen.add(real)
+        found.append(path)
+    return found
+
+
+def collect_setting_files(target_folder, extra=()):
+    """
+    คัดลอกไฟล์ตั้งค่าทั้งหมดไปไว้ในโฟลเดอร์ปลายทาง
+    คืนค่าเป็น (จำนวนไฟล์ที่คัดลอก, รายการที่อยู่เดิม)
+    """
+    paths = find_by_extension(extra=extra)
+    if not paths:
+        return 0, []
+
+    os.makedirs(target_folder, exist_ok=True)
+    copied = 0
+    for path in paths:
+        name = os.path.basename(path)
+        destination = os.path.join(target_folder, name)
+        # ชื่อซ้ำได้ เพราะไฟล์ชื่อเดียวกันอาจอยู่คนละโฟลเดอร์
+        # เติมเลขต่อท้ายแทนการเขียนทับ จะได้เห็นครบทุกอัน
+        counter = 2
+        stem, extension = os.path.splitext(name)
+        while os.path.exists(destination):
+            destination = os.path.join(target_folder,
+                                       "%s (%d)%s" % (stem, counter, extension))
+            counter += 1
+        try:
+            shutil.copy2(path, destination)
+            copied += 1
+        except OSError:
+            continue
+
+    # เขียนสารบัญไว้ด้วย ว่าไฟล์แต่ละอันมาจากที่ไหน
+    with open(os.path.join(target_folder, "ไฟล์เหล่านี้มาจากไหน.txt"),
+              "w", encoding="utf-8") as handle:
+        handle.write("เก็บเมื่อ %s\n\n" % time.strftime("%Y-%m-%d %H:%M:%S"))
+        for path in paths:
+            handle.write(path + "\n")
+    return copied, paths
+
+
 def build_report(roots, find=None):
     """สร้างรายงานสำรวจทั้งเครื่อง เป็นข้อความภาษาไทยอ่านง่าย"""
     lines = []
@@ -464,9 +537,10 @@ def main(argv=None):
         description="อ่าน จำ และคืนค่าตั้ง Roles ของ Final Cut Pro")
     parser.add_argument("command",
                         choices=["report", "snapshot", "restore", "snapshots", "roots",
-                                 "presets", "check", "install"],
+                                 "presets", "check", "install", "collect"],
                         help="report สำรวจ  snapshot จำ  restore คืนค่า  "
-                             "presets ดู preset  check ตรวจ preset  install ติดตั้ง preset")
+                             "presets ดู preset  check ตรวจ preset  install ติดตั้ง preset  "
+                             "collect เก็บไฟล์ตั้งค่ามารวมไว้ที่เดียว")
     parser.add_argument("name", nargs="?", default="ค่ามาตรฐาน",
                         help="ชื่อของชุดที่จำไว้ หรือชื่อ preset หรือที่อยู่ไฟล์ที่จะติดตั้ง")
     parser.add_argument("--find", default=None, help="แสดงเฉพาะบรรทัดที่มีคำนี้")
@@ -493,6 +567,14 @@ def main(argv=None):
             print(args.out)
         else:
             sys.stdout.write(text)
+        return 0
+
+    if args.command == "collect":
+        copied, _paths = collect_setting_files(args.name, args.also_look_in)
+        if copied == 0:
+            print("ไม่พบไฟล์ตั้งค่าเลย", file=sys.stderr)
+            return 1
+        print(copied)
         return 0
 
     if args.command == "presets":

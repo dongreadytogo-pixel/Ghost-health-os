@@ -298,6 +298,58 @@ class TestRolePresetFile(Sandbox):
                                   "--also-look-in", self.roots()[0]]), 1)
 
 
+class TestCollecting(Sandbox):
+    """ปุ่มเก็บไฟล์ตั้งค่าต้องได้ของครบ และบอกที่มาไว้ด้วย"""
+
+    def setUp(self):
+        super().setUp()
+        write_plist(os.path.join(self.settings, "3 Stereo.rolepreset"),
+                    three_stereo_preset())
+        write_plist(os.path.join(self.settings, "MXF-50.fcpdest"),
+                    {"name": "MXF-50"})
+        self.target = os.path.join(self.home, "รวมไฟล์")
+
+    def test_finds_both_kinds_of_file(self):
+        found = rp.find_by_extension(extra=[self.roots()[0]])
+        names = sorted(os.path.basename(path) for path in found)
+        self.assertIn("3 Stereo.rolepreset", names)
+        self.assertIn("MXF-50.fcpdest", names)
+
+    def test_plain_files_are_left_behind(self):
+        found = rp.find_by_extension(extra=[self.roots()[0]])
+        self.assertFalse(any(path.endswith("readme.txt") for path in found))
+
+    def test_copies_them_into_one_folder(self):
+        copied, paths = rp.collect_setting_files(self.target, [self.roots()[0]])
+        self.assertGreaterEqual(copied, 2)
+        self.assertEqual(len(paths), copied)
+        gathered = os.listdir(self.target)
+        self.assertIn("3 Stereo.rolepreset", gathered)
+        self.assertIn("MXF-50.fcpdest", gathered)
+
+    def test_writes_where_each_file_came_from(self):
+        rp.collect_setting_files(self.target, [self.roots()[0]])
+        index = os.path.join(self.target, "ไฟล์เหล่านี้มาจากไหน.txt")
+        with open(index, encoding="utf-8") as handle:
+            self.assertIn(self.settings, handle.read())
+
+    def test_same_name_in_two_folders_keeps_both(self):
+        other = os.path.join(self.roots()[0], "อีกที่")
+        write_plist(os.path.join(other, "MXF-50.fcpdest"), {"name": "MXF-50 อีกอัน"})
+        rp.collect_setting_files(self.target, [self.roots()[0]])
+        gathered = [n for n in os.listdir(self.target) if n.startswith("MXF-50")]
+        self.assertEqual(len(gathered), 2)
+
+    def test_the_original_files_are_not_moved(self):
+        rp.collect_setting_files(self.target, [self.roots()[0]])
+        self.assertTrue(os.path.exists(os.path.join(self.settings, "MXF-50.fcpdest")))
+
+    def test_command_line_collect(self):
+        self.assertEqual(rp.main(["collect", self.target,
+                                  "--also-look-in", self.roots()[0]]), 0)
+        self.assertTrue(os.path.isdir(self.target))
+
+
 class TestCommandLine(Sandbox):
     """สั่งจากบรรทัดคำสั่งต้องได้ผลเหมือนกัน เพราะแอปเรียกผ่านทางนี้"""
 
