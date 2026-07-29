@@ -1642,6 +1642,60 @@ on ensureChannelsStereo(trackNumber)
 end ensureChannelsStereo
 
 
+-- ============================================================
+-- เลือก preset ในช่อง Roles as
+-- ------------------------------------------------------------
+-- ทำไมรุ่นก่อน ๆ เลือกไม่ได้เลยสักครั้ง มีเหตุผลชัดเจนสองข้อ
+--
+-- ข้อแรก ช่องนั้นไม่มีชื่อให้จับ
+-- ปุ่มอื่นในหน้าต่างมีชื่อเป็นตัวหนังสือ เช่น Add Audio Track หรือ Next
+-- แต่ช่อง Roles as ไม่มี มันมีแต่ค่าที่ตัวเองโชว์อยู่
+-- การค้นหาด้วยชื่อจึงไม่มีทางเจอ ต่อให้ค้นลึกกี่ชั้นก็ตาม
+--
+-- ข้อสอง วิธีที่ผมใช้แยกแยะว่าอันไหนคือช่องนั้น ใช้ไม่ได้
+-- ผมเคยไล่ดูของทุกชิ้นแล้วถามว่า ในเมนูของแกมี 3 Stereo ไหม
+-- ตั้งใจว่าจะได้ไม่ต้องกดมั่วไปโดนปุ่มอื่น
+-- แต่บันทึกของผู้ใช้พิสูจน์แล้วว่า เมนูยังไม่ถูกสร้างจนกว่าจะกด
+-- คำถามนั้นจึงได้คำตอบว่าไม่มี จากของทุกชิ้นในหน้าต่าง รวมทั้งช่องที่ใช่ด้วย
+--
+-- วิธีใหม่ ใช้ค่าที่ช่องนั้นโชว์อยู่เป็นตัวชี้
+-- ช่อง Roles as โชว์ค่าปัจจุบันของตัวเองเสมอ และค่านั้นเป็นหนึ่งในชุดที่รู้จัก
+-- เจอชิ้นที่โชว์ค่าเหล่านั้น ก็คือเจอช่องที่ถูกต้อง แล้วค่อยกดเปิดเมนู
+-- ============================================================
+
+on knownRolesValues()
+	--
+	-- ค่าที่เคยเห็นจริงในช่อง Roles as ของเครื่องนี้
+	--
+	-- 3 Stereo            มาจากภาพหน้าจอที่ผู้ใช้ส่งมา
+	-- Multitrack MXF File  มาจากภาพหน้าจออีกใบของผู้ใช้
+	-- ที่เหลือเป็นตัวเลือกมาตรฐานที่มีอยู่ในเมนูเดียวกัน
+	--
+	return {"3 Stereo", "Multitrack MXF File", "Multitrack QuickTime Movie", "Single Track"}
+end knownRolesValues
+
+
+on selectRolesPreset(wantedSetting)
+	set windowIndex to my findShareWindow()
+	if windowIndex is 0 then return false
+
+	set candidates to my collectAt(windowIndex, my knownRolesValues(), true)
+	if (count of candidates) is 0 then
+		logLine("ไม่เจอช่อง Roles as จากค่าที่มันโชว์อยู่")
+		return false
+	end if
+
+	set theBox to item 1 of candidates
+	if my labelOf(theBox) is wantedSetting then
+		logLine("ช่อง Roles as เป็น " & wantedSetting & " อยู่แล้ว")
+		return true
+	end if
+
+	logLine("ช่อง Roles as ตอนนี้โชว์ว่า " & my labelOf(theBox) & " กำลังเปลี่ยนเป็น " & wantedSetting)
+	return my openMenuAndPick(theBox, wantedSetting)
+end selectRolesPreset
+
+
 on openRolesTabAt(windowIndex)
 	-- กดแท็บ Roles ในหน้าต่างที่ระบุ
 	set clicked to false
@@ -1687,6 +1741,25 @@ on buildRolesLayout(destinationName)
 		return false
 	end if
 
+	--
+	-- ลองเลือก preset ที่ผู้ใช้ตั้งไว้ก่อนเป็นอันดับแรก
+	--
+	-- นี่คือทางที่ควรจะเป็นตั้งแต่แรก กดครั้งเดียวได้ครบทั้งสามแทร็ก
+	-- ที่ผ่านมาทำไม่ได้ เพราะวิธีค้นหาช่องนั้นของผมผิด ไม่ใช่เพราะเลือกไม่ได้
+	-- รุ่นนี้ค้นหาจากค่าที่ช่องนั้นโชว์อยู่ ซึ่งเป็นวิธีที่ตรงกับความจริง
+	--
+	if my selectRolesPreset("3 Stereo") then
+		delay 1
+		set windowIndex to my findShareWindow()
+		set afterPreset to my countAudioTracksAt(windowIndex)
+		logLine("เลือก preset 3 Stereo แล้ว ได้แทร็กเสียง " & afterPreset & " แทร็ก")
+		if afterPreset ≥ 3 then
+			say("เลือก preset 3 Stereo ได้ครบสามแทร็ก")
+			return true
+		end if
+	end if
+
+	-- เลือก preset ไม่ได้ ค่อยลงมือสร้างแทร็กเองทีละแทร็ก
 	set windowIndex to my findShareWindow()
 	set trackCount to my countAudioTracksAt(windowIndex)
 	logLine("ตอนนี้มีแทร็กเสียงอยู่ " & trackCount & " แทร็ก")
