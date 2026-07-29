@@ -44,6 +44,8 @@ def main(argv=None):
     parser.add_argument("namesfile", help="ไฟล์รายชื่อ บรรทัดละหนึ่งชื่อ")
     parser.add_argument("--settle", type=float, default=2.0,
                         help="รอกี่วินาทีก่อนวัดขนาดครั้งที่สอง (ค่าเริ่มต้น 2)")
+    parser.add_argument("--missing", action="store_true",
+                        help="พิมพ์รายชื่อไฟล์ที่ยังไม่เสร็จ บรรทัดละหนึ่งชื่อ")
     args = parser.parse_args(argv)
 
     try:
@@ -54,6 +56,8 @@ def main(argv=None):
         return 2
 
     if not names:
+        if args.missing:
+            return 0
         print("0\n0\n0\n")
         return 0
 
@@ -71,6 +75,16 @@ def main(argv=None):
             finished.append(name)   # ขนาดหยุดนิ่งแล้ว = เขียนเสร็จ
         else:
             working += 1            # ขนาดยังโตอยู่ = กำลังเขียน
+
+    # โหมดบอกรายชื่อที่ยังขาด
+    # ใช้ตอนจบงาน เพื่อบอกผู้ใช้ตรง ๆ ว่าก้อนไหนยังไม่ได้ไฟล์
+    # จะได้ไม่ต้องนั่งไล่เทียบรายชื่อเองทีละบรรทัด
+    if args.missing:
+        done = set(finished)
+        for name in names:
+            if name not in done:
+                print(name)
+        return 0
 
     print(len(finished))
     print(working)

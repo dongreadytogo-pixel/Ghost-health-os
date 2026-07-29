@@ -376,10 +376,36 @@ class TestProgressCounting(unittest.TestCase):
         lines = buffer.getvalue().split("\n")
         return int(lines[0]), int(lines[1]), int(lines[2]), lines[3]
 
+    def run_missing(self):
+        """ถามว่ายังขาดไฟล์ไหนบ้าง ตอนจบงานต้องบอกผู้ใช้ได้ตรง ๆ"""
+        import io
+        import contextlib
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            self.watch.main([self.temp, self.namesFile, "--settle", "0.2", "--missing"])
+        return [line for line in buffer.getvalue().split("\n") if line]
+
     def test_empty_folder_reports_zero(self):
         done, working, total, last = self.run_watch()
         self.assertEqual((done, working, total), (0, 0, 4))
         self.assertEqual(last, "")
+
+    def test_missing_lists_everything_when_nothing_exported(self):
+        self.assertEqual(self.run_missing(), self.names)
+
+    def test_missing_lists_only_what_is_absent(self):
+        self.write("ก้อน-1.mov", 100)
+        self.write("ก้อน-2.mxf", 100)
+        self.assertEqual(self.run_missing(), ["ก้อน-1.mxf", "ก้อน-2.mov"])
+
+    def test_missing_is_empty_when_everything_arrived(self):
+        for name in self.names:
+            self.write(name, 100)
+        self.assertEqual(self.run_missing(), [])
+
+    def test_missing_keeps_the_timeline_order(self):
+        self.write("ก้อน-1.mov", 100)
+        self.assertEqual(self.run_missing(), ["ก้อน-1.mxf", "ก้อน-2.mov", "ก้อน-2.mxf"])
 
     def test_settled_files_count_as_done(self):
         self.write("ก้อน-1.mov", 100)

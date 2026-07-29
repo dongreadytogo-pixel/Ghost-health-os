@@ -35,6 +35,7 @@ global workPath
 global prefsPath
 global logPath
 global statusPath
+global channelsPath
 
 
 on run argv
@@ -47,6 +48,7 @@ on run argv
 	set prefsPath to workPath & "/โฟลเดอร์ล่าสุด.txt"
 	set logPath to workPath & "/บันทึกการทำงาน.txt"
 	set statusPath to workPath & "/สถานะล่าสุด.txt"
+	set channelsPath to workPath & "/จำนวนช่องเสียง.txt"
 	logLine("===== เริ่มรอบใหม่ " & ((current date) as string) & " =====")
 	showMainMenu()
 end run
@@ -120,14 +122,15 @@ on showOtherMenu()
 	-- เมนูนี้มีมากกว่าสามหัวข้อแล้ว และจะเพิ่มอีกในอนาคต
 	-- รายการให้เลือกจึงขยายได้เรื่อย ๆ โดยไม่ต้องรื้อโครงสร้าง
 	--
-	set menuItems to {¬
-		"ตั้งค่า Roles  เปิดหน้าต่าง MXF-50 ให้คุณตั้ง 3 Stereo ครั้งเดียว", ¬
-		"ดูค่าที่ตั้งไว้  อ่านค่า Roles ที่เครื่องนี้บันทึกไว้ในไฟล์", ¬
-		"จำค่านี้ไว้  ถ่ายสำเนาค่าที่ตั้งถูกแล้ว เก็บไว้ใช้ทีหลัง", ¬
-		"ใส่ค่าที่จำไว้กลับ  ใช้เมื่อค่า Roles เปลี่ยนไปเอง", ¬
-		"แก้ปัญหา  ดูบันทึก และเก็บไฟล์ที่ตกค้าง"}
-
 	repeat
+		-- สร้างรายการใหม่ทุกรอบ เพื่อให้ตัวเลขที่โชว์ตรงกับค่าล่าสุดเสมอ
+		set menuItems to {¬
+			"ตั้งค่า Roles  เปิดหน้าต่าง MXF-50 ให้คุณตั้งเอง ครั้งเดียว", ¬
+			"ดูค่าที่ตั้งไว้  อ่านค่า Roles ที่เครื่องนี้บันทึกไว้ในไฟล์", ¬
+			"จำค่านี้ไว้  ถ่ายสำเนาค่าที่ตั้งถูกแล้ว เก็บไว้ใช้ทีหลัง", ¬
+			"ใส่ค่าที่จำไว้กลับ  ใช้เมื่อค่า Roles เปลี่ยนไปเอง", ¬
+			"จำนวนช่องเสียง  ตอนนี้ตั้งไว้ " & requiredChannels() & " ช่อง", ¬
+			"แก้ปัญหา  ดูบันทึก และเก็บไฟล์ที่ตกค้าง"}
 		activate
 		set picked to (choose from list menuItems ¬
 			with title appTitle ¬
@@ -145,6 +148,8 @@ on showOtherMenu()
 			rememberRolesSettings()
 		else if choice starts with "ใส่ค่าที่จำไว้กลับ" then
 			restoreRolesSettings()
+		else if choice starts with "จำนวนช่องเสียง" then
+			askRequiredChannels()
 		else
 			showTroubleMenu()
 		end if
@@ -587,6 +592,16 @@ on runWorkflow()
 		set totalFiles to (do shell script "grep -c . " & quoted form of namesFile) as integer
 		say("แยกเสร็จ ต้องได้ทั้งหมด " & totalFiles & " ไฟล์")
 
+		-- ตรวจเสียงก่อนเอ็กพอร์ต
+		--
+		-- ไฟล์ MXF-50 ต้องมีเสียงครบทุกช่อง
+		-- แต่ Final Cut Pro สร้างช่องเสียงให้เฉพาะ Role ที่มีของอยู่จริงในก้อนนั้น
+		-- ถ้าก้อนไหนไม่มีคลิปที่ใช้ Role ครบ ไฟล์ของก้อนนั้นก็จะขาดช่องไป
+		-- ทั้งที่ตั้งค่าหน้าต่างเอ็กพอร์ตไว้ถูกต้องแล้ว
+		--
+		-- ตรวจตรงนี้จึงคุ้มมาก เพราะรู้ก่อนเสียเวลาเอ็กพอร์ตทั้งชุด
+		if not checkAudioBeforeExport(xmlPath, gapSeconds) then return
+
 		say("กำลังนำงานย่อยกลับเข้า Final Cut Pro")
 		importTimeline(splitPath)
 
@@ -627,6 +642,115 @@ on runWorkflow()
 			buttons {"ปิด"} default button 1 with title appTitle with icon caution
 	end try
 end runWorkflow
+
+
+-- ============================================================
+-- ตรวจเสียงก่อนเอ็กพอร์ต
+-- ------------------------------------------------------------
+-- จำนวนช่องเสียงในไฟล์ MXF ไม่ได้ขึ้นกับการตั้งค่าอย่างเดียว
+-- แต่ขึ้นกับว่าในก้อนนั้นมีเสียงของ Role ไหนอยู่บ้าง
+-- ตรวจก่อนจึงดีกว่ามารู้ตอนไฟล์เสร็จแล้ว
+-- ============================================================
+
+on requiredChannels()
+	-- จำนวนช่องเสียงที่ต้องมีในไฟล์ MXF-50
+	-- เก็บเป็นไฟล์เพื่อให้แก้ได้ในภายหลังโดยไม่ต้องแก้โปรแกรม
+	try
+		set saved to do shell script "cat " & quoted form of channelsPath
+		if saved is not "" then return saved
+	end try
+	return "6"
+end requiredChannels
+
+
+on askRequiredChannels()
+	-- ให้ผู้ใช้ตั้งเองว่าไฟล์ MXF ต้องมีกี่ช่องเสียง
+	-- ห้องข่าวนี้ใช้หกช่องแยกกัน แต่ทำเป็นค่าตั้งไว้ เผื่องานอื่นใช้ไม่เท่ากัน
+	activate
+	try
+		set answer to text returned of (display dialog ¬
+			"ไฟล์ MXF-50 ต้องมีกี่ช่องเสียง" & return & return & ¬
+			"ห้องข่าวนี้ใช้ 6 ช่อง แยกกันช่องละ Role" & return & ¬
+			"โปรแกรมจะเตือนก่อนเอ็กพอร์ต ถ้าก้อนไหนมีไม่ครบ" ¬
+			default answer requiredChannels() ¬
+			buttons {"ยกเลิก", "บันทึก"} default button "บันทึก" with title appTitle)
+	on error number -128
+		return
+	end try
+
+	set cleaned to do shell script "echo " & quoted form of answer & " | tr -cd '0-9'"
+	if cleaned is "" or cleaned is "0" then
+		activate
+		display dialog "ต้องเป็นตัวเลขที่มากกว่าศูนย์" ¬
+			buttons {"ตกลง"} default button "ตกลง" with title appTitle
+		return
+	end if
+
+	do shell script "echo " & quoted form of cleaned & " > " & quoted form of channelsPath
+	logLine("ตั้งจำนวนช่องเสียงเป็น " & cleaned)
+	activate
+	display dialog "บันทึกแล้ว ต้องมี " & cleaned & " ช่องเสียงต่อหนึ่งก้อน" ¬
+		buttons {"ตกลง"} default button "ตกลง" with title appTitle
+end askRequiredChannels
+
+
+on checkAudioBeforeExport(xmlPath, gapSeconds)
+	set wanted to requiredChannels()
+	set reportPath to workPath & "/ตรวจเสียง.txt"
+	set summary to ""
+
+	try
+		-- ต่อท้ายด้วย true เพราะโปรแกรมตรวจจะคืนรหัส 1 เมื่อเจอก้อนที่เสียงไม่ครบ
+		-- ซึ่งไม่ใช่ความผิดพลาด แต่เป็นผลการตรวจที่เราต้องการอ่าน
+		set summary to do shell script "/usr/bin/env python3 " & ¬
+			quoted form of (resourcesPath & "/tools/audio_audit.py") & " " & ¬
+			quoted form of xmlPath & " --min-gap " & gapSeconds & ¬
+			" --require " & wanted & " --brief 2>&1 || true"
+		do shell script "/usr/bin/env python3 " & ¬
+			quoted form of (resourcesPath & "/tools/audio_audit.py") & " " & ¬
+			quoted form of xmlPath & " --min-gap " & gapSeconds & ¬
+			" --require " & wanted & " > " & quoted form of reportPath & " 2>&1 || true"
+	on error e
+		logLine("ตรวจเสียงไม่สำเร็จ " & e)
+		return true
+	end try
+
+	logLine("ผลตรวจเสียง " & summary)
+
+	if summary starts with "เสียงครบ" then
+		say(summary)
+		return true
+	end if
+
+	-- เสียงไม่ครบ ต้องบอกให้เห็นชัด แต่ไม่ตัดสินใจแทนผู้ใช้
+	-- บางวันงานอาจตั้งใจให้บางก้อนมีเสียงน้อยกว่าจริง ๆ
+	activate
+	set answer to button returned of (display dialog ¬
+		"ตรวจเสียงแล้วพบว่าไม่ครบ" & return & return & summary & return & return & ¬
+		"ไฟล์ MXF ของก้อนที่ขาด จะมีช่องเสียงน้อยกว่าก้อนอื่น" & return & ¬
+		"เพราะ Final Cut Pro สร้างช่องเสียงให้เฉพาะ Role ที่มีของอยู่จริง" & return & return & ¬
+		"จะไปต่อ หรือหยุดไปแก้เสียงก่อน" ¬
+		buttons {"ดูรายละเอียด", "หยุดก่อน", "ไปต่อ"} ¬
+		default button "หยุดก่อน" with title appTitle with icon caution)
+
+	if answer is "ไปต่อ" then return true
+	if answer is "หยุดก่อน" then
+		say("หยุดเพื่อไปแก้เสียงก่อน")
+		return false
+	end if
+
+	try
+		do shell script "open -R " & quoted form of reportPath
+	end try
+	activate
+	set answer to button returned of (display dialog ¬
+		"เปิด Finder ให้แล้ว ไฟล์ชื่อ ตรวจเสียง.txt" & return & ¬
+		"ในนั้นบอกทีละก้อนว่าขาด Role ไหนบ้าง" ¬
+		buttons {"หยุดก่อน", "ไปต่อ"} default button "หยุดก่อน" with title appTitle)
+	if answer is "ไปต่อ" then return true
+	say("หยุดเพื่อไปแก้เสียงก่อน")
+	return false
+end checkAudioBeforeExport
 
 
 -- ============================================================
@@ -1208,8 +1332,10 @@ on shareTo(destinationName, humanName, rolesSetting)
 			return true
 		end if
 
-		-- เลือกไม่ครบ ยกเลิกแล้วขอให้ผู้ใช้เลือกใหม่ โดยไม่ขวางการกด
-		logLine("เลือกงานไม่ครบ ยกเลิกแล้วรอให้ผู้ใช้เลือก")
+		-- มีช่องกรอกชื่อไฟล์ แปลว่า Final Cut Pro เห็นงานที่เลือกอยู่แค่ชิ้นเดียว
+		-- ถ้าปล่อยไปจะได้ไฟล์มาก้อนเดียว ซึ่งคือปัญหาที่เจอมาตลอด
+		-- ยกเลิกก่อน แล้วซ่อมการเลือกด้วยตัวเอง ไม่รบกวนผู้ใช้
+		logLine("เลือกงานไม่ครบ ยกเลิกแล้วซ่อมการเลือกเอง")
 		pressButtons({"Cancel", "ยกเลิก"})
 		delay 1
 		pressButtons({"Cancel", "ยกเลิก"})
@@ -1217,18 +1343,9 @@ on shareTo(destinationName, humanName, rolesSetting)
 
 		if attemptNumber is 3 then exit repeat
 
-		say("เลือกงานย่อยไม่ครบ กรุณาเลือกให้ครบใน Final Cut Pro")
-		try
-			tell application "Final Cut Pro" to activate
-		end try
-
-		-- ให้เวลาผู้ใช้เลือก โดยไม่มีหน้าต่างอะไรขวางเลย
-		repeat with waited from 1 to 6
-			delay 5
-			if waited is 3 then
-				say("ยังรออยู่ เลือกอันแรก กด Shift ค้าง แล้วคลิกอันสุดท้าย")
-			end if
-		end repeat
+		say("เลือกงานย่อยไม่ครบ กำลังเลือกใหม่ให้เอง")
+		selectAllProjects()
+		delay 1
 		say("กำลังลองสั่ง " & humanName & " อีกครั้ง")
 	end repeat
 
@@ -1319,9 +1436,20 @@ on monitorAndCollect(outFolder, namesFile, totalFiles)
 		say("ครบทุกไฟล์แล้ว " & totalFiles & " ไฟล์")
 		set headline to "เสร็จเรียบร้อย ได้ไฟล์ครบ " & totalFiles & " ไฟล์"
 	else
-		say("ผู้ใช้กดหยุดรอ")
-		set headline to "หยุดรอแล้ว" & return & ¬
-			"ถ้ายังไม่ครบ ใช้ปุ่ม เมนูอื่น แล้ว เก็บไฟล์ที่ตกค้าง"
+		-- บอกตรง ๆ ว่าขาดไฟล์ไหนบ้าง
+		-- ดีกว่าให้ผู้ใช้ไปนั่งไล่เทียบรายชื่อเองทีละบรรทัด
+		set missingList to ""
+		try
+			set missingList to do shell script "/usr/bin/env python3 " & ¬
+				quoted form of (resourcesPath & "/tools/watch_outputs.py") & ¬
+				" " & quoted form of outFolder & " " & quoted form of namesFile & ¬
+				" --settle 0.5 --missing | head -20"
+		end try
+		say("หยุดรอ ยังขาดไฟล์อยู่")
+		logLine("ไฟล์ที่ยังขาด" & return & missingList)
+		set headline to "หยุดรอแล้ว ยังได้ไม่ครบ" & return & return & ¬
+			"ไฟล์ที่ยังขาด" & return & missingList & return & return & ¬
+			"ใช้ปุ่ม เมนูอื่น แล้ว แก้ปัญหา แล้ว เก็บไฟล์ที่ตกค้าง"
 	end if
 
 	activate
@@ -1386,6 +1514,84 @@ on clickMenu(menuName, itemPrefix)
 		logLine("กดเมนู " & itemPrefix & " ไม่สำเร็จ " & e)
 	end try
 end clickMenu
+
+
+-- ============================================================
+-- การเลือกงานย่อยให้ครบทุกก้อน
+-- ------------------------------------------------------------
+-- นี่คือหัวใจของการเอ็กพอร์ตต่อเนื่องทีเดียวทุกก้อน
+--
+-- Final Cut Pro เอ็กพอร์ตพร้อมกันได้อยู่แล้ว ถ้าเลือกงานไว้ครบ
+-- สั่ง Share หนึ่งครั้ง มันจะเข้าคิวให้ทุกก้อนแล้วทยอยทำเอง
+-- ปัญหาที่ได้ไฟล์เดียวจึงไม่ได้อยู่ที่การสั่ง แต่อยู่ที่การเลือก
+--
+-- บทเรียนจากรอบก่อน
+-- เคยสั่งเลือกทั้งหมดขณะที่โฟกัสอยู่ในไทม์ไลน์
+-- คำสั่งนั้นจึงไปเลือกคลิปทั้งหมดในงานเดียว ไม่ใช่เลือกงานทั้งหมด
+-- ผลคือได้ไฟล์มาก้อนเดียว
+--
+-- รุ่นนี้จึงย้ายโฟกัสไปที่ Browser ให้แน่ก่อน แล้วค่อยสั่งเลือกทั้งหมด
+-- และใช้เมนูจริงเสมอ ไม่ใช้ปุ่มลัด เพราะปุ่มลัดวิ่งผ่านผังแป้นพิมพ์
+-- ซึ่งเคยทำให้ตัวอักษรเพี้ยนมาแล้ว
+-- ============================================================
+
+on goToArea(areaPrefix)
+	-- ย้ายโฟกัสไปยังพื้นที่ที่ต้องการ ผ่านเมนู Window แล้ว Go To
+	-- ถ้าหาไม่เจอ จะจดชื่อรายการจริงทั้งหมดไว้ในบันทึก
+	-- จะได้รู้ว่าเครื่องนี้เรียกพื้นที่นั้นว่าอะไร โดยไม่ต้องเดา
+	set moved to false
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events"
+				tell process fcpName
+					set frontmost to true
+					delay 0.3
+					set windowMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "Window")
+					set goToItem to (first menu item of windowMenu whose name starts with "Go To")
+					set areaNames to name of every menu item of menu 1 of goToItem
+					if (areaNames as string) does not contain areaPrefix then
+						my logLine("ในเมนู Go To ไม่มี " & areaPrefix & " มีแต่ " & (areaNames as string))
+					else
+						click (first menu item of menu 1 of goToItem whose name starts with areaPrefix)
+						set moved to true
+					end if
+				end tell
+			end tell
+		end timeout
+	on error e
+		logLine("ย้ายโฟกัสไป " & areaPrefix & " ไม่สำเร็จ " & e)
+	end try
+
+	if not moved then
+		-- ปิดเมนูที่อาจค้างเปิดอยู่ ไม่ให้ไปขวางขั้นตอนถัดไป
+		try
+			with timeout of 5 seconds
+				tell application "System Events" to key code 53
+			end timeout
+		end try
+	end if
+	return moved
+end goToArea
+
+
+on selectAllProjects()
+	-- เลือกงานย่อยทุกก้อนใน Browser
+	-- คืนค่า true เมื่อสั่งได้ครบทั้งสองขั้น
+	set moved to goToArea("Browser")
+	if not moved then
+		logLine("ไปที่ Browser ไม่ได้ จะลองสั่งเลือกทั้งหมดตามเดิม")
+	end if
+	delay 0.5
+	set chosen to (menuState("Edit", "Select All") is "enabled")
+	if not chosen then
+		logLine("คำสั่ง Select All กดไม่ได้ตอนนี้")
+		return false
+	end if
+	clickMenu("Edit", "Select All")
+	delay 0.8
+	logLine("สั่งเลือกงานย่อยทั้งหมดใน Browser แล้ว")
+	return moved
+end selectAllProjects
 
 
 on waitForSheet(maxSeconds)
