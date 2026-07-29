@@ -29,6 +29,8 @@ property appTitle : "แยกงานข่าว"
 property fcpName : "Final Cut Pro"
 -- ทุกคำสั่งที่คุยกับ Final Cut Pro ต้องมีเวลาจำกัดเสมอ
 property uiTimeout : 12
+-- ของที่มีเฉพาะในหน้าต่างของ Share ใช้เป็นตัวชี้ว่านี่คือหน้าต่างนั้น
+property shareMarkers : {"Next…", "Next...", "Add Audio Track"}
 
 global resourcesPath
 global workPath
@@ -482,7 +484,15 @@ on openShareWindow(destinationName)
 		return false
 	end try
 
-	return waitForWindowNamed(destinationName, 15)
+	-- รอด้วยการหาจากของข้างใน ไม่ใช่จากชื่อ
+	-- เพราะบันทึกจริงบอกว่าบางครั้งหน้าต่างนี้เป็นแผ่นซ้อนบนหน้าต่างหลัก
+	-- และบางครั้งชื่อของมันเป็นค่าว่าง การรอชื่อจึงรอเก้อ
+	repeat with waited from 1 to 15
+		if my findShareWindow() is not 0 then return true
+		delay 1
+	end repeat
+	logLine("รอหน้าต่างของ " & destinationName & " จนครบเวลาแล้วไม่เจอ")
+	return false
 end openShareWindow
 
 
@@ -1310,7 +1320,7 @@ on labelOf(elementRef)
 	-- ขอชื่อของชิ้นส่วนบนหน้าจอ
 	--
 	-- บางชิ้นเก็บข้อความไว้ในช่อง name เช่นปุ่ม
-	-- บางชิ้นเก็บไว้ในช่อง value เช่นข้อความธรรมดา
+	-- บางชิ้นเก็บไว้ในช่อง value เช่นข้อความธรรมดา และช่องเลือกที่โชว์ค่าอยู่
 	-- ถ้าดูแค่ช่องเดียวจะพลาดอีกแบบไปทั้งหมด จึงต้องดูทั้งสองช่อง
 	--
 	set found to ""
@@ -1326,41 +1336,126 @@ on labelOf(elementRef)
 end labelOf
 
 
-on matchesLabel(elementRef, wantedText, mustBeExact)
+on matchesAny(elementRef, wantedList, mustBeExact)
 	set theLabel to my labelOf(elementRef)
 	if theLabel is "" then return false
-	if mustBeExact then return (theLabel is wantedText)
-	return (theLabel starts with wantedText)
-end matchesLabel
+	repeat with wanted in wantedList
+		if mustBeExact then
+			if theLabel is (wanted as string) then return true
+		else
+			if theLabel starts with (wanted as string) then return true
+		end if
+	end repeat
+	return false
+end matchesAny
 
 
-on collectMatching(destinationName, wantedText, mustBeExact)
+-- ============================================================
+-- หาหน้าต่างของ Share ด้วยของข้างใน ไม่ใช่ด้วยชื่อ
+-- ------------------------------------------------------------
+-- บันทึกจากเครื่องจริงบอกไว้สองอย่าง
+--   บรรทัด 291  ใช้หน้าต่างชื่อ (ว่างเปล่า)
+--   บรรทัด 506  Can't get window "MXF-50" of process "Final Cut Pro"
+--
+-- แปลว่าชื่อของหน้าต่างนี้ไม่แน่นอน บางจังหวะเป็น MXF-50
+-- บางจังหวะกลายเป็นค่าว่าง และบางจังหวะมันเป็นแผ่นซ้อนบนหน้าต่างหลัก
+--
+-- การอ้างถึงมันด้วยชื่อจึงพังเป็นระยะ ๆ อย่างที่เห็นในบันทึก
+-- รุ่นนี้เปลี่ยนไปหาด้วยของที่อยู่ข้างในแทน แล้วจำเป็นลำดับที่
+-- ปุ่ม Next… มีเฉพาะในหน้าต่างของ Share เท่านั้น จึงใช้เป็นตัวชี้ได้ดี
+-- ============================================================
+
+on windowHasMarker(windowIndex)
+	set marker to false
+	try
+		tell application "System Events"
+			tell process fcpName
+				tell window windowIndex
+					repeat with a in UI elements
+						if my matchesAny(a, shareMarkers, true) then
+							set marker to true
+							exit repeat
+						end if
+						repeat with b in UI elements of a
+							if my matchesAny(b, shareMarkers, true) then
+								set marker to true
+								exit repeat
+							end if
+							repeat with c in UI elements of b
+								if my matchesAny(c, shareMarkers, true) then
+									set marker to true
+									exit repeat
+								end if
+							end repeat
+							if marker then exit repeat
+						end repeat
+						if marker then exit repeat
+					end repeat
+				end tell
+			end tell
+		end tell
+	end try
+	return marker
+end windowHasMarker
+
+
+on findShareWindow()
+	-- คืนค่าเป็นลำดับที่ของหน้าต่าง Share หรือ 0 ถ้าไม่เจอ
+	set foundIndex to 0
+	try
+		with timeout of 25 seconds
+			tell application "System Events"
+				tell process fcpName
+					set howMany to count of windows
+				end tell
+			end tell
+		end timeout
+		repeat with i from 1 to howMany
+			if my windowHasMarker(i) then
+				set foundIndex to i
+				exit repeat
+			end if
+		end repeat
+	on error errorText
+		logLine("หาหน้าต่าง Share ไม่สำเร็จ " & errorText)
+	end try
+	if foundIndex is 0 then
+		logLine("ไม่เจอหน้าต่างของ Share เลย")
+	end if
+	return foundIndex
+end findShareWindow
+
+
+on collectAt(windowIndex, wantedList, mustBeExact)
 	--
-	-- เก็บอ้างอิงของทุกชิ้นที่ชื่อตรงกับที่ขอ เรียงตามลำดับที่เจอบนหน้าจอ
+	-- เก็บอ้างอิงของทุกชิ้นที่ชื่อหรือค่าตรงกับที่ขอ เรียงตามลำดับที่เจอ
 	--
-	-- ลำดับสำคัญมาก เพราะเราใช้ลำดับเป็นตัวบอกว่าปุ่มไหนของแทร็กไหน
+	-- ลำดับสำคัญมาก เพราะใช้ลำดับเป็นตัวบอกว่าปุ่มไหนของแทร็กไหน
 	-- ปุ่ม Add Role ชิ้นแรกเป็นของ video track
-	-- ชิ้นที่สองเป็นของ audio track-1 ชิ้นที่สามเป็นของ audio track-2 ไล่ไปเรื่อย ๆ
+	-- ชิ้นที่สองเป็นของ audio track-1 ไล่ลงไปเรื่อย ๆ
 	--
 	-- ค้นลึกห้าชั้นแล้วหยุด ไม่ใช้ entire contents เพราะเคยทำให้ค้างยาว
 	--
 	set found to {}
+	if windowIndex is 0 then return {}
 	try
 		with timeout of 30 seconds
 			tell application "System Events"
 				tell process fcpName
-					if not (exists window destinationName) then return {}
-					tell window destinationName
+					tell window windowIndex
 						repeat with a in UI elements
-							if my matchesLabel(a, wantedText, mustBeExact) then set end of found to (contents of a)
+							if my matchesAny(a, wantedList, mustBeExact) then set end of found to (contents of a)
 							repeat with b in UI elements of a
-								if my matchesLabel(b, wantedText, mustBeExact) then set end of found to (contents of b)
+								if my matchesAny(b, wantedList, mustBeExact) then set end of found to (contents of b)
 								repeat with c in UI elements of b
-									if my matchesLabel(c, wantedText, mustBeExact) then set end of found to (contents of c)
+									if my matchesAny(c, wantedList, mustBeExact) then set end of found to (contents of c)
 									repeat with d in UI elements of c
-										if my matchesLabel(d, wantedText, mustBeExact) then set end of found to (contents of d)
+										if my matchesAny(d, wantedList, mustBeExact) then set end of found to (contents of d)
 										repeat with f in UI elements of d
-											if my matchesLabel(f, wantedText, mustBeExact) then set end of found to (contents of f)
+											if my matchesAny(f, wantedList, mustBeExact) then set end of found to (contents of f)
+											repeat with g in UI elements of f
+												if my matchesAny(g, wantedList, mustBeExact) then set end of found to (contents of g)
+											end repeat
 										end repeat
 									end repeat
 								end repeat
@@ -1371,20 +1466,20 @@ on collectMatching(destinationName, wantedText, mustBeExact)
 			end tell
 		end timeout
 	on error errorText
-		logLine("ค้นหาชิ้นชื่อ " & wantedText & " พังกลางทาง " & errorText)
+		logLine("ค้นหาชิ้นส่วนพังกลางทาง " & errorText)
 	end try
 	return found
-end collectMatching
+end collectAt
 
 
-on countAudioTracks(destinationName)
-	return count of my collectMatching(destinationName, "audio track", false)
-end countAudioTracks
+on countAudioTracksAt(windowIndex)
+	return count of my collectAt(windowIndex, {"audio track"}, false)
+end countAudioTracksAt
 
 
-on clickNamedOnce(destinationName, wantedText)
-	-- กดปุ่มชิ้นแรกที่ชื่อตรงกับที่ขอ
-	set candidates to my collectMatching(destinationName, wantedText, true)
+on clickFirstAt(windowIndex, wantedText)
+	-- กดชิ้นแรกที่ชื่อตรงกับที่ขอ
+	set candidates to my collectAt(windowIndex, {wantedText}, true)
 	if (count of candidates) is 0 then
 		logLine("ไม่เจอปุ่มชื่อ " & wantedText)
 		return false
@@ -1393,22 +1488,37 @@ on clickNamedOnce(destinationName, wantedText)
 		with timeout of uiTimeout seconds
 			tell application "System Events" to click (item 1 of candidates)
 		end timeout
-		delay 0.7
+		delay 0.8
 		return true
 	on error errorText
 		logLine("กดปุ่ม " & wantedText & " ไม่สำเร็จ " & errorText)
 		return false
 	end try
-end clickNamedOnce
+end clickFirstAt
 
 
-on pickFromMenuOf(elementRef, itemName)
+on openMenuAndPick(elementRef, itemName)
 	--
-	-- เปิดเมนูของชิ้นนี้แล้วเลือกรายการที่ต้องการ
+	-- กดเปิดเมนูก่อน แล้วค่อยอ่านรายการข้างใน
 	--
-	-- อ่านรายชื่อในเมนูก่อนเสมอ ยังไม่กดอะไรทั้งนั้น
-	-- ถ้าไม่มีรายการที่ขอ ก็ไม่ต้องกด จะได้ไม่เผลอไปกดโดนอย่างอื่น
+	-- รุ่นก่อนอ่านรายการก่อนโดยยังไม่กด บันทึกบรรทัด 505 ตอบชัดแล้วว่าไม่ได้
+	--   ชิ้นนี้ไม่มีเมนูให้เปิด
+	-- แปลว่าปุ่มแบบนี้ยังไม่สร้างเมนูขึ้นมาจนกว่าจะถูกกด
+	-- จึงต้องกลับลำดับ กดก่อน อ่านทีหลัง
 	--
+	-- ถ้าอ่านแล้วไม่มีรายการที่ต้องการ จะกด Escape ปิดเมนูทิ้งทันที
+	-- จะได้ไม่มีเมนูค้างเปิดไปขวางขั้นตอนถัดไป
+	--
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events" to click elementRef
+		end timeout
+	on error errorText
+		logLine("กดเปิดเมนูไม่สำเร็จ " & errorText)
+		return false
+	end try
+	delay 0.8
+
 	set itemNames to {}
 	try
 		with timeout of uiTimeout seconds
@@ -1416,156 +1526,152 @@ on pickFromMenuOf(elementRef, itemName)
 				set itemNames to name of every menu item of menu 1 of elementRef
 			end tell
 		end timeout
-	on error
-		logLine("ชิ้นนี้ไม่มีเมนูให้เปิด")
-		return false
 	end try
+
+	if itemNames is {} then
+		logLine("กดเปิดแล้วยังอ่านรายการในเมนูไม่ได้")
+		my pressEscape()
+		return false
+	end if
 
 	if itemNames does not contain itemName then
 		logLine("ในเมนูไม่มี " & itemName & " มีแต่ " & (itemNames as string))
+		my pressEscape()
 		return false
 	end if
 
 	try
 		with timeout of uiTimeout seconds
-			tell application "System Events"
-				click elementRef
-				delay 0.5
-				click menu item itemName of menu 1 of elementRef
-			end tell
+			tell application "System Events" to click menu item itemName of menu 1 of elementRef
 		end timeout
-		delay 0.6
+		delay 0.7
 		logLine("ใส่ " & itemName & " แล้ว")
 		return true
 	on error errorText
 		logLine("เลือก " & itemName & " ไม่สำเร็จ " & errorText)
-		try
-			tell application "System Events" to key code 53
-		end try
+		my pressEscape()
 		return false
 	end try
-end pickFromMenuOf
+end openMenuAndPick
 
 
-on addRolesToTrack(destinationName, trackNumber)
+on pressEscape()
+	try
+		with timeout of 5 seconds
+			tell application "System Events" to key code 53
+		end timeout
+	end try
+	delay 0.3
+end pressEscape
+
+
+on addRolesToTrack(trackNumber)
 	--
-	-- ใส่ Role สามอย่างให้แทร็กเสียงที่เพิ่งสร้าง
+	-- ใส่ Role สามอย่างให้แทร็กเสียงหนึ่งแทร็ก
 	--
 	-- ตำแหน่งของปุ่ม Add Role นับรวม video track ที่อยู่บนสุดด้วย
 	-- ปุ่มของ audio track ที่หนึ่ง จึงเป็นปุ่มชิ้นที่สอง
 	--
+	-- ต้องค้นหาปุ่มใหม่ทุกครั้งก่อนกด เพราะกดหนึ่งครั้งหน้าต่างถูกสร้างใหม่
+	-- ของที่จำไว้จากรอบก่อนจะใช้ไม่ได้อีกแล้ว
+	--
 	set wantedRoles to {"All Dialogue", "All Effects", "All Music"}
 	set position to trackNumber + 1
+	set addedCount to 0
 
 	repeat with roleName in wantedRoles
-		set addButtons to my collectMatching(destinationName, "Add Role", true)
+		set windowIndex to my findShareWindow()
+		if windowIndex is 0 then
+			logLine("หน้าต่างหายไประหว่างใส่ Role ให้แทร็กที่ " & trackNumber)
+			return addedCount
+		end if
+		set addButtons to my collectAt(windowIndex, {"Add Role"}, true)
 		if (count of addButtons) < position then
 			logLine("ไม่เจอปุ่ม Add Role ชิ้นที่ " & position & " มีอยู่ " & (count of addButtons) & " ชิ้น")
-			return false
+			return addedCount
 		end if
-		my pickFromMenuOf(item position of addButtons, roleName as string)
+		if my openMenuAndPick(item position of addButtons, roleName as string) then
+			set addedCount to addedCount + 1
+		end if
 	end repeat
-	return true
+	return addedCount
 end addRolesToTrack
 
 
-on setChannelsOfTrack(destinationName, trackNumber, wantedValue)
+on ensureChannelsStereo(trackNumber)
 	--
-	-- ตั้งช่อง Channels ของแทร็กให้เป็น Stereo
+	-- ดูว่าช่อง Channels ของแทร็กนี้เป็น Stereo แล้วหรือยัง
 	--
-	-- หาช่องนี้ด้วยวิธีดูว่าใครมีรายการชื่อ Stereo อยู่ข้างใน
-	-- ไม่ใช้ชื่อของช่อง เพราะในภาพ คำว่า Channels เป็นข้อความข้าง ๆ
-	-- ไม่ได้เป็นชื่อของตัวช่องเอง
+	-- หาช่องนี้จากค่าที่มันโชว์อยู่ ไม่ใช่จากชื่อ
+	-- เพราะในภาพ คำว่า Channels เป็นข้อความข้าง ๆ ไม่ใช่ชื่อของตัวช่อง
+	-- และรุ่นก่อนหาด้วยการอ่านเมนูก็ไม่สำเร็จ เพราะเมนูยังไม่ถูกสร้าง
 	--
-	set boxes to my collectWithMenuItem(destinationName, wantedValue)
+	set windowIndex to my findShareWindow()
+	if windowIndex is 0 then return false
+
+	set boxes to my collectAt(windowIndex, {"Stereo", "Mono", "Surround"}, true)
 	if (count of boxes) < trackNumber then
-		logLine("ไม่เจอช่อง Channels ของแทร็กที่ " & trackNumber)
+		logLine("ไม่เจอช่อง Channels ของแทร็กที่ " & trackNumber & " เจออยู่ " & (count of boxes) & " ช่อง")
 		return false
 	end if
-	set theBox to item trackNumber of boxes
 
-	set nowValue to ""
-	try
-		with timeout of uiTimeout seconds
-			tell application "System Events" to set nowValue to (value of theBox) as string
-		end timeout
-	end try
-	if nowValue is wantedValue then
-		logLine("Channels ของแทร็กที่ " & trackNumber & " เป็น " & wantedValue & " อยู่แล้ว")
+	set theBox to item trackNumber of boxes
+	if my labelOf(theBox) is "Stereo" then
+		logLine("Channels ของแทร็กที่ " & trackNumber & " เป็น Stereo อยู่แล้ว")
 		return true
 	end if
-	return my pickFromMenuOf(theBox, wantedValue)
-end setChannelsOfTrack
+	return my openMenuAndPick(theBox, "Stereo")
+end ensureChannelsStereo
 
 
-on collectWithMenuItem(destinationName, itemName)
-	-- เก็บทุกชิ้นที่มีรายการชื่อนี้อยู่ในเมนูของมัน โดยยังไม่กดอะไรเลย
-	set found to {}
-	try
-		with timeout of 30 seconds
-			tell application "System Events"
-				tell process fcpName
-					if not (exists window destinationName) then return {}
-					tell window destinationName
-						repeat with a in UI elements
-							if my menuHas(a, itemName) then set end of found to (contents of a)
-							repeat with b in UI elements of a
-								if my menuHas(b, itemName) then set end of found to (contents of b)
-								repeat with c in UI elements of b
-									if my menuHas(c, itemName) then set end of found to (contents of c)
-									repeat with d in UI elements of c
-										if my menuHas(d, itemName) then set end of found to (contents of d)
-									end repeat
-								end repeat
-							end repeat
-						end repeat
-					end tell
-				end tell
-			end tell
-		end timeout
-	on error errorText
-		logLine("ค้นหาช่องที่มีรายการ " & itemName & " พังกลางทาง " & errorText)
-	end try
-	return found
-end collectWithMenuItem
-
-
-on menuHas(elementRef, itemName)
-	try
-		tell application "System Events"
-			return (name of every menu item of menu 1 of elementRef) contains itemName
-		end tell
-	on error
+on openRolesTabAt(windowIndex)
+	-- กดแท็บ Roles ในหน้าต่างที่ระบุ
+	set clicked to false
+	set tabs to my collectAt(windowIndex, {"Roles"}, true)
+	if (count of tabs) is 0 then
+		logLine("ไม่เจอแท็บชื่อ Roles ในหน้าต่างนี้")
 		return false
+	end if
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events" to click (item 1 of tabs)
+		end timeout
+		set clicked to true
+	on error errorText
+		logLine("กดแท็บ Roles ไม่สำเร็จ " & errorText)
 	end try
-end menuHas
+	delay 1
+	return clicked
+end openRolesTabAt
 
 
 on buildRolesLayout(destinationName)
 	--
 	-- สร้างแทร็กเสียงสามแทร็กตามภาพตัวอย่างที่ผู้ใช้ส่งมา
 	--
-	-- คืนค่า true เมื่อได้ครบสามแทร็ก
+	-- ทุกขั้นตอนหาหน้าต่างใหม่ก่อนเสมอ ไม่จำลำดับที่ไว้ข้ามขั้น
+	-- เพราะบันทึกจริงแสดงให้เห็นว่าหน้าต่างนี้เปลี่ยนชื่อและเปลี่ยนตำแหน่งได้
 	--
-	if not waitForWindowNamed(destinationName, 15) then
-		logLine("ไม่เจอหน้าต่าง " & destinationName & " จึงสร้างแทร็กเสียงไม่ได้")
+	set windowIndex to 0
+	repeat with waited from 1 to 15
+		set windowIndex to my findShareWindow()
+		if windowIndex is not 0 then exit repeat
+		delay 1
+	end repeat
+	if windowIndex is 0 then
+		logLine("ไม่เจอหน้าต่างของ " & destinationName & " จึงสร้างแทร็กเสียงไม่ได้")
 		return false
 	end if
-	if not openRolesTab(destinationName) then
-		logLine("เปิดแท็บ Roles ไม่ได้ จึงสร้างแทร็กเสียงไม่ได้")
+	logLine("เจอหน้าต่างของ Share เป็นหน้าต่างที่ " & windowIndex)
+
+	if not my openRolesTabAt(windowIndex) then
 		dumpWindowTree(destinationName)
 		return false
 	end if
 
-	set trackCount to my countAudioTracks(destinationName)
+	set windowIndex to my findShareWindow()
+	set trackCount to my countAudioTracksAt(windowIndex)
 	logLine("ตอนนี้มีแทร็กเสียงอยู่ " & trackCount & " แทร็ก")
-
-	if trackCount is 0 then
-		-- อ่านไม่เจอเลยแม้แต่แทร็กเดียว แปลว่าอาจอ่านหน้าต่างนี้ไม่ออก
-		-- จดผังไว้ก่อน แล้วค่อยลองต่อ ถ้าเดินต่อแล้วพลาดจะได้รู้สาเหตุ
-		logLine("อ่านแทร็กเสียงไม่เจอเลย จดผังหน้าต่างไว้ก่อน")
-		dumpWindowTree(destinationName)
-	end if
 
 	if trackCount ≥ 3 then
 		say("มีแทร็กเสียงครบสามแทร็กแล้ว")
@@ -1573,17 +1679,24 @@ on buildRolesLayout(destinationName)
 	end if
 
 	repeat with trackNumber from (trackCount + 1) to 3
-		if not my clickNamedOnce(destinationName, "Add Audio Track") then
+		set windowIndex to my findShareWindow()
+		if windowIndex is 0 then
+			logLine("หน้าต่างหายไปก่อนจะเพิ่มแทร็กที่ " & trackNumber)
+			return false
+		end if
+		if not my clickFirstAt(windowIndex, "Add Audio Track") then
 			logLine("กดปุ่ม Add Audio Track ไม่ได้ หยุดการสร้างแทร็ก")
 			dumpWindowTree(destinationName)
 			return false
 		end if
 		logLine("เพิ่มแทร็กเสียงที่ " & trackNumber & " แล้ว")
-		my setChannelsOfTrack(destinationName, trackNumber, "Stereo")
-		my addRolesToTrack(destinationName, trackNumber)
+		my ensureChannelsStereo(trackNumber)
+		set addedCount to my addRolesToTrack(trackNumber)
+		logLine("แทร็กที่ " & trackNumber & " ใส่ Role ได้ " & addedCount & " จาก 3")
 	end repeat
 
-	set finalCount to my countAudioTracks(destinationName)
+	set windowIndex to my findShareWindow()
+	set finalCount to my countAudioTracksAt(windowIndex)
 	logLine("สร้างเสร็จแล้ว มีแทร็กเสียง " & finalCount & " แทร็ก")
 	if finalCount ≥ 3 then
 		say("ตั้งแทร็กเสียงครบสามแทร็กแล้ว")
@@ -1592,6 +1705,7 @@ on buildRolesLayout(destinationName)
 	dumpWindowTree(destinationName)
 	return false
 end buildRolesLayout
+
 
 
 on setRolesTo(destinationName, wantedSetting)
@@ -1702,9 +1816,17 @@ on shareTo(destinationName, humanName, rolesSetting)
 		end if
 
 		-- รอหน้าต่างของปลายทางโผล่ก่อน
-		-- ผลทดสอบบนเครื่องจริงบอกว่าหน้าต่างชื่อตรงกับปลายทาง เช่น MXF-50
-		-- แต่ใช้เวลาโผล่ ถ้ารีบทำงานต่อจะเจอแต่หน้าต่างเปล่า
-		waitForWindowNamed(destinationName, 15)
+		--
+		-- เดิมรอด้วยชื่อหน้าต่าง แล้วบันทึกจริงขึ้นว่า
+		--   รอหน้าต่าง MXF-50 ไม่เจอ หน้าต่างที่มีคือ Final Cut Pro
+		-- ซ้ำ ๆ ทุกรอบ แปลว่าหน้าต่างนี้ไม่ได้ชื่อตามปลายทางเสมอไป
+		-- บางครั้งเป็นแผ่นซ้อนบนหน้าต่างหลัก บางครั้งชื่อเป็นค่าว่าง
+		--
+		-- จึงเปลี่ยนมารอด้วยของที่อยู่ข้างในหน้าต่างแทน ซึ่งไม่เปลี่ยนไปมา
+		repeat with waited from 1 to 15
+			if my findShareWindow() is not 0 then exit repeat
+			delay 1
+		end repeat
 
 		-- ตั้งค่าเสียงให้ถูกก่อน ถ้าปลายทางนี้ต้องใช้
 		--
