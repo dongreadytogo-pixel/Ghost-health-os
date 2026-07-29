@@ -38,6 +38,9 @@ global prefsPath
 global logPath
 global statusPath
 global channelsPath
+global runLogPath
+global watcherPath
+global gapPath
 
 
 on run argv
@@ -51,6 +54,9 @@ on run argv
 	set logPath to workPath & "/บันทึกการทำงาน.txt"
 	set statusPath to workPath & "/สถานะล่าสุด.txt"
 	set channelsPath to workPath & "/จำนวนช่องเสียง.txt"
+	set runLogPath to workPath & "/กำลังทำงาน.txt"
+	set watcherPath to workPath & "/แสดงความคืบหน้า.command"
+	set gapPath to workPath & "/ค่าช่องว่าง.txt"
 	logLine("===== เริ่มรอบใหม่ " & ((current date) as string) & " =====")
 	showMainMenu()
 end run
@@ -70,8 +76,19 @@ end run
 
 
 on say(stepText)
-	-- บันทึกลงไฟล์ และแจ้งเตือนบนหน้าจอแบบไม่ขวางการทำงาน
+	--
+	-- บันทึกลงไฟล์ แจ้งเตือนบนหน้าจอ และเขียนลงหน้าต่างความคืบหน้าด้วย
+	--
+	-- ข้อสุดท้ายสำคัญ ผู้ใช้ขอไว้ว่าทุกการทำงานต้องโชว์ว่าทำอะไรอยู่
+	-- ขั้นตอนย่อยที่อยู่ลึก ๆ ก็ต้องขึ้นในหน้าต่างนั้นเหมือนกัน
+	-- ไม่ใช่เฉพาะขั้นตอนใหญ่
+	--
 	logLine(stepText)
+	try
+		set stamp to do shell script "date +%H:%M:%S"
+		do shell script "echo " & quoted form of ("[" & stamp & "]  " & stepText) & ¬
+			" >> " & quoted form of runLogPath
+	end try
 	try
 		do shell script "echo " & quoted form of stepText & " > " & quoted form of statusPath
 	end try
@@ -90,6 +107,90 @@ on logLine(theText)
 end logLine
 
 
+
+-- ============================================================
+-- หน้าต่างแสดงความคืบหน้า
+-- ------------------------------------------------------------
+-- ผู้ใช้ขอไว้ว่า กดปุ่มเดียวแล้วรันเองหมด และต้องเห็นตลอดว่าทำอะไรอยู่
+-- คล้ายหน้าต่างของโปรแกรมดาวน์โหลด
+--
+-- ทำไมไม่ใช้กล่องข้อความแบบเดิม
+-- กล่องข้อความของ macOS ขวางการทำงาน และแย่งโฟกัสจาก Final Cut Pro
+-- ที่ผ่านมาจึงต้องตั้งให้มันหายไปเองทุกสี่วินาที ซึ่งกะพริบและอ่านยาก
+--
+-- วิธีที่ใช้แทน
+-- โปรแกรมเขียนทุกขั้นตอนลงไฟล์ข้อความไฟล์หนึ่ง
+-- แล้วเปิดหน้าต่างเล็ก ๆ ที่คอยอ่านไฟล์นั้นซ้ำทุกวินาที
+-- หน้าต่างนั้นจึงอัปเดตตัวเองตลอดเวลา และไม่ขวางอะไรเลย
+--
+-- ใช้วิธีเปิดไฟล์คำสั่งด้วย open ไม่ได้สั่งงาน Terminal ตรง ๆ
+-- จะได้ไม่ต้องขออนุญาตควบคุมโปรแกรมอื่นเพิ่มอีกตัว
+-- ============================================================
+
+on startProgressWindow(headline)
+	-- เริ่มไฟล์บันทึกของรอบนี้ใหม่ทุกครั้ง จะได้ไม่ปนกับรอบก่อน
+	try
+		do shell script "echo " & quoted form of headline & " > " & quoted form of runLogPath
+	end try
+
+	-- สร้างไฟล์คำสั่งเล็ก ๆ ที่คอยอ่านไฟล์นั้นซ้ำ ๆ แล้วจบเองเมื่อเห็นคำว่าจบ
+	set watcherText to "#!/bin/bash" & linefeed & ¬
+		"LOG=" & quoted form of runLogPath & linefeed & ¬
+		"while true; do" & linefeed & ¬
+		"  clear" & linefeed & ¬
+		"  cat \"$LOG\" 2>/dev/null" & linefeed & ¬
+		"  if grep -q '@@จบ@@' \"$LOG\" 2>/dev/null; then break; fi" & linefeed & ¬
+		"  sleep 1" & linefeed & ¬
+		"done" & linefeed & ¬
+		"echo" & linefeed & ¬
+		"echo 'จบแล้ว ปิดหน้าต่างนี้ได้เลย'" & linefeed
+
+	try
+		set handle to open for access (POSIX file watcherPath) with write permission
+		set eof handle to 0
+		write watcherText to handle as «class utf8»
+		close access handle
+		do shell script "chmod +x " & quoted form of watcherPath
+		do shell script "open " & quoted form of watcherPath
+	on error e
+		logLine("เปิดหน้าต่างความคืบหน้าไม่สำเร็จ " & e)
+	end try
+end startProgressWindow
+
+
+on step(stepText)
+	--
+	-- บอกหนึ่งขั้นตอนใหญ่ ลงหน้าต่างความคืบหน้าและไฟล์บันทึกถาวร
+	--
+	-- ต่างจาก say ตรงที่ไม่ส่งการแจ้งเตือนขึ้นมุมจอ
+	-- เพราะขั้นตอนใหญ่มีหลายขั้น ถ้าเด้งทุกขั้นจะกวนเกินไป
+	--
+	logLine(stepText)
+	try
+		set stamp to do shell script "date +%H:%M:%S"
+		do shell script "echo " & quoted form of ("[" & stamp & "]  " & stepText) & ¬
+			" >> " & quoted form of runLogPath
+	end try
+end step
+
+
+on stepBar(doneCount, totalCount, note)
+	-- บรรทัดความคืบหน้าแบบมีแถบ ให้ดูออกในแวบเดียวว่าถึงไหนแล้ว
+	set percent to 0
+	if totalCount > 0 then set percent to round (doneCount * 100 / totalCount)
+	my step(bar(percent) & "  " & percent & "%   ได้ " & doneCount & " จาก " & totalCount & " ไฟล์   " & note)
+end stepBar
+
+
+on endProgressWindow(summaryText)
+	-- ใส่คำว่าจบลงไป หน้าต่างที่คอยอ่านอยู่จะหยุดเองเมื่อเห็นบรรทัดนี้
+	try
+		do shell script "echo " & quoted form of ("" & return & summaryText & return & "@@จบ@@") & ¬
+			" >> " & quoted form of runLogPath
+	end try
+end endProgressWindow
+
+
 -- ============================================================
 -- หน้าจอหลัก
 -- ============================================================
@@ -100,11 +201,12 @@ on showMainMenu()
 		set choice to button returned of (display dialog ¬
 			"เปิดงานข่าวใน Final Cut Pro" & return & ¬
 			"แล้วคลิกที่ชื่องานนั้นหนึ่งครั้ง" & return & return & ¬
-			"จากนั้นกดปุ่ม เอ็กพอร์ต" & return & return & ¬
-			"โปรแกรมจะแยกทุกก้อน สั่งเอ็กพอร์ต" & return & ¬
-			"แล้วเก็บไฟล์มาไว้ในโฟลเดอร์ที่คุณเลือกให้เอง" ¬
-			buttons {"ปิดโปรแกรม", "เมนูอื่น", "เอ็กพอร์ต"} ¬
-			default button "เอ็กพอร์ต" with title appTitle)
+			"จากนั้นกด RUN แล้วเลือกโฟลเดอร์ปลายทาง" & return & return & ¬
+			"หลังจากนั้นไม่ต้องกดอะไรอีกเลย" & return & ¬
+			"โปรแกรมจะแยกก้อน สั่งเอ็กพอร์ต และเก็บไฟล์ให้เอง" & return & ¬
+			"พร้อมเปิดหน้าต่างบอกทุกขั้นตอนที่กำลังทำอยู่" ¬
+			buttons {"ปิดโปรแกรม", "เมนูอื่น", "RUN"} ¬
+			default button "RUN" with title appTitle)
 
 		if choice is "ปิดโปรแกรม" then
 			logLine("ผู้ใช้ปิดโปรแกรม")
@@ -160,7 +262,8 @@ on showToolMenu()
 			"ดูค่าที่ตั้งไว้  อ่านค่า Roles ที่เครื่องนี้บันทึกไว้ในไฟล์", ¬
 			"จำค่านี้ไว้  ถ่ายสำเนาค่าที่ตั้งถูกแล้ว เก็บไว้ใช้ทีหลัง", ¬
 			"ใส่ค่าที่จำไว้กลับ  ใช้เมื่อค่า Roles เปลี่ยนไปเอง", ¬
-			"ตรวจเสียง  เกณฑ์จำนวน Role ขั้นต่ำ ตอนนี้ " & requiredChannels() & "  ศูนย์คือไม่ตรวจ"}
+			"ตรวจเสียง  เกณฑ์จำนวน Role ขั้นต่ำ ตอนนี้ " & requiredChannels() & "  ศูนย์คือไม่ตรวจ", ¬
+			"ปรับจำนวนก้อน  ค่าช่องว่างตอนนี้ " & savedGapSeconds() & " วินาที"}
 		activate
 		set picked to (choose from list menuItems ¬
 			with title appTitle ¬
@@ -182,11 +285,31 @@ on showToolMenu()
 			rememberRolesSettings()
 		else if choice starts with "ใส่ค่าที่จำไว้กลับ" then
 			restoreRolesSettings()
-		else
+		else if choice starts with "ตรวจเสียง" then
 			askRequiredChannels()
+		else
+			changeGapSeconds()
 		end if
 	end repeat
 end showToolMenu
+
+
+on changeGapSeconds()
+	--
+	-- ปรับว่าช่องว่างกี่วินาทีจึงนับเป็นก้อนใหม่
+	--
+	-- เดิมโปรแกรมถามทุกรอบก่อนเอ็กพอร์ต ซึ่งขัดกับการกดปุ่มเดียวแล้วจบ
+	-- ย้ายมาไว้ตรงนี้ ตั้งครั้งเดียวแล้วจำไว้ให้เลย
+	--
+	set current to savedGapSeconds()
+	set answer to askGapSeconds(current)
+	if answer is "" then return
+	do shell script "echo " & quoted form of answer & " > " & quoted form of gapPath
+	logLine("ตั้งค่าช่องว่างเป็น " & answer & " วินาที")
+	activate
+	display dialog "บันทึกแล้ว ใช้ค่าช่องว่าง " & answer & " วินาที" ¬
+		buttons {"ตกลง"} default button "ตกลง" with title appTitle
+end changeGapSeconds
 
 
 on putOnDesktop(sourcePath, niceName)
@@ -702,32 +825,43 @@ end collectLeftovers
 -- ============================================================
 
 on runWorkflow()
+	--
+	-- กดปุ่มเดียวแล้วรันเองจนจบ
+	--
+	-- ผู้ใช้ขอไว้ชัดว่า หลังเลือกโฟลเดอร์แล้ว ไม่ต้องถามอะไรอีกเลย
+	-- รุ่นก่อนมีหน้าต่างให้กดยืนยันถึงสามจุดระหว่างทาง
+	-- ซึ่งขัดกับจุดประสงค์ของโปรแกรม คือให้คนไม่ต้องมานั่งเฝ้า
+	--
+	-- ทุกจุดที่เคยถาม เปลี่ยนเป็นเขียนบอกในหน้าต่างความคืบหน้าแทน
+	-- ถ้าจำนวนก้อนไม่ถูก ผู้ใช้เห็นได้ทันทีในหน้าต่างนั้น
+	-- แล้วค่อยไปปรับค่าช่องว่างใน เครื่องมือช่าง แล้วสั่งใหม่
+	--
 	try
 		if not ensureFinalCutRunning() then return
 		if not ensureAccessibility() then return
 
 		set outFolder to chooseOutputFolder()
 		if outFolder is "" then return
-		say("โฟลเดอร์ปลายทาง " & outFolder)
 
+		startProgressWindow("แยกงานข่าว  กำลังทำงาน" & return & ¬
+			"ปล่อยไว้ได้เลย ไม่ต้องกดอะไรอีก" & return & ¬
+			"หน้าต่างนี้จะบอกทุกขั้นตอนเอง" & return & ¬
+			"----------------------------------------")
+
+		step("โฟลเดอร์ปลายทาง " & outFolder)
+
+		step("ขั้นที่ 1  ขอไทม์ไลน์จาก Final Cut Pro")
 		set xmlPath to fetchTimeline(outFolder)
-		if xmlPath is "" then return
+		if xmlPath is "" then
+			endProgressWindow("หยุดแล้ว ไม่ได้ไทม์ไลน์มา")
+			return
+		end if
+		step("ได้ไทม์ไลน์มาแล้ว")
 
-		set gapSeconds to "0.2"
-		repeat
-			set reportText to runBrief(xmlPath, gapSeconds)
-			activate
-		set answer to button returned of (display dialog ¬
-				reportText & return & return & "จำนวนก้อนถูกต้องไหม" ¬
-				buttons {"ยกเลิก", "ปรับจำนวนก้อน", "ถูกต้อง ไปต่อ"} ¬
-				default button "ถูกต้อง ไปต่อ" with title appTitle)
-			if answer is "ยกเลิก" then return
-			if answer is "ถูกต้อง ไปต่อ" then exit repeat
-			set gapSeconds to askGapSeconds(gapSeconds)
-			if gapSeconds is "" then return
-		end repeat
+		set gapSeconds to savedGapSeconds()
+		step("ขั้นที่ 2  แยกก้อน ใช้ค่าช่องว่าง " & gapSeconds & " วินาที")
+		step(runBrief(xmlPath, gapSeconds))
 
-		say("กำลังแยกก้อน")
 		set splitPath to (workPath & "/แยกแล้ว.fcpxml")
 		set eventName to "แยกงาน " & (do shell script "date +%d-%m' '%H%M")
 		runSplit(xmlPath, gapSeconds, splitPath, eventName)
@@ -736,30 +870,13 @@ on runWorkflow()
 		do shell script "/usr/bin/env python3 " & quoted form of (resourcesPath & "/tools/fcpxml_segments.py") & ¬
 			" " & quoted form of xmlPath & " --min-gap " & gapSeconds & " --names > " & quoted form of namesFile
 		set totalFiles to (do shell script "grep -c . " & quoted form of namesFile) as integer
-		say("แยกเสร็จ ต้องได้ทั้งหมด " & totalFiles & " ไฟล์")
+		step("แยกเสร็จ ต้องได้ทั้งหมด " & totalFiles & " ไฟล์")
 
-		-- ตรวจเสียงก่อนเอ็กพอร์ต
-		--
-		-- ไฟล์ MXF-50 ต้องมีเสียงครบทุกช่อง
-		-- แต่ Final Cut Pro สร้างช่องเสียงให้เฉพาะ Role ที่มีของอยู่จริงในก้อนนั้น
-		-- ถ้าก้อนไหนไม่มีคลิปที่ใช้ Role ครบ ไฟล์ของก้อนนั้นก็จะขาดช่องไป
-		-- ทั้งที่ตั้งค่าหน้าต่างเอ็กพอร์ตไว้ถูกต้องแล้ว
-		--
-		-- ตรวจตรงนี้จึงคุ้มมาก เพราะรู้ก่อนเสียเวลาเอ็กพอร์ตทั้งชุด
-		if not checkAudioBeforeExport(xmlPath, gapSeconds) then return
+		step("ขั้นที่ 3  ตรวจเสียงของแต่ละก้อน")
+		checkAudioBeforeExport(xmlPath, gapSeconds)
 
-		say("กำลังนำงานย่อยกลับเข้า Final Cut Pro")
+		step("ขั้นที่ 4  นำงานย่อยกลับเข้า Final Cut Pro")
 		importTimeline(splitPath)
-
-		activate
-		activate
-	display dialog ¬
-			"กำลังจะสั่งเอ็กพอร์ต" & return & return & ¬
-			"โปรแกรมจะสั่ง Share สองรอบ" & return & ¬
-			"ปล่อยให้ Final Cut Pro เซฟที่ไหนก็ได้ ไม่ต้องสนใจ" & return & ¬
-			"เดี๋ยวโปรแกรมจะตามไปเก็บไฟล์มาไว้ที่" & return & outFolder & return & return & ¬
-			"ระหว่างนี้อย่าแตะเมาส์และคีย์บอร์ด" ¬
-			buttons {"เริ่มเลย"} default button 1 with title appTitle
 
 		-- ไม่ไปยุ่งกับการเลือกงานเลย
 		--
@@ -769,18 +886,25 @@ on runWorkflow()
 		--
 		-- สั่ง Share สองรอบติดกันเลย ไม่ต้องรอไฟล์รอบแรกเสร็จ
 		-- เพราะ Final Cut Pro รับงานเข้าคิวแล้วทยอยทำเองพร้อมกันได้
+		step("ขั้นที่ 5  สั่งสร้างไฟล์ mov ทุกก้อนพร้อมกัน")
 		shareTo("Export File", "ไฟล์ mov", "")
+
+		step("ขั้นที่ 6  สั่งสร้างไฟล์ mxf ทุกก้อนพร้อมกัน")
 		shareTo("MXF-50", "ไฟล์ mxf", "3 Stereo")
 
+		step("ขั้นที่ 7  เฝ้าดูและเก็บไฟล์เข้าโฟลเดอร์ปลายทาง")
 		monitorAndCollect(outFolder, namesFile, totalFiles)
-		say("จบรอบการทำงาน")
 
 	on error errorMessage number errorNumber
-		if errorNumber is -128 then return
+		if errorNumber is -128 then
+			endProgressWindow("ผู้ใช้ยกเลิก")
+			return
+		end if
 		logLine("พังกลางทาง " & errorMessage)
+		step("เกิดปัญหา " & errorMessage)
+		endProgressWindow("หยุดกลางทาง ไฟล์ที่ได้มาแล้วยังอยู่ครบ")
 		activate
-		activate
-	display dialog ¬
+		display dialog ¬
 			"เกิดปัญหา" & return & return & errorMessage & return & return & ¬
 			"ไฟล์ที่เอ็กพอร์ตไปแล้วยังอยู่ครบ ไม่หายไปไหน" & return & return & ¬
 			"กดปุ่ม เมนูอื่น แล้วเลือก เก็บไฟล์ที่ตกค้าง" & return & ¬
@@ -788,6 +912,16 @@ on runWorkflow()
 			buttons {"ปิด"} default button 1 with title appTitle with icon caution
 	end try
 end runWorkflow
+
+
+on savedGapSeconds()
+	-- ค่าช่องว่างที่ใช้แยกก้อน จำไว้ในไฟล์ จะได้ไม่ต้องถามทุกรอบ
+	try
+		set saved to do shell script "cat " & quoted form of gapPath
+		if saved is not "" then return saved
+	end try
+	return "0.2"
+end savedGapSeconds
 
 
 -- ============================================================
@@ -862,8 +996,14 @@ end askRequiredChannels
 
 
 on checkAudioBeforeExport(xmlPath, gapSeconds)
+	--
+	-- ตรวจเสียงแล้วรายงานอย่างเดียว ไม่หยุดงาน
+	--
+	-- ผู้ใช้ขอให้กดปุ่มเดียวแล้วรันเองจนจบ
+	-- การเปิดหน้าต่างถามกลางทางจึงขัดกับสิ่งที่ขอ
+	-- ผลตรวจจะไปโผล่ในหน้าต่างความคืบหน้าแทน อ่านได้ตลอดเวลา
+	--
 	set wanted to requiredChannels()
-	-- ศูนย์แปลว่าไม่กำหนดจำนวน จึงไม่ต้องส่งเกณฑ์ไปเลย
 	set requireArgument to ""
 	if wanted is not "0" then set requireArgument to " --require " & wanted
 	set reportPath to workPath & "/ตรวจเสียง.txt"
@@ -881,45 +1021,20 @@ on checkAudioBeforeExport(xmlPath, gapSeconds)
 			quoted form of xmlPath & " --min-gap " & gapSeconds & ¬
 			requireArgument & " > " & quoted form of reportPath & " 2>&1 || true"
 	on error e
-		logLine("ตรวจเสียงไม่สำเร็จ " & e)
+		step("ตรวจเสียงไม่สำเร็จ " & e)
 		return true
 	end try
-
-	logLine("ผลตรวจเสียง " & summary)
 
 	if summary starts with "เสียงครบ" then
-		say(summary)
+		step(summary)
 		return true
 	end if
 
-	-- วางไฟล์รายละเอียดไว้บนหน้าจอให้เลย จะได้ไม่ต้องมีปุ่มเพิ่มอีกปุ่ม
+	-- เสียงไม่เหมือนกันทุกก้อน บอกไว้ให้เห็น แล้วทำงานต่อ
+	-- พร้อมวางไฟล์รายละเอียดไว้บนหน้าจอ เผื่ออยากดูทีหลัง
+	step("ระวัง  " & summary)
+	step("รายละเอียดอยู่บนหน้าจอแล้ว ชื่อ ตรวจเสียง.txt")
 	putOnDesktop(reportPath, "ตรวจเสียง.txt")
-
-	-- เสียงไม่ครบ ต้องบอกให้เห็นชัด แต่ไม่ตัดสินใจแทนผู้ใช้
-	-- บางวันงานอาจตั้งใจให้บางก้อนมีเสียงน้อยกว่าจริง ๆ
-	activate
-	set answer to button returned of (display dialog ¬
-		"ตรวจเสียงแล้วพบว่าไม่ครบ" & return & return & summary & return & return & ¬
-		"ไฟล์ยังได้สามแทร็กครบตาม preset 3 Stereo" & return & ¬
-		"แต่ส่วนที่ไม่มีของ จะออกอากาศเป็นความเงียบ" & return & return & ¬
-		"รายละเอียดอยู่บนหน้าจอแล้ว ชื่อ ตรวจเสียง.txt" & return & return & ¬
-		"จะไปต่อ หรือหยุดไปแก้เสียงก่อน" ¬
-		buttons {"ไม่ต้องเตือนอีก", "หยุดก่อน", "ไปต่อ"} ¬
-		default button "ไปต่อ" with title appTitle with icon caution)
-
-	if answer is "ไปต่อ" then return true
-	if answer is "หยุดก่อน" then
-		say("หยุดเพื่อไปแก้เสียงก่อน")
-		return false
-	end if
-
-	-- ปิดการเตือนถาวร แล้วไปต่อเลย
-	-- ถ้าการเตือนขึ้นทุกวันโดยที่งานไม่ได้ผิด ก็ไม่ควรต้องมาทนกดทุกวัน
-	try
-		do shell script "echo 0 > " & quoted form of channelsPath
-	end try
-	logLine("ผู้ใช้ปิดการเตือนเรื่องเสียง")
-	say("ปิดการเตือนเรื่องเสียงแล้ว")
 	return true
 end checkAudioBeforeExport
 
@@ -1665,6 +1780,15 @@ end shareTo
 -- ============================================================
 
 on monitorAndCollect(outFolder, namesFile, totalFiles)
+	--
+	-- เฝ้าดูไฟล์ที่ Final Cut Pro ทยอยสร้าง แล้วเก็บเข้าโฟลเดอร์ปลายทาง
+	--
+	-- รุ่นก่อนเปิดกล่องข้อความค้างไว้ แล้วให้มันหายเองทุกสี่วินาที
+	-- ผลคือหน้าจอกะพริบ และแย่งโฟกัสจาก Final Cut Pro เป็นระยะ
+	-- รุ่นนี้เขียนลงหน้าต่างความคืบหน้าแทน ไม่ขวางอะไรเลย
+	--
+	-- หยุดเองเมื่อได้ไฟล์ครบ หรือเมื่อเงียบนานเกินไปจนแน่ใจว่าจบแล้ว
+	--
 	set finished to false
 	set lastDone to -1
 	set quietRounds to 0
@@ -1694,51 +1818,31 @@ on monitorAndCollect(outFolder, namesFile, totalFiles)
 			exit repeat
 		end if
 
-		set percent to 0
-		if totalFiles > 0 then set percent to round (doneCount * 100 / totalFiles)
-
 		if doneCount > lastDone then
 			set quietRounds to 0
 			set lastDone to doneCount
-			say("เก็บไฟล์แล้ว " & doneCount & " จาก " & totalFiles)
+			my stepBar(doneCount, totalFiles, "กำลังทำงาน")
 		else
 			set quietRounds to quietRounds + 1
-		end if
-
-		-- บอกให้รู้ว่ายังทำงานอยู่ ไม่ได้ค้าง
-		set heartbeat to "กำลังตรวจรอบที่ " & roundNumber
-		if quietRounds > 0 then
-			set heartbeat to heartbeat & "   ไม่มีไฟล์ใหม่มา " & quietRounds & " รอบ"
-		end if
-
-		set message to "กำลังเอ็กพอร์ตและเก็บไฟล์" & return & return & ¬
-			bar(percent) & "  " & percent & "%" & return & return & ¬
-			"ได้แล้ว " & doneCount & " จาก " & totalFiles & " ไฟล์" & return & ¬
-			heartbeat & return & return & ¬
-			"เก็บไว้ที่" & return & outFolder
-		if quietRounds > 25 then
-			set message to message & return & return & ¬
-				"เงียบมาสักพักแล้ว ถ้า Final Cut Pro ทำเสร็จหมดแล้ว" & return & ¬
-				"กดปุ่ม หยุดรอ ได้เลย"
-		end if
-
-		-- ยกหน้าต่างขึ้นหน้าเฉพาะรอบแรก
-		-- ถ้ายกทุกรอบ จะแย่งโฟกัสจากผู้ใช้ตลอดเวลา ทำอย่างอื่นไม่ได้เลย
-		if roundNumber is 1 then activate
-		set reply to display dialog message ¬
-			buttons {"หยุดรอ", "เปิดโฟลเดอร์"} default button "หยุดรอ" ¬
-			giving up after 4 with title appTitle
-		if gave up of reply is false then
-			if button returned of reply is "เปิดโฟลเดอร์" then
-				do shell script "open " & quoted form of outFolder
-			else
-				exit repeat
+			-- บอกทุกสิบรอบพอ ไม่ให้หน้าต่างยาวเกินจนอ่านไม่ทัน
+			if quietRounds mod 10 is 0 then
+				my stepBar(doneCount, totalFiles, "ยังไม่มีไฟล์ใหม่มา " & quietRounds & " รอบ")
 			end if
 		end if
+
+		--
+		-- เลิกรอเองเมื่อเงียบนานพอ
+		--
+		-- หนึ่งร้อยห้าสิบรอบคือประมาณสิบสองนาทีที่ไม่มีไฟล์ใหม่เลย
+		-- นานพอสำหรับไฟล์ที่ยาวที่สุด และสั้นพอที่จะไม่ค้างทั้งคืน
+		-- รุ่นก่อนต้องให้คนมากดหยุดเอง ซึ่งขัดกับการรันเองจนจบ
+		--
+		if quietRounds > 150 then exit repeat
+		delay 4
 	end repeat
 
 	if finished then
-		say("ครบทุกไฟล์แล้ว " & totalFiles & " ไฟล์")
+		step("ครบทุกไฟล์แล้ว " & totalFiles & " ไฟล์")
 		set headline to "เสร็จเรียบร้อย ได้ไฟล์ครบ " & totalFiles & " ไฟล์"
 	else
 		-- บอกตรง ๆ ว่าขาดไฟล์ไหนบ้าง
@@ -1750,15 +1854,17 @@ on monitorAndCollect(outFolder, namesFile, totalFiles)
 				" " & quoted form of outFolder & " " & quoted form of namesFile & ¬
 				" --settle 0.5 --missing | head -20"
 		end try
-		say("หยุดรอ ยังขาดไฟล์อยู่")
-		logLine("ไฟล์ที่ยังขาด" & return & missingList)
-		set headline to "หยุดรอแล้ว ยังได้ไม่ครบ" & return & return & ¬
+		step("หยุดรอแล้ว ยังขาดไฟล์อยู่")
+		step("ไฟล์ที่ยังขาด" & return & missingList)
+		set headline to "ยังได้ไม่ครบ" & return & return & ¬
 			"ไฟล์ที่ยังขาด" & return & missingList & return & return & ¬
-			"ใช้ปุ่ม เมนูอื่น แล้ว แก้ปัญหา แล้ว เก็บไฟล์ที่ตกค้าง"
+			"ใช้ เมนูอื่น แล้ว เก็บไฟล์ที่ตกค้าง เพื่อตามเก็บอีกรอบ"
 	end if
 
+	endProgressWindow(headline & return & return & "ไฟล์อยู่ที่ " & outFolder)
+
 	activate
-		set answer to button returned of (display dialog ¬
+	set answer to button returned of (display dialog ¬
 		headline & return & return & "ไฟล์อยู่ที่" & return & outFolder ¬
 		buttons {"ปิด", "เปิดโฟลเดอร์"} default button "เปิดโฟลเดอร์" with title appTitle)
 	if answer is "เปิดโฟลเดอร์" then do shell script "open " & quoted form of outFolder
