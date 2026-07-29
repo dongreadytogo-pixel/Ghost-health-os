@@ -350,6 +350,76 @@ class TestCollecting(Sandbox):
         self.assertTrue(os.path.isdir(self.target))
 
 
+class TestCollectingEverything(Sandbox):
+    """
+    เก็บทั้งโฟลเดอร์ ไม่เลือกเฉพาะนามสกุล
+
+    รอบแรกเราเก็บเฉพาะนามสกุลที่คาดไว้ แล้วได้มาไฟล์เดียว
+    ไฟล์ของปลายทางไม่เจอเลย แปลว่าการเดานามสกุลผิด
+    เมื่อเดาไม่ถูก ก็ไม่ต้องเดา เก็บมาทั้งโฟลเดอร์เลย
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.presets = os.path.join(self.home, "ProApps", "Export Presets")
+        write_plist(os.path.join(self.presets, "3 Stereo.rolepreset"),
+                    three_stereo_preset())
+        self.prefs = os.path.join(self.home, "Preferences")
+        os.makedirs(self.prefs, exist_ok=True)
+        for name in ("com.apple.FinalCut.plist", "com.example.other.plist"):
+            with open(os.path.join(self.prefs, name), "w", encoding="utf-8") as handle:
+                handle.write("x")
+        self.target = os.path.join(self.home, "เก็บทั้งหมด")
+
+    def collect(self):
+        return rp.collect_everything(self.target, [self.roots()[0], self.prefs])
+
+    def gathered(self):
+        names = []
+        for current, _dirs, files in os.walk(self.target):
+            for name in files:
+                names.append(os.path.relpath(os.path.join(current, name), self.target))
+        return names
+
+    def test_takes_files_of_every_extension(self):
+        self.collect()
+        names = self.gathered()
+        self.assertTrue(any(n.endswith("3 Stereo.rolepreset") for n in names))
+        self.assertTrue(any(n.endswith("readme.txt") for n in names))
+
+    def test_keeps_the_folder_shape(self):
+        self.collect()
+        self.assertTrue(any(os.path.join("Export Presets", "3 Stereo.rolepreset") in n
+                            for n in self.gathered()))
+
+    def test_takes_only_final_cut_preferences(self):
+        self.collect()
+        names = self.gathered()
+        self.assertTrue(any("com.apple.FinalCut.plist" in n for n in names))
+        self.assertFalse(any("com.example.other.plist" in n for n in names))
+
+    def test_skips_files_that_are_too_big(self):
+        big = os.path.join(self.presets, "ใหญ่เกิน.plist")
+        with open(big, "wb") as handle:
+            handle.write(b"x" * (rp.MAX_COLLECT_BYTES + 1))
+        self.collect()
+        self.assertFalse(any("ใหญ่เกิน" in n for n in self.gathered()))
+
+    def test_writes_where_each_folder_came_from(self):
+        self.collect()
+        with open(os.path.join(self.target, "ไฟล์เหล่านี้มาจากไหน.txt"),
+                  encoding="utf-8") as handle:
+            self.assertIn(self.roots()[0], handle.read())
+
+    def test_originals_are_untouched(self):
+        self.collect()
+        self.assertTrue(os.path.exists(os.path.join(self.presets, "3 Stereo.rolepreset")))
+
+    def test_command_line_collectall(self):
+        self.assertEqual(rp.main(["collectall", self.target,
+                                  "--also-look-in", self.roots()[0]]), 0)
+
+
 class TestCommandLine(Sandbox):
     """สั่งจากบรรทัดคำสั่งต้องได้ผลเหมือนกัน เพราะแอปเรียกผ่านทางนี้"""
 

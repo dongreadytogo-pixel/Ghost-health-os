@@ -498,6 +498,97 @@ def collect_setting_files(target_folder, extra=()):
     return copied, paths
 
 
+# ============================================================
+# เก็บทั้งโฟลเดอร์ ไม่เลือกเฉพาะนามสกุล
+# ------------------------------------------------------------
+# รอบแรกเราเก็บเฉพาะไฟล์ที่นามสกุลตรงกับที่คาดไว้
+# ผลคือได้มาไฟล์เดียว คือ preset ที่อยู่ใน Export Presets
+# ส่วนไฟล์ของปลายทาง MXF-50 ไม่เจอเลยแม้แต่ไฟล์เดียว
+#
+# แปลว่าการเดานามสกุลของผมผิด ปลายทางไม่ได้เก็บเป็นไฟล์ fcpdest
+# เมื่อเดาไม่ถูก ก็ไม่ต้องเดา เก็บมาทั้งโฟลเดอร์เลยดีกว่า
+# โฟลเดอร์พวกนี้เล็กมาก เก็บมาหมดก็ไม่หนัก และได้เห็นของจริงครบ
+# ============================================================
+
+# โฟลเดอร์ที่จะเก็บมาทั้งยวง
+COLLECT_TREES = (
+    "~/Library/Application Support/ProApps",
+    "~/Library/Containers/com.apple.FinalCut/Data/Library/Application Support/ProApps",
+    "~/Library/Containers/com.apple.FinalCut/Data/Library/Preferences",
+    "~/Library/Preferences",
+)
+
+# ไฟล์ที่ใหญ่เกินนี้จะไม่เก็บ ไฟล์ตั้งค่าจริงเล็กมาก
+# กันไว้ไม่ให้เผลอลอกไฟล์ใหญ่ ๆ มาจนหน้าจอเต็ม
+MAX_COLLECT_BYTES = 5 * 1024 * 1024
+
+# ในโฟลเดอร์ Preferences ของระบบมีไฟล์ของโปรแกรมอื่นเต็มไปหมด
+# เอาเฉพาะที่เกี่ยวกับ Final Cut Pro และเครื่องมือของ Apple ชุดเดียวกัน
+PREFERENCE_KEYWORDS = ("finalcut", "proapps", "compressor", "motion")
+
+
+def wanted_in_preferences(path):
+    """ไฟล์ใน Preferences อันไหนที่เกี่ยวกับ Final Cut Pro"""
+    name = os.path.basename(path).lower()
+    return any(word in name for word in PREFERENCE_KEYWORDS)
+
+
+def collect_everything(target_folder, extra=()):
+    """
+    คัดลอกทั้งโฟลเดอร์ตั้งค่ามาไว้ที่เดียว โดยรักษาโครงสร้างเดิมไว้
+    คืนค่าเป็น (จำนวนไฟล์, รายการโฟลเดอร์ต้นทางที่เจอ)
+    """
+    trees = []
+    for candidate in list(COLLECT_TREES) + list(extra):
+        full = expand(candidate)
+        if os.path.isdir(full) and full not in trees:
+            trees.append(full)
+    if not trees:
+        return 0, []
+
+    os.makedirs(target_folder, exist_ok=True)
+    copied = 0
+    index_lines = []
+
+    for number, tree in enumerate(trees, start=1):
+        label = "%d-%s" % (number, os.path.basename(tree) or "root")
+        is_preferences = os.path.basename(tree) == "Preferences"
+        index_lines.append("%s\t%s" % (label, tree))
+        base_depth = tree.rstrip("/").count("/")
+
+        for current, dirnames, filenames in os.walk(tree, onerror=lambda e: None):
+            if current.count("/") - base_depth >= 6:
+                dirnames[:] = []
+            for name in sorted(filenames):
+                if name.startswith("."):
+                    continue
+                source = os.path.join(current, name)
+                # โฟลเดอร์ Preferences ของระบบมีของโปรแกรมอื่นปนอยู่มาก
+                # เอาเฉพาะที่ชื่อเกี่ยวกับ Final Cut Pro
+                if is_preferences and not wanted_in_preferences(source):
+                    continue
+                try:
+                    if os.path.getsize(source) > MAX_COLLECT_BYTES:
+                        continue
+                except OSError:
+                    continue
+
+                relative = os.path.relpath(source, tree)
+                destination = os.path.join(target_folder, label, relative)
+                try:
+                    os.makedirs(os.path.dirname(destination), exist_ok=True)
+                    shutil.copy2(source, destination)
+                    copied += 1
+                except OSError:
+                    continue
+
+    with open(os.path.join(target_folder, "ไฟล์เหล่านี้มาจากไหน.txt"),
+              "w", encoding="utf-8") as handle:
+        handle.write("เก็บเมื่อ %s\n\n" % time.strftime("%Y-%m-%d %H:%M:%S"))
+        handle.write("\n".join(index_lines) + "\n")
+    return copied, trees
+
+
 def build_report(roots, find=None):
     """สร้างรายงานสำรวจทั้งเครื่อง เป็นข้อความภาษาไทยอ่านง่าย"""
     lines = []
@@ -537,10 +628,10 @@ def main(argv=None):
         description="อ่าน จำ และคืนค่าตั้ง Roles ของ Final Cut Pro")
     parser.add_argument("command",
                         choices=["report", "snapshot", "restore", "snapshots", "roots",
-                                 "presets", "check", "install", "collect"],
+                                 "presets", "check", "install", "collect", "collectall"],
                         help="report สำรวจ  snapshot จำ  restore คืนค่า  "
                              "presets ดู preset  check ตรวจ preset  install ติดตั้ง preset  "
-                             "collect เก็บไฟล์ตั้งค่ามารวมไว้ที่เดียว")
+                             "collect เก็บเฉพาะไฟล์ที่รู้จัก  collectall เก็บทั้งโฟลเดอร์")
     parser.add_argument("name", nargs="?", default="ค่ามาตรฐาน",
                         help="ชื่อของชุดที่จำไว้ หรือชื่อ preset หรือที่อยู่ไฟล์ที่จะติดตั้ง")
     parser.add_argument("--find", default=None, help="แสดงเฉพาะบรรทัดที่มีคำนี้")
@@ -567,6 +658,14 @@ def main(argv=None):
             print(args.out)
         else:
             sys.stdout.write(text)
+        return 0
+
+    if args.command == "collectall":
+        copied, trees = collect_everything(args.name, args.also_look_in)
+        if copied == 0:
+            print("ไม่พบโฟลเดอร์ตั้งค่าเลย", file=sys.stderr)
+            return 1
+        print(copied)
         return 0
 
     if args.command == "collect":

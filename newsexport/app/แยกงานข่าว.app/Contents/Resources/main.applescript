@@ -440,6 +440,11 @@ on collectSettingFiles()
 	--   rolepreset  คือ preset ของ Roles เช่นไฟล์ 3 Stereo
 	--   fcpdest     คือไฟล์ของปลายทาง เช่น MXF-50
 	--
+	-- รอบแรกเก็บเฉพาะสองนามสกุลนี้ ผลคือได้มาไฟล์เดียว
+	-- ไฟล์ของปลายทางไม่เจอเลย แปลว่าการเดานามสกุลของผมผิด
+	-- เมื่อเดาไม่ถูก ก็ไม่ต้องเดา รุ่นนี้เก็บมาทั้งโฟลเดอร์เลย
+	-- โฟลเดอร์ตั้งค่าพวกนี้เล็กมาก เก็บหมดก็ไม่หนัก และได้เห็นของจริงครบ
+	--
 	-- คัดลอกอย่างเดียว ไม่ย้ายและไม่ลบของเดิม
 	--
 	set folderName to "ไฟล์ตั้งค่า Final Cut " & (do shell script "date +%d-%m-%H%M")
@@ -449,7 +454,7 @@ on collectSettingFiles()
 	try
 		set copiedCount to do shell script "/usr/bin/env python3 " & ¬
 			quoted form of (resourcesPath & "/tools/roles_presets.py") & ¬
-			" collect " & quoted form of targetFolder
+			" collectall " & quoted form of targetFolder
 	on error e
 		logLine("เก็บไฟล์ตั้งค่าไม่สำเร็จ " & e)
 		activate
