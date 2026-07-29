@@ -125,7 +125,8 @@ on showOtherMenu()
 	repeat
 		-- สร้างรายการใหม่ทุกรอบ เพื่อให้ตัวเลขที่โชว์ตรงกับค่าล่าสุดเสมอ
 		set menuItems to {¬
-			"ตั้งค่า Roles  เปิดหน้าต่าง MXF-50 ให้คุณตั้ง 3 Stereo ครั้งเดียว", ¬
+			"สร้างแทร็กเสียง  ให้โปรแกรมกด Add Audio Track ให้ครบสามแทร็ก", ¬
+			"ตั้งค่า Roles  เปิดหน้าต่าง MXF-50 ให้คุณตั้งเอง ครั้งเดียว", ¬
 			"ดูค่าที่ตั้งไว้  อ่านค่า Roles ที่เครื่องนี้บันทึกไว้ในไฟล์", ¬
 			"จำค่านี้ไว้  ถ่ายสำเนาค่าที่ตั้งถูกแล้ว เก็บไว้ใช้ทีหลัง", ¬
 			"ใส่ค่าที่จำไว้กลับ  ใช้เมื่อค่า Roles เปลี่ยนไปเอง", ¬
@@ -140,7 +141,9 @@ on showOtherMenu()
 		if picked is false then return
 
 		set choice to item 1 of picked
-		if choice starts with "ตั้งค่า Roles" then
+		if choice starts with "สร้างแทร็กเสียง" then
+			runBuildRolesLayout()
+		else if choice starts with "ตั้งค่า Roles" then
 			primeRolesSetting()
 		else if choice starts with "ดูค่าที่ตั้งไว้" then
 			reportRolesSettings()
@@ -444,6 +447,93 @@ on restoreRolesSettings()
 end restoreRolesSettings
 
 
+on openShareWindow(destinationName)
+	--
+	-- เปิดหน้าต่างของปลายทางขึ้นมาเฉย ๆ โดยยังไม่เอ็กพอร์ตอะไร
+	-- คืนค่า true เมื่อหน้าต่างโผล่แล้ว
+	--
+	if menuState("File", "Share") is "disabled" then
+		activate
+		display dialog ¬
+			"เมนู Share กดไม่ได้" & return & return & ¬
+			"ให้คลิกเลือกงานในหน้าต่าง Browser ไว้หนึ่งชิ้นก่อน" & return & ¬
+			"แล้วลองใหม่อีกครั้ง" ¬
+			buttons {"ปิด"} default button 1 with title appTitle with icon caution
+		return false
+	end if
+
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events"
+				tell process fcpName
+					set frontmost to true
+					delay 0.3
+					set fileMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "File")
+					set shareItem to (first menu item of fileMenu whose name starts with "Share")
+					click (first menu item of menu 1 of shareItem whose name starts with destinationName)
+				end tell
+			end tell
+		end timeout
+	on error e
+		logLine("เปิดหน้าต่าง " & destinationName & " ไม่สำเร็จ " & e)
+		activate
+		display dialog "เปิดหน้าต่าง " & destinationName & " ไม่สำเร็จ" ¬
+			buttons {"ปิด"} default button 1 with title appTitle with icon caution
+		return false
+	end try
+
+	return waitForWindowNamed(destinationName, 15)
+end openShareWindow
+
+
+on runBuildRolesLayout()
+	--
+	-- สร้างแทร็กเสียงสามแทร็กให้เสร็จในครั้งเดียว โดยไม่เอ็กพอร์ตไฟล์ใด ๆ
+	--
+	-- เมนูนี้มีไว้ให้ทดสอบได้เร็ว
+	-- ถ้าต้องรอเอ็กพอร์ตจริงทุกครั้งเพื่อดูว่าตั้งได้ไหม จะเสียเวลามาก
+	--
+	if not ensureFinalCutRunning() then return
+	if not ensureAccessibility() then return
+
+	activate
+	display dialog ¬
+		"สร้างแทร็กเสียงให้ MXF-50" & return & return & ¬
+		"โปรแกรมจะเปิดหน้าต่าง MXF-50 แล้วกดปุ่ม Add Audio Track" & return & ¬
+		"จนได้ครบสามแทร็ก แต่ละแทร็กตั้ง Channels เป็น Stereo" & return & ¬
+		"แล้วใส่ All Dialogue  All Effects  All Music ให้ทุกแทร็ก" & return & return & ¬
+		"ไม่มีการเอ็กพอร์ตไฟล์ใด ๆ ทั้งสิ้น" & return & return & ¬
+		"ต้องเลือกงานในหน้าต่าง Browser ไว้ก่อนหนึ่งชิ้น" ¬
+		buttons {"เริ่มเลย"} default button 1 with title appTitle
+
+	if not openShareWindow("MXF-50") then return
+
+	set built to buildRolesLayout("MXF-50")
+
+	-- ปิดหน้าต่างทิ้ง ไม่ต้องเอ็กพอร์ตอะไร
+	pressButtons({"Cancel", "ยกเลิก"})
+	delay 1
+
+	activate
+	if built then
+		display dialog ¬
+			"ตั้งแทร็กเสียงเรียบร้อยแล้ว" & return & return & ¬
+			"ได้สามแทร็ก แทร็กละสองช่อง" & return & ¬
+			"ปิดหน้าต่างให้แล้ว ไม่มีไฟล์ไหนถูกสร้าง" & return & return & ¬
+			"Final Cut Pro มักจำค่านี้ไว้ให้" & return & ¬
+			"ถ้าอยากให้แน่ใจ ให้กด จำค่านี้ไว้ ในเมนูเดิมอีกหนึ่งครั้ง" ¬
+			buttons {"เข้าใจแล้ว"} default button 1 with title appTitle
+	else
+		display dialog ¬
+			"ยังตั้งแทร็กเสียงไม่สำเร็จ" & return & return & ¬
+			"ปิดหน้าต่างให้แล้ว ไม่มีไฟล์ไหนถูกสร้าง" & return & return & ¬
+			"โปรแกรมจดผังหน้าต่างไว้ในบันทึกแล้ว" & return & ¬
+			"กรุณาส่งไฟล์ บันทึกการทำงาน.txt กลับมาให้ผมดู" ¬
+			buttons {"ปิด"} default button 1 with title appTitle with icon caution
+	end if
+end runBuildRolesLayout
+
+
 on primeRolesSetting()
 	--
 	-- เปิดหน้าต่าง MXF-50 ขึ้นมาเฉย ๆ เพื่อให้ผู้ใช้ตั้ง Roles as เป็น 3 Stereo
@@ -473,42 +563,8 @@ on primeRolesSetting()
 		"ต้องเลือกงานในหน้าต่าง Browser ไว้ก่อนหนึ่งชิ้น" ¬
 		buttons {"เปิดให้เลย"} default button 1 with title appTitle
 
-	if menuState("File", "Share") is "disabled" then
-		activate
-		display dialog ¬
-			"เมนู Share กดไม่ได้" & return & return & ¬
-			"ให้คลิกเลือกงานในหน้าต่าง Browser ไว้หนึ่งชิ้นก่อน" & return & ¬
-			"แล้วลองใหม่อีกครั้ง" ¬
-			buttons {"ปิด"} default button 1 with title appTitle with icon caution
-		return
-	end if
+	if not openShareWindow("MXF-50") then return
 
-	set opened to false
-	try
-		with timeout of uiTimeout seconds
-			tell application "System Events"
-				tell process fcpName
-					set frontmost to true
-					delay 0.3
-					set fileMenu to menu 1 of (first menu bar item of menu bar 1 whose name is "File")
-					set shareItem to (first menu item of fileMenu whose name starts with "Share")
-					click (first menu item of menu 1 of shareItem whose name starts with "MXF-50")
-					set opened to true
-				end tell
-			end tell
-		end timeout
-	on error e
-		logLine("เปิดหน้าต่าง MXF-50 ไม่สำเร็จ " & e)
-	end try
-
-	if not opened then
-		activate
-		display dialog "เปิดหน้าต่าง MXF-50 ไม่สำเร็จ" ¬
-			buttons {"ปิด"} default button 1 with title appTitle with icon caution
-		return
-	end if
-
-	waitForWindowNamed("MXF-50", 15)
 	openRolesTab("MXF-50")
 	-- จดโครงสร้างจริงไว้เสมอ เพื่อให้ผู้พัฒนาเลิกเดาตำแหน่งช่อง Roles as
 	dumpWindowTree("MXF-50")
@@ -1230,6 +1286,314 @@ on chooseIfHas(elementRef, wantedSetting)
 end chooseIfHas
 
 
+-- ============================================================
+-- สร้างแทร็กเสียงเอง ด้วยปุ่ม Add Audio Track
+-- ------------------------------------------------------------
+-- ผู้ใช้บอกชัดแล้วว่า การเลือก preset ชื่อ 3 Stereo ช่วยไม่ได้
+-- ให้เปลี่ยนมาสร้างแทร็กเองตามภาพตัวอย่างที่ส่งมาแทน
+--
+-- ภาพนั้นบอกโครงสร้างที่ต้องได้ไว้ครบแล้ว
+--   .mxf                                    ปุ่ม Add Audio Track
+--   video track                             All Titles  All Video
+--   audio track-1   Channels Stereo         All Dialogue  All Effects  All Music
+--   audio track-2   Channels Stereo         All Dialogue  All Effects  All Music
+--   audio track-3   Channels Stereo         All Dialogue  All Effects  All Music
+--
+-- ข้อดีของทางนี้เมื่อเทียบกับการกดช่อง Roles as
+-- ปุ่มพวกนี้มีชื่อเป็นตัวหนังสือชัดเจน คือ Add Audio Track กับ Add Role
+-- เราจึงหามันเจอด้วยชื่อ ไม่ต้องเดาว่ามันเป็นของชนิดไหน
+-- ต่างจากช่อง Roles as ที่ไม่มีชื่อให้จับ จึงหาไม่เจอมาตลอด
+-- ============================================================
+
+on labelOf(elementRef)
+	--
+	-- ขอชื่อของชิ้นส่วนบนหน้าจอ
+	--
+	-- บางชิ้นเก็บข้อความไว้ในช่อง name เช่นปุ่ม
+	-- บางชิ้นเก็บไว้ในช่อง value เช่นข้อความธรรมดา
+	-- ถ้าดูแค่ช่องเดียวจะพลาดอีกแบบไปทั้งหมด จึงต้องดูทั้งสองช่อง
+	--
+	set found to ""
+	try
+		set found to (name of elementRef) as string
+	end try
+	if found is not "" and found is not "missing value" then return found
+	try
+		set found to (value of elementRef) as string
+	end try
+	if found is "missing value" then return ""
+	return found
+end labelOf
+
+
+on matchesLabel(elementRef, wantedText, mustBeExact)
+	set theLabel to my labelOf(elementRef)
+	if theLabel is "" then return false
+	if mustBeExact then return (theLabel is wantedText)
+	return (theLabel starts with wantedText)
+end matchesLabel
+
+
+on collectMatching(destinationName, wantedText, mustBeExact)
+	--
+	-- เก็บอ้างอิงของทุกชิ้นที่ชื่อตรงกับที่ขอ เรียงตามลำดับที่เจอบนหน้าจอ
+	--
+	-- ลำดับสำคัญมาก เพราะเราใช้ลำดับเป็นตัวบอกว่าปุ่มไหนของแทร็กไหน
+	-- ปุ่ม Add Role ชิ้นแรกเป็นของ video track
+	-- ชิ้นที่สองเป็นของ audio track-1 ชิ้นที่สามเป็นของ audio track-2 ไล่ไปเรื่อย ๆ
+	--
+	-- ค้นลึกห้าชั้นแล้วหยุด ไม่ใช้ entire contents เพราะเคยทำให้ค้างยาว
+	--
+	set found to {}
+	try
+		with timeout of 30 seconds
+			tell application "System Events"
+				tell process fcpName
+					if not (exists window destinationName) then return {}
+					tell window destinationName
+						repeat with a in UI elements
+							if my matchesLabel(a, wantedText, mustBeExact) then set end of found to (contents of a)
+							repeat with b in UI elements of a
+								if my matchesLabel(b, wantedText, mustBeExact) then set end of found to (contents of b)
+								repeat with c in UI elements of b
+									if my matchesLabel(c, wantedText, mustBeExact) then set end of found to (contents of c)
+									repeat with d in UI elements of c
+										if my matchesLabel(d, wantedText, mustBeExact) then set end of found to (contents of d)
+										repeat with f in UI elements of d
+											if my matchesLabel(f, wantedText, mustBeExact) then set end of found to (contents of f)
+										end repeat
+									end repeat
+								end repeat
+							end repeat
+						end repeat
+					end tell
+				end tell
+			end tell
+		end timeout
+	on error errorText
+		logLine("ค้นหาชิ้นชื่อ " & wantedText & " พังกลางทาง " & errorText)
+	end try
+	return found
+end collectMatching
+
+
+on countAudioTracks(destinationName)
+	return count of my collectMatching(destinationName, "audio track", false)
+end countAudioTracks
+
+
+on clickNamedOnce(destinationName, wantedText)
+	-- กดปุ่มชิ้นแรกที่ชื่อตรงกับที่ขอ
+	set candidates to my collectMatching(destinationName, wantedText, true)
+	if (count of candidates) is 0 then
+		logLine("ไม่เจอปุ่มชื่อ " & wantedText)
+		return false
+	end if
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events" to click (item 1 of candidates)
+		end timeout
+		delay 0.7
+		return true
+	on error errorText
+		logLine("กดปุ่ม " & wantedText & " ไม่สำเร็จ " & errorText)
+		return false
+	end try
+end clickNamedOnce
+
+
+on pickFromMenuOf(elementRef, itemName)
+	--
+	-- เปิดเมนูของชิ้นนี้แล้วเลือกรายการที่ต้องการ
+	--
+	-- อ่านรายชื่อในเมนูก่อนเสมอ ยังไม่กดอะไรทั้งนั้น
+	-- ถ้าไม่มีรายการที่ขอ ก็ไม่ต้องกด จะได้ไม่เผลอไปกดโดนอย่างอื่น
+	--
+	set itemNames to {}
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events"
+				set itemNames to name of every menu item of menu 1 of elementRef
+			end tell
+		end timeout
+	on error
+		logLine("ชิ้นนี้ไม่มีเมนูให้เปิด")
+		return false
+	end try
+
+	if itemNames does not contain itemName then
+		logLine("ในเมนูไม่มี " & itemName & " มีแต่ " & (itemNames as string))
+		return false
+	end if
+
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events"
+				click elementRef
+				delay 0.5
+				click menu item itemName of menu 1 of elementRef
+			end tell
+		end timeout
+		delay 0.6
+		logLine("ใส่ " & itemName & " แล้ว")
+		return true
+	on error errorText
+		logLine("เลือก " & itemName & " ไม่สำเร็จ " & errorText)
+		try
+			tell application "System Events" to key code 53
+		end try
+		return false
+	end try
+end pickFromMenuOf
+
+
+on addRolesToTrack(destinationName, trackNumber)
+	--
+	-- ใส่ Role สามอย่างให้แทร็กเสียงที่เพิ่งสร้าง
+	--
+	-- ตำแหน่งของปุ่ม Add Role นับรวม video track ที่อยู่บนสุดด้วย
+	-- ปุ่มของ audio track ที่หนึ่ง จึงเป็นปุ่มชิ้นที่สอง
+	--
+	set wantedRoles to {"All Dialogue", "All Effects", "All Music"}
+	set position to trackNumber + 1
+
+	repeat with roleName in wantedRoles
+		set addButtons to my collectMatching(destinationName, "Add Role", true)
+		if (count of addButtons) < position then
+			logLine("ไม่เจอปุ่ม Add Role ชิ้นที่ " & position & " มีอยู่ " & (count of addButtons) & " ชิ้น")
+			return false
+		end if
+		my pickFromMenuOf(item position of addButtons, roleName as string)
+	end repeat
+	return true
+end addRolesToTrack
+
+
+on setChannelsOfTrack(destinationName, trackNumber, wantedValue)
+	--
+	-- ตั้งช่อง Channels ของแทร็กให้เป็น Stereo
+	--
+	-- หาช่องนี้ด้วยวิธีดูว่าใครมีรายการชื่อ Stereo อยู่ข้างใน
+	-- ไม่ใช้ชื่อของช่อง เพราะในภาพ คำว่า Channels เป็นข้อความข้าง ๆ
+	-- ไม่ได้เป็นชื่อของตัวช่องเอง
+	--
+	set boxes to my collectWithMenuItem(destinationName, wantedValue)
+	if (count of boxes) < trackNumber then
+		logLine("ไม่เจอช่อง Channels ของแทร็กที่ " & trackNumber)
+		return false
+	end if
+	set theBox to item trackNumber of boxes
+
+	set nowValue to ""
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events" to set nowValue to (value of theBox) as string
+		end timeout
+	end try
+	if nowValue is wantedValue then
+		logLine("Channels ของแทร็กที่ " & trackNumber & " เป็น " & wantedValue & " อยู่แล้ว")
+		return true
+	end if
+	return my pickFromMenuOf(theBox, wantedValue)
+end setChannelsOfTrack
+
+
+on collectWithMenuItem(destinationName, itemName)
+	-- เก็บทุกชิ้นที่มีรายการชื่อนี้อยู่ในเมนูของมัน โดยยังไม่กดอะไรเลย
+	set found to {}
+	try
+		with timeout of 30 seconds
+			tell application "System Events"
+				tell process fcpName
+					if not (exists window destinationName) then return {}
+					tell window destinationName
+						repeat with a in UI elements
+							if my menuHas(a, itemName) then set end of found to (contents of a)
+							repeat with b in UI elements of a
+								if my menuHas(b, itemName) then set end of found to (contents of b)
+								repeat with c in UI elements of b
+									if my menuHas(c, itemName) then set end of found to (contents of c)
+									repeat with d in UI elements of c
+										if my menuHas(d, itemName) then set end of found to (contents of d)
+									end repeat
+								end repeat
+							end repeat
+						end repeat
+					end tell
+				end tell
+			end tell
+		end timeout
+	on error errorText
+		logLine("ค้นหาช่องที่มีรายการ " & itemName & " พังกลางทาง " & errorText)
+	end try
+	return found
+end collectWithMenuItem
+
+
+on menuHas(elementRef, itemName)
+	try
+		tell application "System Events"
+			return (name of every menu item of menu 1 of elementRef) contains itemName
+		end tell
+	on error
+		return false
+	end try
+end menuHas
+
+
+on buildRolesLayout(destinationName)
+	--
+	-- สร้างแทร็กเสียงสามแทร็กตามภาพตัวอย่างที่ผู้ใช้ส่งมา
+	--
+	-- คืนค่า true เมื่อได้ครบสามแทร็ก
+	--
+	if not waitForWindowNamed(destinationName, 15) then
+		logLine("ไม่เจอหน้าต่าง " & destinationName & " จึงสร้างแทร็กเสียงไม่ได้")
+		return false
+	end if
+	if not openRolesTab(destinationName) then
+		logLine("เปิดแท็บ Roles ไม่ได้ จึงสร้างแทร็กเสียงไม่ได้")
+		dumpWindowTree(destinationName)
+		return false
+	end if
+
+	set trackCount to my countAudioTracks(destinationName)
+	logLine("ตอนนี้มีแทร็กเสียงอยู่ " & trackCount & " แทร็ก")
+
+	if trackCount is 0 then
+		-- อ่านไม่เจอเลยแม้แต่แทร็กเดียว แปลว่าอาจอ่านหน้าต่างนี้ไม่ออก
+		-- จดผังไว้ก่อน แล้วค่อยลองต่อ ถ้าเดินต่อแล้วพลาดจะได้รู้สาเหตุ
+		logLine("อ่านแทร็กเสียงไม่เจอเลย จดผังหน้าต่างไว้ก่อน")
+		dumpWindowTree(destinationName)
+	end if
+
+	if trackCount ≥ 3 then
+		say("มีแทร็กเสียงครบสามแทร็กแล้ว")
+		return true
+	end if
+
+	repeat with trackNumber from (trackCount + 1) to 3
+		if not my clickNamedOnce(destinationName, "Add Audio Track") then
+			logLine("กดปุ่ม Add Audio Track ไม่ได้ หยุดการสร้างแทร็ก")
+			dumpWindowTree(destinationName)
+			return false
+		end if
+		logLine("เพิ่มแทร็กเสียงที่ " & trackNumber & " แล้ว")
+		my setChannelsOfTrack(destinationName, trackNumber, "Stereo")
+		my addRolesToTrack(destinationName, trackNumber)
+	end repeat
+
+	set finalCount to my countAudioTracks(destinationName)
+	logLine("สร้างเสร็จแล้ว มีแทร็กเสียง " & finalCount & " แทร็ก")
+	if finalCount ≥ 3 then
+		say("ตั้งแทร็กเสียงครบสามแทร็กแล้ว")
+		return true
+	end if
+	dumpWindowTree(destinationName)
+	return false
+end buildRolesLayout
+
+
 on setRolesTo(destinationName, wantedSetting)
 	--
 	-- ตั้งค่าช่อง Roles as ให้เป็นค่าที่ห้องข่าวต้องการ
@@ -1342,8 +1706,20 @@ on shareTo(destinationName, humanName, rolesSetting)
 		-- แต่ใช้เวลาโผล่ ถ้ารีบทำงานต่อจะเจอแต่หน้าต่างเปล่า
 		waitForWindowNamed(destinationName, 15)
 
-		-- ตั้งค่า Roles ให้ถูกก่อน ถ้าปลายทางนี้ต้องใช้
-		if rolesSetting is not "" then setRolesTo(destinationName, rolesSetting)
+		-- ตั้งค่าเสียงให้ถูกก่อน ถ้าปลายทางนี้ต้องใช้
+		--
+		-- ลำดับนี้มีเหตุผล
+		-- ผู้ใช้บอกแล้วว่าการเลือก preset ชื่อ 3 Stereo ช่วยไม่ได้
+		-- จึงสร้างแทร็กเองด้วยปุ่ม Add Audio Track เป็นทางหลัก
+		-- ปุ่มพวกนั้นมีชื่อเป็นตัวหนังสือ เราจึงหาเจอ ต่างจากช่อง Roles as
+		--
+		-- ถ้าสร้างเองไม่สำเร็จ ค่อยถอยไปใช้วิธีเลือก preset เป็นทางสำรอง
+		if rolesSetting is not "" then
+			if not buildRolesLayout(destinationName) then
+				logLine("สร้างแทร็กเองไม่สำเร็จ ลองวิธีเลือก preset เป็นทางสำรอง")
+				setRolesTo(destinationName, rolesSetting)
+			end if
+		end if
 
 		if pressButtons({"Next…", "Next...", "Next"}) then logLine("กดปุ่ม Next แล้ว")
 		delay 2
