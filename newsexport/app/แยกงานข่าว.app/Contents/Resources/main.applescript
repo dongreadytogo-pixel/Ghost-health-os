@@ -177,20 +177,47 @@ on showTroubleMenu()
 end showTroubleMenu
 
 
-on showLog()
+on putOnDesktop(sourcePath, niceName)
+	--
+	-- คัดลอกไฟล์ไปวางไว้บนหน้าจอ Desktop แล้วเปิด Finder ให้เห็น
+	--
+	-- ทำไมต้องทำแบบนี้
+	-- ไฟล์ของโปรแกรมเก็บอยู่ในโฟลเดอร์ Library ซึ่ง macOS ซ่อนเอาไว้
+	-- ต่อให้เปิด Finder ให้แล้ว ผู้ใช้ก็ยังลากไปส่งต่อได้ยาก
+	-- และถ้าปิดหน้าต่างนั้นไป ก็หากลับเข้าไปเองแทบไม่ได้เลย
+	--
+	-- ย้ายมาวางบนหน้าจอ ลากไปใส่ช่องแชทได้ทันที เห็นด้วยตาตลอดเวลา
+	-- คืนค่าเป็นที่อยู่ใหม่ หรือคืนค่าว่างเมื่อคัดลอกไม่สำเร็จ
+	--
 	try
-		do shell script "open -R " & quoted form of logPath
-		activate
-		activate
-	display dialog ¬
-			"เปิด Finder ให้แล้ว ไฟล์ชื่อ บันทึกการทำงาน.txt" & return & return & ¬
-			"ส่งไฟล์นี้กลับมาให้ผมได้เลย" ¬
-			buttons {"ปิด"} default button 1 with title appTitle
-	on error
+		set desktopPath to (do shell script "echo $HOME") & "/Desktop/" & niceName
+		do shell script "cp " & quoted form of sourcePath & " " & quoted form of desktopPath
+		try
+			do shell script "open -R " & quoted form of desktopPath
+		end try
+		logLine("วางไฟล์ไว้บนหน้าจอแล้ว " & desktopPath)
+		return desktopPath
+	on error e
+		logLine("วางไฟล์บนหน้าจอไม่สำเร็จ " & e)
+		return ""
+	end try
+end putOnDesktop
+
+
+on showLog()
+	set onDesktop to putOnDesktop(logPath, "บันทึกการทำงาน.txt")
+	if onDesktop is "" then
 		activate
 		display dialog "ยังไม่มีบันทึก ลองกดปุ่ม เอ็กพอร์ต ก่อนหนึ่งครั้ง" ¬
 			buttons {"ปิด"} default button 1 with title appTitle
-	end try
+		return
+	end if
+	activate
+	display dialog ¬
+		"วางไฟล์ไว้บนหน้าจอแล้ว" & return & return & ¬
+		"ชื่อไฟล์  บันทึกการทำงาน.txt" & return & return & ¬
+		"ลากไฟล์นั้นไปวางในช่องแชทได้เลย" ¬
+		buttons {"ปิด"} default button 1 with title appTitle
 end showLog
 
 
@@ -338,13 +365,19 @@ on reportRolesSettings()
 		set summary to "ค่าที่เครื่องนี้บันทึกไว้" & return & return & highlights
 	end if
 
-	try
-		do shell script "open -R " & quoted form of reportPath
-	end try
+	set onDesktop to putOnDesktop(reportPath, "ค่า Roles ในเครื่อง.txt")
 	activate
-	display dialog summary & return & return & ¬
-		"เปิด Finder ให้แล้ว ไฟล์ชื่อ ค่า Roles ในเครื่อง.txt" ¬
-		buttons {"ตกลง"} default button "ตกลง" with title appTitle
+	if onDesktop is "" then
+		display dialog summary & return & return & ¬
+			"ไฟล์รายงานอยู่ที่" & return & reportPath ¬
+			buttons {"ตกลง"} default button "ตกลง" with title appTitle
+	else
+		display dialog summary & return & return & ¬
+			"วางไฟล์ไว้บนหน้าจอแล้ว" & return & ¬
+			"ชื่อไฟล์  ค่า Roles ในเครื่อง.txt" & return & return & ¬
+			"ลากไฟล์นั้นไปวางในช่องแชทได้เลย" ¬
+			buttons {"ตกลง"} default button "ตกลง" with title appTitle
+	end if
 end reportRolesSettings
 
 
@@ -747,12 +780,10 @@ on checkAudioBeforeExport(xmlPath, gapSeconds)
 		return false
 	end if
 
-	try
-		do shell script "open -R " & quoted form of reportPath
-	end try
+	putOnDesktop(reportPath, "ตรวจเสียง.txt")
 	activate
 	set answer to button returned of (display dialog ¬
-		"เปิด Finder ให้แล้ว ไฟล์ชื่อ ตรวจเสียง.txt" & return & ¬
+		"วางไฟล์ไว้บนหน้าจอแล้ว ชื่อ ตรวจเสียง.txt" & return & ¬
 		"ในนั้นบอกทีละก้อนว่าขาด Role ไหนบ้าง" ¬
 		buttons {"หยุดก่อน", "ไปต่อ"} default button "หยุดก่อน" with title appTitle)
 	if answer is "ไปต่อ" then return true
