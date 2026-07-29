@@ -163,6 +163,141 @@ class TestRemembering(Sandbox):
         self.assertTrue(os.path.exists(thai))
 
 
+def three_stereo_preset():
+    """
+    preset จริงที่ผู้ใช้ส่งมา สามแทร็กเสียง แทร็กละสองช่อง
+    รหัส 6619138 คือสเตอริโอ เอา 65536 หารแล้วเหลือเศษ 2 คือสองช่อง
+    """
+    audio_track = {
+        "audioChannelLayout": 6619138,
+        "mediaType": 0,
+        "roles": [{"identifier": "a.music", "mediaType": 0, "name": "All Music"},
+                  {"identifier": "a.dialogue", "mediaType": 0, "name": "All Dialogue"},
+                  {"identifier": "a.effects", "mediaType": 0, "name": "All Effects"}],
+    }
+    return {
+        "name": "3 Stereo",
+        "type": 0,
+        "outputs": [
+            {"audioChannelLayout": 6619138, "mediaType": 1,
+             "roles": [{"identifier": "v.video", "mediaType": 1, "name": "All Video"},
+                       {"identifier": "v.titles", "mediaType": 1, "name": "All Titles"}]},
+            dict(audio_track), dict(audio_track), dict(audio_track),
+        ],
+    }
+
+
+class TestRolePresetFile(Sandbox):
+    """ไฟล์ preset จริงต้องอ่านออกและตรวจได้ถูกต้อง"""
+
+    def write_preset(self, data, name="3 Stereo.rolepreset"):
+        path = os.path.join(self.settings, name)
+        write_plist(path, data)
+        return path
+
+    def test_channel_count_comes_from_the_layout_code(self):
+        self.assertEqual(rp.channels_of(6619138), 2)
+
+    def test_bad_layout_code_does_not_crash(self):
+        self.assertEqual(rp.channels_of(None), 0)
+        self.assertEqual(rp.channels_of("ไม่ใช่ตัวเลข"), 0)
+
+    def test_reads_the_real_shape(self):
+        summary = rp.read_role_preset(self.write_preset(three_stereo_preset()))
+        self.assertEqual(summary["name"], "3 Stereo")
+        self.assertEqual(len(summary["tracks"]), 4)
+        self.assertEqual(len(summary["audioTracks"]), 3)
+        self.assertEqual(summary["totalChannels"], 6)
+
+    def test_a_file_that_is_not_a_preset_is_ignored(self):
+        path = os.path.join(self.settings, "อื่น.rolepreset")
+        write_plist(path, {"name": "ไม่ใช่ preset"})
+        self.assertIsNone(rp.read_role_preset(path))
+
+    def test_finds_preset_files_by_extension(self):
+        self.write_preset(three_stereo_preset())
+        found = rp.find_role_presets(self.roots())
+        self.assertEqual(len(found), 1)
+        self.assertTrue(found[0].endswith(".rolepreset"))
+
+    def test_correct_preset_reports_no_problem(self):
+        summary = rp.read_role_preset(self.write_preset(three_stereo_preset()))
+        self.assertEqual(rp.check_role_preset(summary), [])
+
+    def test_missing_audio_track_is_reported(self):
+        data = three_stereo_preset()
+        data["outputs"] = data["outputs"][:3]
+        summary = rp.read_role_preset(self.write_preset(data))
+        problems = rp.check_role_preset(summary)
+        self.assertTrue(any("2 แทร็ก" in problem for problem in problems))
+
+    def test_mono_track_is_reported(self):
+        data = three_stereo_preset()
+        data["outputs"][2]["audioChannelLayout"] = (100 << 16) | 1
+        summary = rp.read_role_preset(self.write_preset(data))
+        problems = rp.check_role_preset(summary)
+        self.assertTrue(any("แทร็กที่ 2" in problem and "1 ช่อง" in problem
+                            for problem in problems))
+
+    def test_dropped_role_is_reported(self):
+        data = three_stereo_preset()
+        data["outputs"][3]["roles"] = [{"name": "All Dialogue"}]
+        summary = rp.read_role_preset(self.write_preset(data))
+        problems = rp.check_role_preset(summary)
+        self.assertTrue(any("ขาด" in problem for problem in problems))
+
+    def test_description_does_not_claim_the_video_track_has_channels(self):
+        summary = rp.read_role_preset(self.write_preset(three_stereo_preset()))
+        first = rp.describe_role_preset(summary)[2]
+        self.assertIn("ภาพ", first)
+        self.assertNotIn("ช่อง", first)
+
+    def test_description_states_six_channels(self):
+        summary = rp.read_role_preset(self.write_preset(three_stereo_preset()))
+        text = "\n".join(rp.describe_role_preset(summary, []))
+        self.assertIn("3 แทร็ก เป็นเสียง 6 ช่อง", text)
+        self.assertIn("ตรงกับที่ห้องข่าวต้องการ", text)
+
+    def test_install_puts_the_file_beside_the_others(self):
+        self.write_preset(three_stereo_preset())
+        spare = os.path.join(self.home, "สำรอง.rolepreset")
+        write_plist(spare, three_stereo_preset())
+        destination, message = rp.install_role_preset(spare, self.roots())
+        self.assertIsNotNone(destination, message)
+        self.assertEqual(os.path.dirname(destination), self.settings)
+
+    def test_install_keeps_the_previous_file(self):
+        original = self.write_preset(three_stereo_preset())
+        write_plist(os.path.join(self.home, "3 Stereo.rolepreset"), three_stereo_preset())
+        rp.install_role_preset(os.path.join(self.home, "3 Stereo.rolepreset"), self.roots())
+        leftovers = [n for n in os.listdir(os.path.dirname(original)) if "เดิม" in n]
+        self.assertEqual(len(leftovers), 1)
+
+    def test_install_without_any_preset_folder_explains_itself(self):
+        spare = os.path.join(self.home, "สำรอง.rolepreset")
+        write_plist(spare, three_stereo_preset())
+        destination, message = rp.install_role_preset(spare, self.roots())
+        self.assertIsNone(destination)
+        self.assertIn("ไม่รู้ว่าต้องวางไว้ที่ไหน", message)
+
+    def test_check_from_the_command_line(self):
+        self.write_preset(three_stereo_preset())
+        self.assertEqual(rp.main(["check", "3 Stereo",
+                                  "--also-look-in", self.roots()[0]]), 0)
+
+    def test_check_fails_for_a_broken_preset(self):
+        data = three_stereo_preset()
+        data["outputs"] = data["outputs"][:2]
+        self.write_preset(data)
+        self.assertEqual(rp.main(["check", "3 Stereo",
+                                  "--also-look-in", self.roots()[0]]), 1)
+
+    def test_check_of_an_unknown_name_fails(self):
+        self.write_preset(three_stereo_preset())
+        self.assertEqual(rp.main(["check", "ไม่มีชื่อนี้",
+                                  "--also-look-in", self.roots()[0]]), 1)
+
+
 class TestCommandLine(Sandbox):
     """สั่งจากบรรทัดคำสั่งต้องได้ผลเหมือนกัน เพราะแอปเรียกผ่านทางนี้"""
 

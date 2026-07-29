@@ -129,6 +129,7 @@ on showOtherMenu()
 		set menuItems to {¬
 			"สร้างแทร็กเสียง  ให้โปรแกรมกด Add Audio Track ให้ครบสามแทร็ก", ¬
 			"ตรวจค่า Roles  เปิดหน้าต่าง MXF-50 ขึ้นมาดูว่าตั้งได้จริงไหม", ¬
+			"ตรวจ preset  อ่านไฟล์ 3 Stereo ในเครื่องว่าถูกต้องไหม", ¬
 			"ดูค่าที่ตั้งไว้  อ่านค่า Roles ที่เครื่องนี้บันทึกไว้ในไฟล์", ¬
 			"จำค่านี้ไว้  ถ่ายสำเนาค่าที่ตั้งถูกแล้ว เก็บไว้ใช้ทีหลัง", ¬
 			"ใส่ค่าที่จำไว้กลับ  ใช้เมื่อค่า Roles เปลี่ยนไปเอง", ¬
@@ -147,6 +148,8 @@ on showOtherMenu()
 			runBuildRolesLayout()
 		else if choice starts with "ตรวจค่า Roles" then
 			primeRolesSetting()
+		else if choice starts with "ตรวจ preset" then
+			checkRolePreset()
 		else if choice starts with "ดูค่าที่ตั้งไว้" then
 			reportRolesSettings()
 		else if choice starts with "จำค่านี้ไว้" then
@@ -339,6 +342,86 @@ on rolesTool(arguments)
 	return do shell script "/usr/bin/env python3 " & ¬
 		quoted form of (resourcesPath & "/tools/roles_presets.py") & " " & arguments
 end rolesTool
+
+
+on checkRolePreset()
+	--
+	-- ตรวจไฟล์ preset ชื่อ 3 Stereo ที่เก็บอยู่ในเครื่อง
+	--
+	-- ผู้ใช้ส่งไฟล์ 3 Stereo.rolepreset มาให้ดู ทำให้เรารู้โครงสร้างจริงแล้ว
+	-- ข้างในบอกครบว่าต้องมีสามแทร็กเสียง แทร็กละสองช่อง
+	-- และแต่ละแทร็กรับ All Music กับ All Dialogue กับ All Effects
+	--
+	-- การอ่านไฟล์แน่นอนกว่าการอ่านหน้าจอมาก
+	-- เพราะไม่ขึ้นกับว่าหน้าต่างเปิดอยู่ไหม หรือชื่อหน้าต่างเป็นอะไร
+	--
+	set reportPath to workPath & "/ตรวจ preset.txt"
+	set outcome to ""
+	try
+		set outcome to do shell script "/usr/bin/env python3 " & ¬
+			quoted form of (resourcesPath & "/tools/roles_presets.py") & ¬
+			" check " & quoted form of "3 Stereo" & " 2>&1 || true"
+	on error e
+		logLine("ตรวจ preset ไม่สำเร็จ " & e)
+		activate
+		display dialog "ตรวจ preset ไม่สำเร็จ" & return & return & e ¬
+			buttons {"ตกลง"} default button "ตกลง" with title appTitle
+		return
+	end try
+
+	logLine("ผลตรวจ preset" & return & outcome)
+	try
+		do shell script "echo " & quoted form of outcome & " > " & quoted form of reportPath
+	end try
+
+	if outcome contains "ไม่พบ preset" then
+		-- ไม่มี preset ในเครื่อง เสนอให้ติดตั้งของสำรองที่ติดมากับโปรแกรม
+		activate
+		set answer to button returned of (display dialog ¬
+			"ไม่พบ preset ชื่อ 3 Stereo ในเครื่องนี้" & return & return & ¬
+			"โปรแกรมมีสำเนาของไฟล์นี้ติดมาด้วย" & return & ¬
+			"จะให้ติดตั้งคืนให้ไหม" & return & return & ¬
+			"ต้องปิด Final Cut Pro ก่อน แล้วเปิดใหม่หลังติดตั้ง" ¬
+			buttons {"ไม่ต้อง", "ติดตั้งให้เลย"} ¬
+			default button "ติดตั้งให้เลย" with title appTitle with icon caution)
+		if answer is "ติดตั้งให้เลย" then installRolePreset()
+		return
+	end if
+
+	activate
+	if outcome contains "ตรงกับที่ห้องข่าวต้องการ" then
+		display dialog ¬
+			"preset ถูกต้องครบทุกข้อ" & return & return & outcome ¬
+			buttons {"ดี"} default button "ดี" with title appTitle
+	else
+		putOnDesktop(reportPath, "ตรวจ preset.txt")
+		display dialog ¬
+			"preset ยังไม่ตรงกับที่ต้องการ" & return & return & outcome & return & return & ¬
+			"วางไฟล์ผลตรวจไว้บนหน้าจอแล้ว" ¬
+			buttons {"ปิด"} default button "ปิด" with title appTitle with icon caution
+	end if
+end checkRolePreset
+
+
+on installRolePreset()
+	-- เอาสำเนา preset ที่ติดมากับโปรแกรม ใส่กลับเข้าเครื่อง
+	set sourceFile to resourcesPath & "/presets/3 Stereo.rolepreset"
+	try
+		set outcome to do shell script "/usr/bin/env python3 " & ¬
+			quoted form of (resourcesPath & "/tools/roles_presets.py") & ¬
+			" install " & quoted form of sourceFile & " 2>&1"
+		logLine("ติดตั้ง preset " & outcome)
+		activate
+		display dialog "ติดตั้ง preset เรียบร้อย" & return & return & outcome & return & return & ¬
+			"เปิด Final Cut Pro ขึ้นมาใหม่ได้เลย" ¬
+			buttons {"ตกลง"} default button "ตกลง" with title appTitle
+	on error e
+		logLine("ติดตั้ง preset ไม่สำเร็จ " & e)
+		activate
+		display dialog "ติดตั้ง preset ไม่สำเร็จ" & return & return & e ¬
+			buttons {"ตกลง"} default button "ตกลง" with title appTitle with icon caution
+	end try
+end installRolePreset
 
 
 on reportRolesSettings()

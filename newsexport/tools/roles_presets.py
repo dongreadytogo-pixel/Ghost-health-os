@@ -271,6 +271,160 @@ def list_snapshots():
     return names
 
 
+# ============================================================
+# ไฟล์ preset ของ Roles
+# ------------------------------------------------------------
+# ผู้ใช้ส่งไฟล์ 3 Stereo.rolepreset มาให้ดู ทำให้เรารู้โครงสร้างจริงแล้ว
+# ไม่ต้องเดาอีกต่อไป ไฟล์นี้เป็น plist ธรรมดา อ่านได้ตรง ๆ
+#
+# ข้างในมีคีย์ชื่อ outputs เป็นรายการของแทร็ก แทร็กละหนึ่งช่อง
+#   mediaType 1 คือแทร็กภาพ
+#   mediaType 0 คือแทร็กเสียง
+#   roles คือรายชื่อ Role ที่แทร็กนั้นรับ
+#   audioChannelLayout คือรหัสบอกรูปแบบช่องเสียง
+#
+# รหัส 6619138 แปลว่าอะไร
+#   Apple เก็บรหัสนี้เป็นตัวเลขก้อนเดียว แต่จริง ๆ มันมีสองส่วน
+#   เอา 65536 หาร จะได้ 101 คือรหัสของรูปแบบ
+#   เศษที่เหลือคือ 2 คือจำนวนช่องเสียงของแทร็กนั้น
+#   สรุปคือ สเตอริโอ สองช่อง ตรงกับที่ผู้ใช้บอกไว้พอดี
+# ============================================================
+
+ROLE_PRESET_EXTENSION = ".rolepreset"
+
+# ชนิดของแทร็กตามที่เขียนไว้ในไฟล์
+MEDIA_TYPE_VIDEO = 1
+MEDIA_TYPE_AUDIO = 0
+
+
+def channels_of(layout_tag):
+    """
+    ถอดรหัสรูปแบบช่องเสียง คืนค่าเป็นจำนวนช่องของแทร็กนั้น
+    ตัวเลขก้อนเดียวนี้เก็บสองอย่างไว้ด้วยกัน
+    ส่วนบนคือรหัสรูปแบบ ส่วนล่างคือจำนวนช่อง
+    """
+    try:
+        return int(layout_tag) & 0xFFFF
+    except (TypeError, ValueError):
+        return 0
+
+
+def read_role_preset(path):
+    """
+    อ่านไฟล์ preset หนึ่งไฟล์ คืนค่าเป็นสรุปที่อ่านง่าย
+    อ่านไม่ได้ก็คืน None ไม่ทำให้โปรแกรมพัง
+    """
+    data = read_plist(path)
+    if not isinstance(data, dict) or "outputs" not in data:
+        return None
+
+    tracks = []
+    for output in data.get("outputs") or []:
+        if not isinstance(output, dict):
+            continue
+        tracks.append({
+            "isAudio": output.get("mediaType") == MEDIA_TYPE_AUDIO,
+            "channels": channels_of(output.get("audioChannelLayout")),
+            "roles": [role.get("name", "") for role in (output.get("roles") or [])
+                      if isinstance(role, dict)],
+        })
+
+    audio = [track for track in tracks if track["isAudio"]]
+    return {
+        "path": path,
+        "name": data.get("name") or os.path.splitext(os.path.basename(path))[0],
+        "tracks": tracks,
+        "audioTracks": audio,
+        "totalChannels": sum(track["channels"] for track in audio),
+    }
+
+
+def find_role_presets(roots):
+    """หาไฟล์ preset ทุกไฟล์ในโฟลเดอร์ตั้งค่า"""
+    found = []
+    for path, _size, _mtime in list_setting_files(roots):
+        if path.endswith(ROLE_PRESET_EXTENSION):
+            found.append(path)
+    return found
+
+
+def check_role_preset(summary, wanted_tracks=3, wanted_channels=2, wanted_roles=None):
+    """
+    ตรวจว่า preset ตรงกับที่ห้องข่าวต้องการไหม
+    คืนค่าเป็นรายการข้อความบอกสิ่งที่ไม่ตรง ถ้าว่างแปลว่าผ่านหมด
+    """
+    if wanted_roles is None:
+        wanted_roles = ["All Dialogue", "All Effects", "All Music"]
+
+    problems = []
+    audio = summary["audioTracks"]
+    if len(audio) != wanted_tracks:
+        problems.append("ต้องมีแทร็กเสียง %d แทร็ก แต่มี %d แทร็ก"
+                        % (wanted_tracks, len(audio)))
+
+    for number, track in enumerate(audio, start=1):
+        if track["channels"] != wanted_channels:
+            problems.append("แทร็กที่ %d ต้องมี %d ช่อง แต่มี %d ช่อง"
+                            % (number, wanted_channels, track["channels"]))
+        missing = [name for name in wanted_roles if name not in track["roles"]]
+        if missing:
+            problems.append("แทร็กที่ %d ขาด %s" % (number, ", ".join(missing)))
+    return problems
+
+
+def describe_role_preset(summary, problems=None):
+    """เขียนสรุป preset เป็นข้อความไทยอ่านง่าย"""
+    lines = []
+    lines.append("preset ชื่อ %s" % summary["name"])
+    lines.append("  ไฟล์ %s" % summary["path"])
+    for number, track in enumerate(summary["tracks"], start=1):
+        # แทร็กภาพไม่มีช่องเสียง ตัวเลขในไฟล์เป็นค่าที่ติดมาเฉย ๆ
+        # ถ้าเอามาแสดงจะทำให้เข้าใจผิดว่าภาพมีสองช่อง
+        if track["isAudio"]:
+            lines.append("  แทร็กที่ %d  เสียง  %d ช่อง  %s"
+                         % (number, track["channels"], ", ".join(track["roles"])))
+        else:
+            lines.append("  แทร็กที่ %d  ภาพ  %s"
+                         % (number, ", ".join(track["roles"])))
+    lines.append("  รวมแทร็กเสียง %d แทร็ก เป็นเสียง %d ช่อง"
+                 % (len(summary["audioTracks"]), summary["totalChannels"]))
+    if problems is not None:
+        if problems:
+            lines.append("  ยังไม่ตรงกับที่ต้องการ")
+            for problem in problems:
+                lines.append("    " + problem)
+        else:
+            lines.append("  ตรงกับที่ห้องข่าวต้องการทุกข้อ")
+    return lines
+
+
+def install_role_preset(source, roots):
+    """
+    ติดตั้งไฟล์ preset ลงในโฟลเดอร์เดียวกับ preset ตัวอื่นที่มีอยู่
+    ใช้เมื่อ preset ในเครื่องหายไป จะได้เอาของสำรองใส่คืนได้
+    คืนค่าเป็น (ที่อยู่ปลายทาง, ข้อความอธิบาย)
+    """
+    if not os.path.isfile(source):
+        return None, "ไม่พบไฟล์ต้นทาง %s" % source
+
+    # เอาโฟลเดอร์ของ preset ที่มีอยู่แล้วเป็นที่หมาย
+    # วิธีนี้ไม่ต้องเดาว่าเครื่องนี้เก็บไว้ที่ไหน
+    existing = find_role_presets(roots)
+    if not existing:
+        return None, "ยังไม่มี preset ตัวไหนในเครื่อง จึงไม่รู้ว่าต้องวางไว้ที่ไหน"
+
+    folder = os.path.dirname(existing[0])
+    destination = os.path.join(folder, os.path.basename(source))
+    if os.path.exists(destination):
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        shutil.move(destination, destination + "-เดิม-" + stamp)
+    try:
+        shutil.copy2(source, destination)
+    except OSError as error:
+        return None, "คัดลอกไม่สำเร็จ %s" % error
+    return destination, "ติดตั้งแล้วที่ %s" % destination
+
+
 def build_report(roots, find=None):
     """สร้างรายงานสำรวจทั้งเครื่อง เป็นข้อความภาษาไทยอ่านง่าย"""
     lines = []
@@ -309,10 +463,12 @@ def main(argv=None):
     parser = argparse.ArgumentParser(
         description="อ่าน จำ และคืนค่าตั้ง Roles ของ Final Cut Pro")
     parser.add_argument("command",
-                        choices=["report", "snapshot", "restore", "snapshots", "roots"],
-                        help="report สำรวจ  snapshot จำ  restore คืนค่า  snapshots ดูรายชื่อที่จำไว้")
+                        choices=["report", "snapshot", "restore", "snapshots", "roots",
+                                 "presets", "check", "install"],
+                        help="report สำรวจ  snapshot จำ  restore คืนค่า  "
+                             "presets ดู preset  check ตรวจ preset  install ติดตั้ง preset")
     parser.add_argument("name", nargs="?", default="ค่ามาตรฐาน",
-                        help="ชื่อของชุดที่จำไว้")
+                        help="ชื่อของชุดที่จำไว้ หรือชื่อ preset หรือที่อยู่ไฟล์ที่จะติดตั้ง")
     parser.add_argument("--find", default=None, help="แสดงเฉพาะบรรทัดที่มีคำนี้")
     parser.add_argument("--also-look-in", action="append", default=[],
                         help="โฟลเดอร์ตั้งค่าเพิ่มเติม")
@@ -337,6 +493,41 @@ def main(argv=None):
             print(args.out)
         else:
             sys.stdout.write(text)
+        return 0
+
+    if args.command == "presets":
+        paths = find_role_presets(roots)
+        if not paths:
+            print("ไม่พบไฟล์ preset ของ Roles ในเครื่องนี้", file=sys.stderr)
+            return 1
+        for path in paths:
+            summary = read_role_preset(path)
+            if summary is None:
+                print("อ่านไม่ได้ %s" % path)
+                continue
+            print("\n".join(describe_role_preset(summary)))
+            print("")
+        return 0
+
+    if args.command == "check":
+        # ตรวจ preset ที่ชื่อตรงกับที่ขอ ว่าตรงกับที่ห้องข่าวต้องการไหม
+        wanted = args.name
+        for path in find_role_presets(roots):
+            summary = read_role_preset(path)
+            if summary is None or summary["name"] != wanted:
+                continue
+            problems = check_role_preset(summary)
+            print("\n".join(describe_role_preset(summary, problems)))
+            return 0 if not problems else 1
+        print("ไม่พบ preset ชื่อ %s ในเครื่องนี้" % wanted, file=sys.stderr)
+        return 1
+
+    if args.command == "install":
+        destination, message = install_role_preset(args.name, roots)
+        if destination is None:
+            print(message, file=sys.stderr)
+            return 1
+        print(message)
         return 0
 
     if args.command == "snapshots":
