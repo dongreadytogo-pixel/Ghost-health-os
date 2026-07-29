@@ -36,4 +36,28 @@ fi
 # เปิดหน้าจอหลัก
 # ------------------------------------------------------------
 # ส่งตำแหน่งโฟลเดอร์ Resources ไปให้ เพื่อให้หาไฟล์ตัวช่วยเจอ
-exec /usr/bin/osascript "$RESOURCES/main.applescript" "$RESOURCES"
+#
+# ห้ามใช้ exec ตรง ๆ อีกแล้ว
+# ถ้าหน้าจอหลักมีปัญหา ข้อความผิดพลาดจะหายไปกับ Terminal ที่ไม่มีใครเห็น
+# ผู้ใช้จะเห็นแค่ว่า กดแล้วไม่มีอะไรขึ้นมา ซึ่งหาสาเหตุไม่ได้เลย
+#
+# จึงต้องรับข้อความผิดพลาดไว้ แล้วเอามาแสดงให้เห็นเสมอ
+ERRLOG="$HOME/Library/Caches/fcpx-news-export/ข้อผิดพลาดตอนเปิด.txt"
+mkdir -p "$(dirname "$ERRLOG")"
+
+if ! /usr/bin/osascript "$RESOURCES/main.applescript" "$RESOURCES" 2>"$ERRLOG"; then
+    MESSAGE="$(cat "$ERRLOG" 2>/dev/null)"
+    if [ -z "$MESSAGE" ]; then
+        MESSAGE="ไม่มีข้อความบอกสาเหตุ"
+    fi
+    # วางไฟล์ไว้บนหน้าจอด้วย จะได้ส่งกลับมาให้ผู้พัฒนาดูได้ง่าย
+    cp "$ERRLOG" "$HOME/Desktop/ข้อผิดพลาดตอนเปิด.txt" 2>/dev/null
+    /usr/bin/osascript -e "display dialog \"เปิดโปรแกรมไม่สำเร็จ
+        
+สาเหตุ
+$MESSAGE
+
+วางไฟล์ ข้อผิดพลาดตอนเปิด.txt ไว้บนหน้าจอแล้ว
+ส่งไฟล์นั้นกลับมาให้ผู้พัฒนาได้เลย\" buttons {\"ปิด\"} default button 1 with title \"แยกงานข่าว\" with icon stop"
+    exit 1
+fi

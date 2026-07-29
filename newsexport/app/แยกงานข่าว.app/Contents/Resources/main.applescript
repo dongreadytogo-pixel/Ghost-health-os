@@ -128,29 +128,23 @@ end logLine
 -- ============================================================
 
 on startProgressWindow(headline)
-	-- เริ่มไฟล์บันทึกของรอบนี้ใหม่ทุกครั้ง จะได้ไม่ปนกับรอบก่อน
+	--
+	-- เริ่มไฟล์บันทึกของรอบนี้ใหม่ แล้วเปิดหน้าต่างที่คอยอ่านไฟล์นั้น
+	--
+	-- รุ่นก่อนสร้างไฟล์คำสั่งขึ้นมาสด ๆ ด้วยคำสั่งเขียนไฟล์ของ AppleScript
+	-- ซึ่งเป็นส่วนที่เปราะ และผู้พัฒนาทดสอบล่วงหน้าไม่ได้เพราะไม่มีเครื่อง Mac
+	-- ผลคือโปรแกรมเปิดไม่ขึ้นเลย และผู้ใช้ไม่เห็นสาเหตุอะไรทั้งสิ้น
+	--
+	-- รุ่นนี้ใช้ไฟล์สำเร็จรูปที่ทดสอบไว้แล้ว แล้วแค่คัดลอกออกมาเปิด
+	-- ไม่มีการเขียนไฟล์ด้วย AppleScript อีกเลย
+	--
 	try
 		do shell script "echo " & quoted form of headline & " > " & quoted form of runLogPath
 	end try
 
-	-- สร้างไฟล์คำสั่งเล็ก ๆ ที่คอยอ่านไฟล์นั้นซ้ำ ๆ แล้วจบเองเมื่อเห็นคำว่าจบ
-	set watcherText to "#!/bin/bash" & linefeed & ¬
-		"LOG=" & quoted form of runLogPath & linefeed & ¬
-		"while true; do" & linefeed & ¬
-		"  clear" & linefeed & ¬
-		"  cat \"$LOG\" 2>/dev/null" & linefeed & ¬
-		"  if grep -q '@@จบ@@' \"$LOG\" 2>/dev/null; then break; fi" & linefeed & ¬
-		"  sleep 1" & linefeed & ¬
-		"done" & linefeed & ¬
-		"echo" & linefeed & ¬
-		"echo 'จบแล้ว ปิดหน้าต่างนี้ได้เลย'" & linefeed
-
 	try
-		set handle to open for access (POSIX file watcherPath) with write permission
-		set eof handle to 0
-		write watcherText to handle as «class utf8»
-		close access handle
-		do shell script "chmod +x " & quoted form of watcherPath
+		do shell script "cp " & quoted form of (resourcesPath & "/แสดงความคืบหน้า.command") & ¬
+			" " & quoted form of watcherPath & " && chmod +x " & quoted form of watcherPath
 		do shell script "open " & quoted form of watcherPath
 	on error e
 		logLine("เปิดหน้าต่างความคืบหน้าไม่สำเร็จ " & e)
@@ -158,7 +152,7 @@ on startProgressWindow(headline)
 end startProgressWindow
 
 
-on step(stepText)
+on showStep(stepText)
 	--
 	-- บอกหนึ่งขั้นตอนใหญ่ ลงหน้าต่างความคืบหน้าและไฟล์บันทึกถาวร
 	--
@@ -171,14 +165,14 @@ on step(stepText)
 		do shell script "echo " & quoted form of ("[" & stamp & "]  " & stepText) & ¬
 			" >> " & quoted form of runLogPath
 	end try
-end step
+end showStep
 
 
 on stepBar(doneCount, totalCount, note)
 	-- บรรทัดความคืบหน้าแบบมีแถบ ให้ดูออกในแวบเดียวว่าถึงไหนแล้ว
 	set percent to 0
 	if totalCount > 0 then set percent to round (doneCount * 100 / totalCount)
-	my step(bar(percent) & "  " & percent & "%   ได้ " & doneCount & " จาก " & totalCount & " ไฟล์   " & note)
+	my showStep(bar(percent) & "  " & percent & "%   ได้ " & doneCount & " จาก " & totalCount & " ไฟล์   " & note)
 end stepBar
 
 
@@ -848,19 +842,19 @@ on runWorkflow()
 			"หน้าต่างนี้จะบอกทุกขั้นตอนเอง" & return & ¬
 			"----------------------------------------")
 
-		step("โฟลเดอร์ปลายทาง " & outFolder)
+		showStep("โฟลเดอร์ปลายทาง " & outFolder)
 
-		step("ขั้นที่ 1  ขอไทม์ไลน์จาก Final Cut Pro")
+		showStep("ขั้นที่ 1  ขอไทม์ไลน์จาก Final Cut Pro")
 		set xmlPath to fetchTimeline(outFolder)
 		if xmlPath is "" then
 			endProgressWindow("หยุดแล้ว ไม่ได้ไทม์ไลน์มา")
 			return
 		end if
-		step("ได้ไทม์ไลน์มาแล้ว")
+		showStep("ได้ไทม์ไลน์มาแล้ว")
 
 		set gapSeconds to savedGapSeconds()
-		step("ขั้นที่ 2  แยกก้อน ใช้ค่าช่องว่าง " & gapSeconds & " วินาที")
-		step(runBrief(xmlPath, gapSeconds))
+		showStep("ขั้นที่ 2  แยกก้อน ใช้ค่าช่องว่าง " & gapSeconds & " วินาที")
+		showStep(runBrief(xmlPath, gapSeconds))
 
 		set splitPath to (workPath & "/แยกแล้ว.fcpxml")
 		set eventName to "แยกงาน " & (do shell script "date +%d-%m' '%H%M")
@@ -870,12 +864,12 @@ on runWorkflow()
 		do shell script "/usr/bin/env python3 " & quoted form of (resourcesPath & "/tools/fcpxml_segments.py") & ¬
 			" " & quoted form of xmlPath & " --min-gap " & gapSeconds & " --names > " & quoted form of namesFile
 		set totalFiles to (do shell script "grep -c . " & quoted form of namesFile) as integer
-		step("แยกเสร็จ ต้องได้ทั้งหมด " & totalFiles & " ไฟล์")
+		showStep("แยกเสร็จ ต้องได้ทั้งหมด " & totalFiles & " ไฟล์")
 
-		step("ขั้นที่ 3  ตรวจเสียงของแต่ละก้อน")
+		showStep("ขั้นที่ 3  ตรวจเสียงของแต่ละก้อน")
 		checkAudioBeforeExport(xmlPath, gapSeconds)
 
-		step("ขั้นที่ 4  นำงานย่อยกลับเข้า Final Cut Pro")
+		showStep("ขั้นที่ 4  นำงานย่อยกลับเข้า Final Cut Pro")
 		importTimeline(splitPath)
 
 		-- ไม่ไปยุ่งกับการเลือกงานเลย
@@ -886,13 +880,13 @@ on runWorkflow()
 		--
 		-- สั่ง Share สองรอบติดกันเลย ไม่ต้องรอไฟล์รอบแรกเสร็จ
 		-- เพราะ Final Cut Pro รับงานเข้าคิวแล้วทยอยทำเองพร้อมกันได้
-		step("ขั้นที่ 5  สั่งสร้างไฟล์ mov ทุกก้อนพร้อมกัน")
+		showStep("ขั้นที่ 5  สั่งสร้างไฟล์ mov ทุกก้อนพร้อมกัน")
 		shareTo("Export File", "ไฟล์ mov", "")
 
-		step("ขั้นที่ 6  สั่งสร้างไฟล์ mxf ทุกก้อนพร้อมกัน")
+		showStep("ขั้นที่ 6  สั่งสร้างไฟล์ mxf ทุกก้อนพร้อมกัน")
 		shareTo("MXF-50", "ไฟล์ mxf", "3 Stereo")
 
-		step("ขั้นที่ 7  เฝ้าดูและเก็บไฟล์เข้าโฟลเดอร์ปลายทาง")
+		showStep("ขั้นที่ 7  เฝ้าดูและเก็บไฟล์เข้าโฟลเดอร์ปลายทาง")
 		monitorAndCollect(outFolder, namesFile, totalFiles)
 
 	on error errorMessage number errorNumber
@@ -901,7 +895,7 @@ on runWorkflow()
 			return
 		end if
 		logLine("พังกลางทาง " & errorMessage)
-		step("เกิดปัญหา " & errorMessage)
+		showStep("เกิดปัญหา " & errorMessage)
 		endProgressWindow("หยุดกลางทาง ไฟล์ที่ได้มาแล้วยังอยู่ครบ")
 		activate
 		display dialog ¬
@@ -1021,19 +1015,19 @@ on checkAudioBeforeExport(xmlPath, gapSeconds)
 			quoted form of xmlPath & " --min-gap " & gapSeconds & ¬
 			requireArgument & " > " & quoted form of reportPath & " 2>&1 || true"
 	on error e
-		step("ตรวจเสียงไม่สำเร็จ " & e)
+		showStep("ตรวจเสียงไม่สำเร็จ " & e)
 		return true
 	end try
 
 	if summary starts with "เสียงครบ" then
-		step(summary)
+		showStep(summary)
 		return true
 	end if
 
 	-- เสียงไม่เหมือนกันทุกก้อน บอกไว้ให้เห็น แล้วทำงานต่อ
 	-- พร้อมวางไฟล์รายละเอียดไว้บนหน้าจอ เผื่ออยากดูทีหลัง
-	step("ระวัง  " & summary)
-	step("รายละเอียดอยู่บนหน้าจอแล้ว ชื่อ ตรวจเสียง.txt")
+	showStep("ระวัง  " & summary)
+	showStep("รายละเอียดอยู่บนหน้าจอแล้ว ชื่อ ตรวจเสียง.txt")
 	putOnDesktop(reportPath, "ตรวจเสียง.txt")
 	return true
 end checkAudioBeforeExport
@@ -1842,7 +1836,7 @@ on monitorAndCollect(outFolder, namesFile, totalFiles)
 	end repeat
 
 	if finished then
-		step("ครบทุกไฟล์แล้ว " & totalFiles & " ไฟล์")
+		showStep("ครบทุกไฟล์แล้ว " & totalFiles & " ไฟล์")
 		set headline to "เสร็จเรียบร้อย ได้ไฟล์ครบ " & totalFiles & " ไฟล์"
 	else
 		-- บอกตรง ๆ ว่าขาดไฟล์ไหนบ้าง
@@ -1854,8 +1848,8 @@ on monitorAndCollect(outFolder, namesFile, totalFiles)
 				" " & quoted form of outFolder & " " & quoted form of namesFile & ¬
 				" --settle 0.5 --missing | head -20"
 		end try
-		step("หยุดรอแล้ว ยังขาดไฟล์อยู่")
-		step("ไฟล์ที่ยังขาด" & return & missingList)
+		showStep("หยุดรอแล้ว ยังขาดไฟล์อยู่")
+		showStep("ไฟล์ที่ยังขาด" & return & missingList)
 		set headline to "ยังได้ไม่ครบ" & return & return & ¬
 			"ไฟล์ที่ยังขาด" & return & missingList & return & return & ¬
 			"ใช้ เมนูอื่น แล้ว เก็บไฟล์ที่ตกค้าง เพื่อตามเก็บอีกรอบ"
