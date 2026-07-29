@@ -125,11 +125,11 @@ on showOtherMenu()
 	repeat
 		-- สร้างรายการใหม่ทุกรอบ เพื่อให้ตัวเลขที่โชว์ตรงกับค่าล่าสุดเสมอ
 		set menuItems to {¬
-			"ตั้งค่า Roles  เปิดหน้าต่าง MXF-50 ให้คุณตั้งเอง ครั้งเดียว", ¬
+			"ตั้งค่า Roles  เปิดหน้าต่าง MXF-50 ให้คุณตั้ง 3 Stereo ครั้งเดียว", ¬
 			"ดูค่าที่ตั้งไว้  อ่านค่า Roles ที่เครื่องนี้บันทึกไว้ในไฟล์", ¬
 			"จำค่านี้ไว้  ถ่ายสำเนาค่าที่ตั้งถูกแล้ว เก็บไว้ใช้ทีหลัง", ¬
 			"ใส่ค่าที่จำไว้กลับ  ใช้เมื่อค่า Roles เปลี่ยนไปเอง", ¬
-			"จำนวนช่องเสียง  ตอนนี้ตั้งไว้ " & requiredChannels() & " ช่อง", ¬
+			"ตรวจเสียง  เตือนเมื่อก้อนไหนมีเสียงน้อยกว่า " & requiredChannels() & " Role", ¬
 			"แก้ปัญหา  ดูบันทึก และเก็บไฟล์ที่ตกค้าง"}
 		activate
 		set picked to (choose from list menuItems ¬
@@ -148,7 +148,7 @@ on showOtherMenu()
 			rememberRolesSettings()
 		else if choice starts with "ใส่ค่าที่จำไว้กลับ" then
 			restoreRolesSettings()
-		else if choice starts with "จำนวนช่องเสียง" then
+		else if choice starts with "ตรวจเสียง" then
 			askRequiredChannels()
 		else
 			showTroubleMenu()
@@ -647,13 +647,19 @@ end runWorkflow
 -- ============================================================
 -- ตรวจเสียงก่อนเอ็กพอร์ต
 -- ------------------------------------------------------------
--- จำนวนช่องเสียงในไฟล์ MXF ไม่ได้ขึ้นกับการตั้งค่าอย่างเดียว
--- แต่ขึ้นกับว่าในก้อนนั้นมีเสียงของ Role ไหนอยู่บ้าง
--- ตรวจก่อนจึงดีกว่ามารู้ตอนไฟล์เสร็จแล้ว
+-- ไฟล์ MXF-50 ใช้ preset ชื่อ 3 Stereo
+-- ได้สามแทร็ก แทร็กละสองช่อง รวมหกช่อง
+-- และทั้งสามแทร็กรับ All Dialogue กับ All Effects กับ All Music เหมือนกัน
+--
+-- จำนวนแทร็กจึงมาจาก preset ไม่ได้มาจากเนื้อในของก้อน
+-- ก้อนที่เสียงไม่ครบก็ยังได้สามแทร็กเหมือนเดิม แต่จะมีส่วนที่เงียบ
+--
+-- ที่ตรวจตรงนี้จึงไม่ใช่จำนวนแทร็ก แต่คือความเงียบที่ไม่ตั้งใจ
+-- เพราะความเงียบที่ออกอากาศไปแล้ว แก้ทีหลังไม่ได้
 -- ============================================================
 
 on requiredChannels()
-	-- จำนวนช่องเสียงที่ต้องมีในไฟล์ MXF-50
+	-- จำนวน Role ของเสียงที่แต่ละก้อนต้องมี
 	-- เก็บเป็นไฟล์เพื่อให้แก้ได้ในภายหลังโดยไม่ต้องแก้โปรแกรม
 	try
 		set saved to do shell script "cat " & quoted form of channelsPath
@@ -669,9 +675,11 @@ on askRequiredChannels()
 	activate
 	try
 		set answer to text returned of (display dialog ¬
-			"ไฟล์ MXF-50 ต้องมีกี่ช่องเสียง" & return & return & ¬
-			"ห้องข่าวนี้ใช้ 6 ช่อง แยกกันช่องละ Role" & return & ¬
-			"โปรแกรมจะเตือนก่อนเอ็กพอร์ต ถ้าก้อนไหนมีไม่ครบ" ¬
+			"แต่ละก้อนต้องมีเสียงกี่ Role" & return & return & ¬
+			"ไฟล์ MXF-50 ใช้ preset ชื่อ 3 Stereo" & return & ¬
+			"ได้สามแทร็ก แทร็กละสองช่อง รวมหกช่อง เสมอ" & return & return & ¬
+			"ตัวเลขนี้ไม่ได้เปลี่ยนจำนวนแทร็กในไฟล์" & return & ¬
+			"แต่ใช้เตือนว่าก้อนไหนเสียงหายไปจนอาจออกอากาศเงียบ" ¬
 			default answer requiredChannels() ¬
 			buttons {"ยกเลิก", "บันทึก"} default button "บันทึก" with title appTitle)
 	on error number -128
@@ -687,9 +695,9 @@ on askRequiredChannels()
 	end if
 
 	do shell script "echo " & quoted form of cleaned & " > " & quoted form of channelsPath
-	logLine("ตั้งจำนวนช่องเสียงเป็น " & cleaned)
+	logLine("ตั้งจำนวน Role ของเสียงเป็น " & cleaned)
 	activate
-	display dialog "บันทึกแล้ว ต้องมี " & cleaned & " ช่องเสียงต่อหนึ่งก้อน" ¬
+	display dialog "บันทึกแล้ว แต่ละก้อนต้องมีเสียงอย่างน้อย " & cleaned & " Role" ¬
 		buttons {"ตกลง"} default button "ตกลง" with title appTitle
 end askRequiredChannels
 
@@ -727,8 +735,8 @@ on checkAudioBeforeExport(xmlPath, gapSeconds)
 	activate
 	set answer to button returned of (display dialog ¬
 		"ตรวจเสียงแล้วพบว่าไม่ครบ" & return & return & summary & return & return & ¬
-		"ไฟล์ MXF ของก้อนที่ขาด จะมีช่องเสียงน้อยกว่าก้อนอื่น" & return & ¬
-		"เพราะ Final Cut Pro สร้างช่องเสียงให้เฉพาะ Role ที่มีของอยู่จริง" & return & return & ¬
+		"ไฟล์ยังได้สามแทร็กครบตาม preset 3 Stereo" & return & ¬
+		"แต่ส่วนที่ไม่มีของ จะออกอากาศเป็นความเงียบ" & return & return & ¬
 		"จะไปต่อ หรือหยุดไปแก้เสียงก่อน" ¬
 		buttons {"ดูรายละเอียด", "หยุดก่อน", "ไปต่อ"} ¬
 		default button "หยุดก่อน" with title appTitle with icon caution)

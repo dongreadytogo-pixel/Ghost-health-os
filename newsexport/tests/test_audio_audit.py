@@ -162,7 +162,18 @@ class TestReport(unittest.TestCase):
         results, expected = self.build(timeline(spine, 450))
         summary = aa.brief(results, expected, 6)
         self.assertIn("ก้อนที่ 2", summary)
-        self.assertIn("6 ช่อง", summary)
+        self.assertIn("6 Role", summary)
+
+    def test_report_states_the_three_stereo_layout(self):
+        """ผู้ใช้ต้องเห็นชัดว่าไฟล์ได้สามแทร็กเสมอ ไม่ว่าก้อนนั้นเสียงครบไหม"""
+        spine = (clip(0, 200, SIX_MONO) + gap(200, 50)
+                 + clip(250, 200, SIX_MONO[:2]))
+        results, expected = self.build(timeline(spine, 450))
+        text = "\n".join(aa.format_report(results, expected))
+        self.assertIn("3 Stereo", text)
+        self.assertIn("สามแทร็ก", text)
+        self.assertIn("เงียบ", text)
+        self.assertNotIn("ช่องเสียงน้อยกว่าก้อนอื่น", text)
 
     def test_report_lists_the_missing_roles(self):
         spine = (clip(0, 200, SIX_MONO) + gap(200, 50)
