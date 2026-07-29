@@ -168,11 +168,11 @@ on showStep(stepText)
 end showStep
 
 
-on stepBar(doneCount, totalCount, note)
+on stepBar(doneCount, totalCount, noteText)
 	-- บรรทัดความคืบหน้าแบบมีแถบ ให้ดูออกในแวบเดียวว่าถึงไหนแล้ว
 	set percent to 0
 	if totalCount > 0 then set percent to round (doneCount * 100 / totalCount)
-	my showStep(bar(percent) & "  " & percent & "%   ได้ " & doneCount & " จาก " & totalCount & " ไฟล์   " & note)
+	my showStep(bar(percent) & "  " & percent & "%   ได้ " & doneCount & " จาก " & totalCount & " ไฟล์   " & noteText)
 end stepBar
 
 
@@ -295,8 +295,8 @@ on changeGapSeconds()
 	-- เดิมโปรแกรมถามทุกรอบก่อนเอ็กพอร์ต ซึ่งขัดกับการกดปุ่มเดียวแล้วจบ
 	-- ย้ายมาไว้ตรงนี้ ตั้งครั้งเดียวแล้วจำไว้ให้เลย
 	--
-	set current to savedGapSeconds()
-	set answer to askGapSeconds(current)
+	set currentValue to savedGapSeconds()
+	set answer to askGapSeconds(currentValue)
 	if answer is "" then return
 	do shell script "echo " & quoted form of answer & " > " & quoted form of gapPath
 	logLine("ตั้งค่าช่องว่างเป็น " & answer & " วินาที")
@@ -982,9 +982,9 @@ on askRequiredChannels()
 	do shell script "echo " & quoted form of cleaned & " > " & quoted form of channelsPath
 	logLine("ตั้งจำนวน Role ของเสียงเป็น " & cleaned)
 	activate
-	set note to "บันทึกแล้ว แต่ละก้อนต้องมีเสียงอย่างน้อย " & cleaned & " Role"
-	if cleaned is "0" then set note to "บันทึกแล้ว ปิดการตรวจจำนวน Role แล้ว"
-	display dialog note ¬
+	set savedNote to "บันทึกแล้ว แต่ละก้อนต้องมีเสียงอย่างน้อย " & cleaned & " Role"
+	if cleaned is "0" then set savedNote to "บันทึกแล้ว ปิดการตรวจจำนวน Role แล้ว"
+	display dialog savedNote ¬
 		buttons {"ตกลง"} default button "ตกลง" with title appTitle
 end askRequiredChannels
 
