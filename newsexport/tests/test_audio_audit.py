@@ -119,9 +119,46 @@ class TestAudit(unittest.TestCase):
         results, _expected, _fps = aa.audit(self.full_timeline(), 0.2, require=6)
         self.assertTrue(all(row["enough"] for row in results))
 
-    def test_requiring_seven_fails_everywhere(self):
+    def test_a_requirement_nobody_can_meet_is_ignored(self):
+        """
+        เกณฑ์ที่สูงกว่าจำนวน Role ทั้งไทม์ไลน์ ทำให้ทุกก้อนตกหมด
+        แบบนั้นแปลว่าเกณฑ์ผิด ไม่ใช่งานผิด จึงต้องมองข้ามเกณฑ์นั้นไป
+
+        เคยเกิดขึ้นจริง ตอนที่ค่าเริ่มต้นถูกตั้งไว้ที่หก Role ต่อก้อน
+        ทั้งที่งานจริงใช้อยู่หกตัวไม่ถึง ผู้ใช้จึงโดนเตือนทุกก้อนทุกวัน
+        """
         results, _expected, _fps = aa.audit(self.full_timeline(), 0.2, require=7)
-        self.assertFalse(any(row["enough"] for row in results))
+        self.assertTrue(all(row["enough"] for row in results))
+
+    def test_a_requirement_that_fits_still_applies(self):
+        spine = (clip(0, 200, SIX_MONO, "ก้อน1")
+                 + gap(200, 50)
+                 + clip(250, 200, SIX_MONO, "ก้อน2"))
+        results, _expected, _fps = aa.audit(timeline(spine, 450), 0.2, require=6)
+        self.assertTrue(all(row["enough"] for row in results))
+
+    def test_effective_require_drops_an_impossible_bar(self):
+        self.assertIsNone(aa.effective_require(["a", "b"], 6))
+
+    def test_effective_require_keeps_a_reachable_bar(self):
+        self.assertEqual(aa.effective_require(["a", "b", "c"], 3), 3)
+
+    def test_effective_require_without_any_role_is_off(self):
+        self.assertIsNone(aa.effective_require([], 6))
+
+    def test_command_line_does_not_fail_on_an_impossible_bar(self):
+        """
+        นี่คือกรณีที่ผู้ใช้เจอจริง ทุกก้อนถูกเตือนพร้อมกันหมด
+        รหัสจบต้องเป็นศูนย์ แอปจะได้ไม่ขึ้นหน้าต่างเตือนโดยไม่จำเป็น
+        """
+        path = os.path.join(HERE, "ทดสอบเกณฑ์ชั่วคราว.fcpxml")
+        spine = (clip(0, 200, SIX_MONO[:2]) + gap(200, 50)
+                 + clip(250, 200, SIX_MONO[:2]))
+        timeline(spine, 450).write(path, encoding="utf-8", xml_declaration=True)
+        try:
+            self.assertEqual(aa.main([path, "--require", "6", "--brief"]), 0)
+        finally:
+            os.remove(path)
 
     def test_finds_the_block_that_is_short(self):
         results, expected, _fps = aa.audit(self.broken_timeline(), 0.2)

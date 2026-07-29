@@ -74,6 +74,29 @@ def split_role_list(value):
     return [part.strip() for part in value.split(",") if part.strip()]
 
 
+def effective_require(expected, require):
+    """
+    ตัดสินว่าเกณฑ์จำนวน Role ที่ตั้งไว้ ใช้ได้จริงกับงานชิ้นนี้ไหม
+
+    ถ้าเกณฑ์สูงกว่าจำนวน Role ที่มีอยู่ทั้งไทม์ไลน์
+    ไม่มีก้อนไหนผ่านได้เลยแม้แต่ก้อนเดียว แปลว่าเกณฑ์ผิด ไม่ใช่งานผิด
+
+    เรื่องนี้เกิดขึ้นจริงมาแล้ว ผมเคยตั้งค่าเริ่มต้นไว้ที่หก Role ต่อก้อน
+    ซึ่งมาจากที่ผมเข้าใจผิดว่าไฟล์ต้องมีหกแทร็กแยกกัน
+    ความจริงคือสามแทร็กสเตอริโอ ที่แต่ละแทร็กรับ
+    All Dialogue กับ All Effects กับ All Music
+    ไทม์ไลน์จริงจึงมี Role ไม่ถึงหกตัว และทุกก้อนถูกเตือนหมดทุกวัน
+
+    การเตือนที่ขึ้นทุกก้อนทุกครั้ง ไม่มีประโยชน์ มีแต่ทำให้เสียเวลา
+    จึงต้องมองข้ามเกณฑ์จำนวนไปเมื่อเจอกรณีนี้
+    """
+    if require is None or not expected:
+        return None
+    if len(expected) < require:
+        return None
+    return require
+
+
 def audit(tree, min_gap, require=None):
     """
     ตรวจทุกก้อน คืนค่าเป็น (รายการผลตรวจ, รายชื่อ Role มาตรฐาน)
@@ -94,6 +117,8 @@ def audit(tree, min_gap, require=None):
     expected = set()
     for project in projects:
         expected |= collect_roles(project)
+
+    require = effective_require(expected, require)
 
     results = []
     for index, project in enumerate(projects, start=1):
@@ -196,10 +221,13 @@ def main(argv=None):
         print("ตรวจไม่สำเร็จ: %s" % error, file=sys.stderr)
         return 2
 
+    # แสดงผลด้วยเกณฑ์ที่ใช้ได้จริง ไม่ใช่ตัวเลขดิบที่ผู้ใช้ตั้งไว้
+    # ไม่อย่างนั้นข้อความจะอ้างเกณฑ์ที่โปรแกรมมองข้ามไปแล้ว
+    used = effective_require(expected, args.require)
     if args.brief:
-        print(brief(results, expected, args.require))
+        print(brief(results, expected, used))
     else:
-        print("\n".join(format_report(results, expected, args.require)))
+        print("\n".join(format_report(results, expected, used)))
 
     # คืนค่า 1 เมื่อมีก้อนที่เสียงไม่ครบ เพื่อให้ฝั่งแอปรู้ว่าต้องเตือน
     return 0 if all(row["enough"] for row in results) else 1

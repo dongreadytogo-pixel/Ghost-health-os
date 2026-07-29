@@ -160,7 +160,7 @@ on showToolMenu()
 			"ดูค่าที่ตั้งไว้  อ่านค่า Roles ที่เครื่องนี้บันทึกไว้ในไฟล์", ¬
 			"จำค่านี้ไว้  ถ่ายสำเนาค่าที่ตั้งถูกแล้ว เก็บไว้ใช้ทีหลัง", ¬
 			"ใส่ค่าที่จำไว้กลับ  ใช้เมื่อค่า Roles เปลี่ยนไปเอง", ¬
-			"ตรวจเสียง  เตือนเมื่อก้อนไหนมีเสียงน้อยกว่า " & requiredChannels() & " Role"}
+			"ตรวจเสียง  เกณฑ์จำนวน Role ขั้นต่ำ ตอนนี้ " & requiredChannels() & "  ศูนย์คือไม่ตรวจ"}
 		activate
 		set picked to (choose from list menuItems ¬
 			with title appTitle ¬
@@ -805,13 +805,25 @@ end runWorkflow
 -- ============================================================
 
 on requiredChannels()
-	-- จำนวน Role ของเสียงที่แต่ละก้อนต้องมี
-	-- เก็บเป็นไฟล์เพื่อให้แก้ได้ในภายหลังโดยไม่ต้องแก้โปรแกรม
+	--
+	-- จำนวน Role ของเสียงขั้นต่ำที่แต่ละก้อนต้องมี
+	--
+	-- ค่าเริ่มต้นคือ 0 แปลว่าไม่กำหนดจำนวน
+	--
+	-- เดิมผมตั้งไว้ที่ 6 ซึ่งมาจากที่ผมเข้าใจผิดว่าไฟล์ต้องมีหกแทร็กแยกกัน
+	-- ความจริงคือสามแทร็กสเตอริโอ ที่แต่ละแทร็กรับ
+	-- All Dialogue กับ All Effects กับ All Music
+	-- ไทม์ไลน์จริงจึงมี Role ไม่ถึงหกตัว ทุกก้อนเลยถูกเตือนหมดทุกวัน
+	--
+	-- การเตือนที่ขึ้นทุกก้อนทุกครั้ง ไม่มีประโยชน์ มีแต่ทำให้เสียเวลา
+	-- เกณฑ์จำนวนจึงปิดไว้เป็นค่าเริ่มต้น
+	-- แต่ยังตรวจเรื่องที่มีประโยชน์จริงอยู่ คือก้อนไหนเสียงไม่เหมือนก้อนอื่น
+	--
 	try
 		set saved to do shell script "cat " & quoted form of channelsPath
 		if saved is not "" then return saved
 	end try
-	return "6"
+	return "0"
 end requiredChannels
 
 
@@ -821,11 +833,10 @@ on askRequiredChannels()
 	activate
 	try
 		set answer to text returned of (display dialog ¬
-			"แต่ละก้อนต้องมีเสียงกี่ Role" & return & return & ¬
-			"ไฟล์ MXF-50 ใช้ preset ชื่อ 3 Stereo" & return & ¬
-			"ได้สามแทร็ก แทร็กละสองช่อง รวมหกช่อง เสมอ" & return & return & ¬
-			"ตัวเลขนี้ไม่ได้เปลี่ยนจำนวนแทร็กในไฟล์" & return & ¬
-			"แต่ใช้เตือนว่าก้อนไหนเสียงหายไปจนอาจออกอากาศเงียบ" ¬
+			"แต่ละก้อนต้องมีเสียงอย่างน้อยกี่ Role" & return & return & ¬
+			"ใส่ 0 แปลว่าไม่ตรวจจำนวน ซึ่งเป็นค่าเริ่มต้น" & return & return & ¬
+			"ถึงใส่ 0 โปรแกรมก็ยังตรวจเรื่องที่สำคัญกว่าอยู่" & return & ¬
+			"คือก้อนไหนมีเสียงไม่เหมือนก้อนอื่น ซึ่งมักแปลว่าลืมใส่เสียง" ¬
 			default answer requiredChannels() ¬
 			buttons {"ยกเลิก", "บันทึก"} default button "บันทึก" with title appTitle)
 	on error number -128
@@ -833,9 +844,9 @@ on askRequiredChannels()
 	end try
 
 	set cleaned to do shell script "echo " & quoted form of answer & " | tr -cd '0-9'"
-	if cleaned is "" or cleaned is "0" then
+	if cleaned is "" then
 		activate
-		display dialog "ต้องเป็นตัวเลขที่มากกว่าศูนย์" ¬
+		display dialog "ต้องเป็นตัวเลข" ¬
 			buttons {"ตกลง"} default button "ตกลง" with title appTitle
 		return
 	end if
@@ -843,13 +854,18 @@ on askRequiredChannels()
 	do shell script "echo " & quoted form of cleaned & " > " & quoted form of channelsPath
 	logLine("ตั้งจำนวน Role ของเสียงเป็น " & cleaned)
 	activate
-	display dialog "บันทึกแล้ว แต่ละก้อนต้องมีเสียงอย่างน้อย " & cleaned & " Role" ¬
+	set note to "บันทึกแล้ว แต่ละก้อนต้องมีเสียงอย่างน้อย " & cleaned & " Role"
+	if cleaned is "0" then set note to "บันทึกแล้ว ปิดการตรวจจำนวน Role แล้ว"
+	display dialog note ¬
 		buttons {"ตกลง"} default button "ตกลง" with title appTitle
 end askRequiredChannels
 
 
 on checkAudioBeforeExport(xmlPath, gapSeconds)
 	set wanted to requiredChannels()
+	-- ศูนย์แปลว่าไม่กำหนดจำนวน จึงไม่ต้องส่งเกณฑ์ไปเลย
+	set requireArgument to ""
+	if wanted is not "0" then set requireArgument to " --require " & wanted
 	set reportPath to workPath & "/ตรวจเสียง.txt"
 	set summary to ""
 
@@ -859,11 +875,11 @@ on checkAudioBeforeExport(xmlPath, gapSeconds)
 		set summary to do shell script "/usr/bin/env python3 " & ¬
 			quoted form of (resourcesPath & "/tools/audio_audit.py") & " " & ¬
 			quoted form of xmlPath & " --min-gap " & gapSeconds & ¬
-			" --require " & wanted & " --brief 2>&1 || true"
+			requireArgument & " --brief 2>&1 || true"
 		do shell script "/usr/bin/env python3 " & ¬
 			quoted form of (resourcesPath & "/tools/audio_audit.py") & " " & ¬
 			quoted form of xmlPath & " --min-gap " & gapSeconds & ¬
-			" --require " & wanted & " > " & quoted form of reportPath & " 2>&1 || true"
+			requireArgument & " > " & quoted form of reportPath & " 2>&1 || true"
 	on error e
 		logLine("ตรวจเสียงไม่สำเร็จ " & e)
 		return true
@@ -876,6 +892,9 @@ on checkAudioBeforeExport(xmlPath, gapSeconds)
 		return true
 	end if
 
+	-- วางไฟล์รายละเอียดไว้บนหน้าจอให้เลย จะได้ไม่ต้องมีปุ่มเพิ่มอีกปุ่ม
+	putOnDesktop(reportPath, "ตรวจเสียง.txt")
+
 	-- เสียงไม่ครบ ต้องบอกให้เห็นชัด แต่ไม่ตัดสินใจแทนผู้ใช้
 	-- บางวันงานอาจตั้งใจให้บางก้อนมีเสียงน้อยกว่าจริง ๆ
 	activate
@@ -883,9 +902,10 @@ on checkAudioBeforeExport(xmlPath, gapSeconds)
 		"ตรวจเสียงแล้วพบว่าไม่ครบ" & return & return & summary & return & return & ¬
 		"ไฟล์ยังได้สามแทร็กครบตาม preset 3 Stereo" & return & ¬
 		"แต่ส่วนที่ไม่มีของ จะออกอากาศเป็นความเงียบ" & return & return & ¬
+		"รายละเอียดอยู่บนหน้าจอแล้ว ชื่อ ตรวจเสียง.txt" & return & return & ¬
 		"จะไปต่อ หรือหยุดไปแก้เสียงก่อน" ¬
-		buttons {"ดูรายละเอียด", "หยุดก่อน", "ไปต่อ"} ¬
-		default button "หยุดก่อน" with title appTitle with icon caution)
+		buttons {"ไม่ต้องเตือนอีก", "หยุดก่อน", "ไปต่อ"} ¬
+		default button "ไปต่อ" with title appTitle with icon caution)
 
 	if answer is "ไปต่อ" then return true
 	if answer is "หยุดก่อน" then
@@ -893,15 +913,14 @@ on checkAudioBeforeExport(xmlPath, gapSeconds)
 		return false
 	end if
 
-	putOnDesktop(reportPath, "ตรวจเสียง.txt")
-	activate
-	set answer to button returned of (display dialog ¬
-		"วางไฟล์ไว้บนหน้าจอแล้ว ชื่อ ตรวจเสียง.txt" & return & ¬
-		"ในนั้นบอกทีละก้อนว่าขาด Role ไหนบ้าง" ¬
-		buttons {"หยุดก่อน", "ไปต่อ"} default button "หยุดก่อน" with title appTitle)
-	if answer is "ไปต่อ" then return true
-	say("หยุดเพื่อไปแก้เสียงก่อน")
-	return false
+	-- ปิดการเตือนถาวร แล้วไปต่อเลย
+	-- ถ้าการเตือนขึ้นทุกวันโดยที่งานไม่ได้ผิด ก็ไม่ควรต้องมาทนกดทุกวัน
+	try
+		do shell script "echo 0 > " & quoted form of channelsPath
+	end try
+	logLine("ผู้ใช้ปิดการเตือนเรื่องเสียง")
+	say("ปิดการเตือนเรื่องเสียงแล้ว")
+	return true
 end checkAudioBeforeExport
 
 
