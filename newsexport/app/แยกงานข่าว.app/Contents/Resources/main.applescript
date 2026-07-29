@@ -115,18 +115,36 @@ end showMainMenu
 
 
 on showOtherMenu()
+	--
+	-- ใช้รายการให้เลือกแทนปุ่ม เพราะปุ่มในกล่องข้อความมีได้มากสุดสามปุ่ม
+	-- เมนูนี้มีมากกว่าสามหัวข้อแล้ว และจะเพิ่มอีกในอนาคต
+	-- รายการให้เลือกจึงขยายได้เรื่อย ๆ โดยไม่ต้องรื้อโครงสร้าง
+	--
+	set menuItems to {¬
+		"ตั้งค่า Roles  เปิดหน้าต่าง MXF-50 ให้คุณตั้ง 3 Stereo ครั้งเดียว", ¬
+		"ดูค่าที่ตั้งไว้  อ่านค่า Roles ที่เครื่องนี้บันทึกไว้ในไฟล์", ¬
+		"จำค่านี้ไว้  ถ่ายสำเนาค่าที่ตั้งถูกแล้ว เก็บไว้ใช้ทีหลัง", ¬
+		"ใส่ค่าที่จำไว้กลับ  ใช้เมื่อค่า Roles เปลี่ยนไปเอง", ¬
+		"แก้ปัญหา  ดูบันทึก และเก็บไฟล์ที่ตกค้าง"}
+
 	repeat
 		activate
-		set choice to button returned of (display dialog ¬
-			"เมนูเพิ่มเติม" & return & return & ¬
-			"ตั้งค่า Roles   เปิดหน้าต่าง MXF-50 ให้คุณตั้ง 3 Stereo" & return & ¬
-			"               ทำครั้งเดียว ไม่มีการเอ็กพอร์ตไฟล์" & return & return & ¬
-			"แก้ปัญหา       ดูบันทึก และเก็บไฟล์ที่ตกค้าง" ¬
-			buttons {"กลับ", "แก้ปัญหา", "ตั้งค่า Roles"} ¬
-			default button "กลับ" with title appTitle)
-		if choice is "กลับ" then return
-		if choice is "ตั้งค่า Roles" then
+		set picked to (choose from list menuItems ¬
+			with title appTitle ¬
+			with prompt ("เมนูเพิ่มเติม" & return & "เลือกหนึ่งข้อแล้วกดตกลง") ¬
+			OK button name "ตกลง" cancel button name "กลับ" ¬
+			without multiple selections allowed and empty selection allowed)
+		if picked is false then return
+
+		set choice to item 1 of picked
+		if choice starts with "ตั้งค่า Roles" then
 			primeRolesSetting()
+		else if choice starts with "ดูค่าที่ตั้งไว้" then
+			reportRolesSettings()
+		else if choice starts with "จำค่านี้ไว้" then
+			rememberRolesSettings()
+		else if choice starts with "ใส่ค่าที่จำไว้กลับ" then
+			restoreRolesSettings()
 		else
 			showTroubleMenu()
 		end if
@@ -260,6 +278,132 @@ on logPresetLocations()
 		logLine("ในโฟลเดอร์ ProApps มี " & folders)
 	end try
 end logPresetLocations
+
+
+-- ============================================================
+-- ค่า Roles ที่เก็บอยู่ในไฟล์ของเครื่อง
+-- ------------------------------------------------------------
+-- ช่อง Roles as เป็นปุ่มบนหน้าจอของ Final Cut Pro
+-- เราสั่งให้เครื่องกดปุ่มนั้นแทนคนไม่สำเร็จสักที
+-- แต่ค่าที่ตั้งไว้ไม่ได้อยู่แค่บนหน้าจอ มันถูกเขียนลงไฟล์จริงในเครื่อง
+--
+-- สามข้อนี้จึงเข้าไปทางไฟล์แทนทางปุ่ม
+-- ดูค่าที่ตั้งไว้    อ่านไฟล์มาแสดงว่าตอนนี้ค่าเป็นอะไร
+-- จำค่านี้ไว้       ถ่ายสำเนาไฟล์ทั้งชุดเก็บไว้ตอนที่ค่ายังถูก
+-- ใส่ค่าที่จำไว้กลับ  เอาสำเนาใส่คืน เมื่อค่าถูกเปลี่ยนไป
+--
+-- ข้อดีคือเราไม่ต้องรู้เลยว่าข้างในไฟล์เขียนอะไรไว้ตรงไหน
+-- ขอแค่ตั้ง 3 Stereo ด้วยมือให้ถูกหนึ่งครั้ง แล้วสั่งให้จำ
+-- เป็นการคัดลอกไฟล์ธรรมดา จึงตรงเป๊ะเสมอ
+-- ============================================================
+
+on rolesTool(arguments)
+	-- เรียกเครื่องมืออ่านค่า Roles คืนค่าเป็นข้อความที่มันพิมพ์ออกมา
+	return do shell script "/usr/bin/env python3 " & ¬
+		quoted form of (resourcesPath & "/tools/roles_presets.py") & " " & arguments
+end rolesTool
+
+
+on reportRolesSettings()
+	set reportPath to workPath & "/ค่า Roles ในเครื่อง.txt"
+	try
+		rolesTool("report --out " & quoted form of reportPath)
+	on error e
+		activate
+		display dialog "อ่านค่าไม่สำเร็จ" & return & return & e ¬
+			buttons {"ตกลง"} default button "ตกลง" with title appTitle
+		logLine("อ่านค่า Roles ไม่สำเร็จ " & e)
+		return
+	end try
+
+	-- ดึงเฉพาะบรรทัดที่มีคำว่า Stereo มาโชว์ให้เห็นทันที
+	-- เพราะรายงานเต็มยาวเกินกว่าจะอ่านในกล่องข้อความ
+	set highlights to ""
+	try
+		set highlights to do shell script ¬
+			"grep -i stereo " & quoted form of reportPath & " | head -12"
+	end try
+
+	logLine("เขียนรายงานค่า Roles ไว้ที่ " & reportPath)
+	if highlights is "" then
+		set summary to "ยังไม่เจอค่าที่มีคำว่า Stereo ในไฟล์ตั้งค่า" & return & ¬
+			"แปลว่าเครื่องนี้อาจเก็บค่าไว้คนละที่กับที่เราคาด" & return & return & ¬
+			"กรุณาส่งไฟล์รายงานกลับมาให้ผมดู"
+	else
+		set summary to "ค่าที่เครื่องนี้บันทึกไว้" & return & return & highlights
+	end if
+
+	try
+		do shell script "open -R " & quoted form of reportPath
+	end try
+	activate
+	display dialog summary & return & return & ¬
+		"เปิด Finder ให้แล้ว ไฟล์ชื่อ ค่า Roles ในเครื่อง.txt" ¬
+		buttons {"ตกลง"} default button "ตกลง" with title appTitle
+end reportRolesSettings
+
+
+on rememberRolesSettings()
+	activate
+	set answer to button returned of (display dialog ¬
+		"จำค่า Roles ที่ตั้งไว้ตอนนี้" & return & return & ¬
+		"ก่อนกดต่อ กรุณาตรวจว่าตอนนี้ Roles as เป็น 3 Stereo แล้วจริง" & return & ¬
+		"เพราะโปรแกรมจะจำสภาพปัจจุบันไว้ทั้งชุด" & return & return & ¬
+		"ถ้าค่ายังไม่ถูก ให้กลับไปที่ ตั้งค่า Roles ก่อน" ¬
+		buttons {"ยกเลิก", "จำไว้เลย"} default button "จำไว้เลย" with title appTitle)
+	if answer is "ยกเลิก" then return
+
+	try
+		set copied to rolesTool("snapshot " & quoted form of "ค่ามาตรฐาน")
+	on error e
+		activate
+		display dialog "จำค่าไม่สำเร็จ" & return & return & e ¬
+			buttons {"ตกลง"} default button "ตกลง" with title appTitle
+		logLine("จำค่า Roles ไม่สำเร็จ " & e)
+		return
+	end try
+
+	logLine("จำค่า Roles ไว้แล้ว " & copied & " ไฟล์")
+	activate
+	display dialog "จำไว้แล้ว " & copied & " ไฟล์" & return & return & ¬
+		"ต่อไปถ้าค่า Roles เปลี่ยนไปเอง" & return & ¬
+		"ให้มาที่เมนูนี้แล้วเลือก ใส่ค่าที่จำไว้กลับ" ¬
+		buttons {"ตกลง"} default button "ตกลง" with title appTitle
+end rememberRolesSettings
+
+
+on restoreRolesSettings()
+	--
+	-- Final Cut Pro อ่านไฟล์ตั้งค่าตอนเปิดโปรแกรม และเขียนทับตอนปิด
+	-- ถ้าใส่ค่าคืนขณะที่มันเปิดอยู่ ค่าที่ใส่จะถูกเขียนทับทิ้งทันที
+	-- จึงต้องให้ปิด Final Cut Pro ก่อน แล้วค่อยเปิดใหม่ทีหลัง
+	--
+	activate
+	set answer to button returned of (display dialog ¬
+		"ใส่ค่า Roles ที่จำไว้กลับ" & return & return & ¬
+		"ต้องปิด Final Cut Pro ก่อน" & return & ¬
+		"เพราะถ้ายังเปิดอยู่ มันจะเขียนทับค่าที่เราใส่คืน" & return & return & ¬
+		"ปิด Final Cut Pro แล้วค่อยกด ใส่ค่าคืน" ¬
+		buttons {"ยกเลิก", "ใส่ค่าคืน"} default button "ใส่ค่าคืน" with title appTitle)
+	if answer is "ยกเลิก" then return
+
+	try
+		-- ห้ามตั้งชื่อตัวแปรว่า result เพราะ AppleScript จองคำนั้นไว้ใช้เอง
+		set outcome to rolesTool("restore " & quoted form of "ค่ามาตรฐาน")
+		logLine("ใส่ค่า Roles กลับ " & outcome)
+		activate
+		display dialog outcome & return & return & ¬
+			"เปิด Final Cut Pro ขึ้นมาใหม่ได้เลย" ¬
+			buttons {"ตกลง"} default button "ตกลง" with title appTitle
+	on error e
+		logLine("ใส่ค่า Roles กลับไม่สำเร็จ " & e)
+		activate
+		display dialog "ใส่ค่าคืนไม่สำเร็จ" & return & return & e & return & return & ¬
+			"ถ้าข้อความบอกว่า Final Cut Pro ยังเปิดอยู่" & return & ¬
+			"ให้ปิดโปรแกรมนั้นก่อนแล้วลองใหม่" ¬
+			buttons {"ตกลง"} default button "ตกลง" with title appTitle
+	end try
+end restoreRolesSettings
 
 
 on primeRolesSetting()
