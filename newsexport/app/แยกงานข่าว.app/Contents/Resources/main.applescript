@@ -120,35 +120,58 @@ end showMainMenu
 
 on showOtherMenu()
 	--
-	-- ใช้รายการให้เลือกแทนปุ่ม เพราะปุ่มในกล่องข้อความมีได้มากสุดสามปุ่ม
-	-- เมนูนี้มีมากกว่าสามหัวข้อแล้ว และจะเพิ่มอีกในอนาคต
-	-- รายการให้เลือกจึงขยายได้เรื่อย ๆ โดยไม่ต้องรื้อโครงสร้าง
+	-- เมนูนี้เคยยาวถึงเก้าหัวข้อ ซึ่งมากเกินไปสำหรับการใช้งานจริง
+	-- ผู้ใช้บอกตรง ๆ ว่าควรกดปุ่มเดียวแล้วจบ ไม่ใช่มานั่งเลือกเมนู
+	--
+	-- ของที่ใช้บ่อยจริง ๆ มีแค่สองอย่าง คือดูบันทึก กับเก็บไฟล์ที่ตกค้าง
+	-- ที่เหลือเป็นเครื่องมือสำหรับหาสาเหตุเวลามีปัญหา
+	-- จึงยุบไปไว้ในข้อเดียวชื่อ เครื่องมือช่าง ไม่ต้องเห็นตอนใช้งานปกติ
 	--
 	repeat
-		-- สร้างรายการใหม่ทุกรอบ เพื่อให้ตัวเลขที่โชว์ตรงกับค่าล่าสุดเสมอ
+		activate
+		set choice to button returned of (display dialog ¬
+			"เมนูเพิ่มเติม" & return & return & ¬
+			"เก็บไฟล์ที่ตกค้าง  ใช้เมื่อรอบก่อนหยุดกลางคัน" & return & return & ¬
+			"ดูบันทึก          ไฟล์บอกว่าโปรแกรมทำอะไรไปบ้าง" ¬
+			buttons {"เครื่องมือช่าง", "เก็บไฟล์ที่ตกค้าง", "ดูบันทึก"} ¬
+			default button "ดูบันทึก" with title appTitle)
+		if choice is "ดูบันทึก" then
+			showLog()
+			return
+		else if choice is "เก็บไฟล์ที่ตกค้าง" then
+			collectLeftovers()
+			return
+		else
+			showToolMenu()
+		end if
+	end repeat
+end showOtherMenu
+
+
+on showToolMenu()
+	--
+	-- เครื่องมือสำหรับหาสาเหตุเวลามีปัญหา ไม่ใช่ของที่ต้องใช้ทุกวัน
+	--
+	repeat
 		set menuItems to {¬
-			"สร้างแทร็กเสียง  ให้โปรแกรมกด Add Audio Track ให้ครบสามแทร็ก", ¬
-			"ตรวจค่า Roles  เปิดหน้าต่าง MXF-50 ขึ้นมาดูว่าตั้งได้จริงไหม", ¬
+			"ทดสอบเลือก preset  ดูว่าโปรแกรมเลือก 3 Stereo ได้ไหม", ¬
 			"ตรวจ preset  อ่านไฟล์ 3 Stereo ในเครื่องว่าถูกต้องไหม", ¬
-			"เก็บไฟล์ตั้งค่ามาให้ผม  รวมไฟล์ preset และ destination ไว้บนหน้าจอ", ¬
+			"เก็บไฟล์ตั้งค่ามาให้ผม  รวมไฟล์ตั้งค่าไว้บนหน้าจอ", ¬
 			"ดูค่าที่ตั้งไว้  อ่านค่า Roles ที่เครื่องนี้บันทึกไว้ในไฟล์", ¬
 			"จำค่านี้ไว้  ถ่ายสำเนาค่าที่ตั้งถูกแล้ว เก็บไว้ใช้ทีหลัง", ¬
 			"ใส่ค่าที่จำไว้กลับ  ใช้เมื่อค่า Roles เปลี่ยนไปเอง", ¬
-			"ตรวจเสียง  เตือนเมื่อก้อนไหนมีเสียงน้อยกว่า " & requiredChannels() & " Role", ¬
-			"แก้ปัญหา  ดูบันทึก และเก็บไฟล์ที่ตกค้าง"}
+			"ตรวจเสียง  เตือนเมื่อก้อนไหนมีเสียงน้อยกว่า " & requiredChannels() & " Role"}
 		activate
 		set picked to (choose from list menuItems ¬
 			with title appTitle ¬
-			with prompt ("เมนูเพิ่มเติม" & return & "เลือกหนึ่งข้อแล้วกดตกลง") ¬
+			with prompt ("เครื่องมือช่าง" & return & "ใช้ตอนหาสาเหตุเท่านั้น") ¬
 			OK button name "ตกลง" cancel button name "กลับ" ¬
 			without multiple selections allowed and empty selection allowed)
 		if picked is false then return
 
 		set choice to item 1 of picked
-		if choice starts with "สร้างแทร็กเสียง" then
+		if choice starts with "ทดสอบเลือก preset" then
 			runBuildRolesLayout()
-		else if choice starts with "ตรวจค่า Roles" then
-			primeRolesSetting()
 		else if choice starts with "ตรวจ preset" then
 			checkRolePreset()
 		else if choice starts with "เก็บไฟล์ตั้งค่ามาให้ผม" then
@@ -159,33 +182,11 @@ on showOtherMenu()
 			rememberRolesSettings()
 		else if choice starts with "ใส่ค่าที่จำไว้กลับ" then
 			restoreRolesSettings()
-		else if choice starts with "ตรวจเสียง" then
+		else
 			askRequiredChannels()
-		else
-			showTroubleMenu()
 		end if
 	end repeat
-end showOtherMenu
-
-
-on showTroubleMenu()
-	repeat
-		activate
-		set choice to button returned of (display dialog ¬
-			"แก้ปัญหา" & return & return & ¬
-			"เก็บไฟล์ที่ตกค้าง  ใช้เมื่อรอบก่อนหยุดกลางคัน" & return & ¬
-			"                  จะไปตามเก็บไฟล์มาให้ครบ" & return & return & ¬
-			"ดูบันทึก          ไฟล์บอกว่าโปรแกรมทำอะไรไปบ้าง" ¬
-			buttons {"กลับ", "เก็บไฟล์ที่ตกค้าง", "ดูบันทึก"} ¬
-			default button "กลับ" with title appTitle)
-		if choice is "กลับ" then return
-		if choice is "ดูบันทึก" then
-			showLog()
-		else
-			collectLeftovers()
-		end if
-	end repeat
-end showTroubleMenu
+end showToolMenu
 
 
 on putOnDesktop(sourcePath, niceName)
@@ -297,30 +298,6 @@ on dumpWindowTree(windowName)
 	end try
 	logLine("---- จบการจดโครงสร้าง ----")
 end dumpWindowTree
-
-
-on logPresetLocations()
-	-- หาไฟล์ preset ของ Roles ที่ผู้ใช้บันทึกไว้
-	-- ในเมนูมีคำสั่ง Reveal User Presets in Finder แปลว่ามันเป็นไฟล์จริงในเครื่อง
-	-- ถ้ารู้ตำแหน่ง อาจตั้งค่าได้โดยไม่ต้องพึ่งการกดปุ่มเลย
-	try
-		set found to do shell script ¬
-			"find ~/Library/Application\\ Support/ProApps ~/Library/Containers/com.apple.FinalCut/Data/Library/Application\\ Support " & ¬
-			"-maxdepth 4 -iname '*preset*' -o -maxdepth 4 -iname '*role*' 2>/dev/null | head -40"
-		if found is "" then
-			logLine("ไม่พบไฟล์ preset ในตำแหน่งที่คาดไว้")
-		else
-			logLine("ไฟล์ที่น่าจะเป็น preset")
-			logLine(found)
-		end if
-	on error e
-		logLine("หาไฟล์ preset ไม่สำเร็จ " & e)
-	end try
-	try
-		set folders to do shell script "ls ~/Library/Application\\ Support/ProApps 2>/dev/null"
-		logLine("ในโฟลเดอร์ ProApps มี " & folders)
-	end try
-end logPresetLocations
 
 
 -- ============================================================
@@ -699,95 +676,6 @@ on rolesPresetIsSet(wantedSetting)
 	if windowIndex is 0 then return false
 	return (count of my collectAt(windowIndex, {wantedSetting}, true)) > 0
 end rolesPresetIsSet
-
-
-on describeRolesLayout()
-	-- อธิบายสภาพปัจจุบันของแท็บ Roles เป็นข้อความสั้น ๆ
-	set windowIndex to my findShareWindow()
-	if windowIndex is 0 then return "ไม่เจอหน้าต่างของ Share"
-	set trackCount to my countAudioTracksAt(windowIndex)
-	set roleCount to count of my collectAt(windowIndex, {"All Dialogue", "All Effects", "All Music"}, true)
-	return ("มีแทร็กเสียง " & trackCount & " แทร็ก  ใส่ Role ไว้รวม " & roleCount & " อัน")
-end describeRolesLayout
-
-
-on primeRolesSetting()
-	--
-	-- เปิดหน้าต่าง MXF-50 ขึ้นมาให้ตรวจและตั้งค่าเสียงด้วยตัวเอง
-	--
-	-- ความจริงที่ต้องบอกก่อน
-	-- ค่าที่ตั้งในหน้าต่างนี้ ไม่ได้ถูกบันทึกไว้ถาวร
-	-- มันมีผลกับการเอ็กพอร์ตครั้งนั้นครั้งเดียว
-	-- เพราะเราปิดหน้าต่างด้วยปุ่ม Cancel จึงไม่มีอะไรถูกเก็บไว้เลย
-	--
-	-- เมนูนี้จึงมีไว้ตรวจและทดลอง ไม่ใช่ไว้ตั้งค่าถาวร
-	-- ของจริงคือโปรแกรมจะตั้งให้เองทุกครั้งตอนเอ็กพอร์ต ก่อนกดปุ่ม Next
-	-- นั่นคือจังหวะเดียวที่ค่านี้มีผลจริง
-
-	if not ensureFinalCutRunning() then return
-	if not ensureAccessibility() then return
-
-	activate
-	display dialog ¬
-		"ตรวจและตั้งค่าเสียงของ MXF-50" & return & return & ¬
-		"โปรแกรมจะเปิดหน้าต่าง MXF-50 ขึ้นมาให้" & return & ¬
-		"ไม่มีการเอ็กพอร์ตไฟล์ใด ๆ ทั้งสิ้น" & return & return & ¬
-		"เรื่องที่ต้องรู้ก่อน" & return & ¬
-		"ค่าที่ตั้งในหน้าต่างนี้ไม่ถูกบันทึกถาวร" & return & ¬
-		"เพราะเราปิดหน้าต่างด้วยปุ่ม Cancel" & return & return & ¬
-		"ของจริงคือโปรแกรมจะตั้งให้เองทุกครั้งตอนเอ็กพอร์ต" & return & ¬
-		"เมนูนี้มีไว้ตรวจว่าตั้งได้จริงไหมเท่านั้น" & return & return & ¬
-		"ต้องเลือกงานในหน้าต่าง Browser ไว้ก่อนหนึ่งชิ้น" ¬
-		buttons {"เปิดให้เลย"} default button 1 with title appTitle
-
-	if not openShareWindow("MXF-50") then return
-
-	set windowIndex to findShareWindow()
-	openRolesTabAt(windowIndex)
-	logPresetLocations()
-
-	set alreadySet to rolesPresetIsSet("3 Stereo")
-	logLine("ตอนเปิดมา 3 Stereo ถูกเลือกอยู่ไหม " & alreadySet)
-	logLine("สภาพแท็บ Roles ตอนเปิดมา " & describeRolesLayout())
-
-	if not alreadySet then
-		-- ลองสร้างแทร็กให้เองก่อน เผื่อสำเร็จก็จบเลย
-		buildRolesLayout("MXF-50")
-	end if
-
-	say("ดูหน้าต่าง MXF-50 ได้เลย ตั้งเพิ่มเองก็ได้")
-	try
-		tell application "Final Cut Pro" to activate
-	end try
-
-	-- เฝ้าดูเงียบ ๆ ไม่ขวางการกดใด ๆ
-	-- จบเมื่อได้สามแทร็ก หรือเมื่อ 3 Stereo ถูกเลือก หรือเมื่อหน้าต่างหายไป
-	set finalNote to "หน้าต่างถูกปิดไปก่อน"
-	repeat with i from 1 to 90
-		delay 2
-		set windowIndex to findShareWindow()
-		if windowIndex is 0 then exit repeat
-		set trackCount to countAudioTracksAt(windowIndex)
-		if trackCount ≥ 3 or rolesPresetIsSet("3 Stereo") then
-			set finalNote to describeRolesLayout()
-			logLine("ตั้งค่าเสียงถูกต้องแล้ว " & finalNote)
-			exit repeat
-		end if
-		if i mod 15 is 0 then say("ยังรออยู่ ตอนนี้ " & describeRolesLayout())
-	end repeat
-
-	-- ปิดหน้าต่างให้ ไม่ต้องเอ็กพอร์ตอะไร
-	pressButtons({"Cancel", "ยกเลิก"})
-	delay 1
-
-	activate
-	display dialog ¬
-		"ผลการตรวจ" & return & return & finalNote & return & return & ¬
-		"ปิดหน้าต่างให้แล้ว ไม่มีไฟล์ไหนถูกสร้าง" & return & return & ¬
-		"ค่านี้ไม่ถูกเก็บไว้ถาวร นั่นเป็นเรื่องปกติ" & return & ¬
-		"โปรแกรมจะตั้งให้ใหม่เองทุกครั้งตอนเอ็กพอร์ต" ¬
-		buttons {"เข้าใจแล้ว"} default button 1 with title appTitle
-end primeRolesSetting
 
 
 on collectLeftovers()
@@ -1218,243 +1106,6 @@ on countPanelFields()
 end countPanelFields
 
 
-on waitForWindowNamed(windowName, maxSeconds)
-	--
-	-- รอจนหน้าต่างชื่อที่ต้องการโผล่ขึ้นมาจริง
-	--
-	-- หลักฐานจากผลทดสอบบนเครื่องจริง
-	-- หน้าต่างของ Share ชื่อตรงกับปลายทาง เช่น Export File หรือ MXF-50
-	-- แต่ในรายการหน้าต่างมีหน้าต่างไม่มีชื่อปนอยู่ด้วยหลายอัน
-	-- ที่ผ่านมาโปรแกรมใช้หน้าต่างที่หนึ่ง จึงไปโดนหน้าต่างเปล่าที่ไม่มีอะไรข้างใน
-	-- และหน้าต่างจริงใช้เวลาโผล่ ถ้ารีบเข้าไปอ่านจะยังไม่มี
-	repeat with i from 1 to maxSeconds
-		try
-			with timeout of uiTimeout seconds
-				tell application "System Events"
-					tell process fcpName
-						if exists window windowName then
-							my logLine("เจอหน้าต่างชื่อ " & windowName & " แล้ว")
-							return true
-						end if
-					end tell
-				end tell
-			end timeout
-		end try
-		delay 1
-	end repeat
-	-- ยังไม่เจอ จดรายชื่อหน้าต่างทั้งหมดไว้ดู
-	try
-		with timeout of uiTimeout seconds
-			tell application "System Events"
-				tell process fcpName
-					my logLine("รอหน้าต่าง " & windowName & " ไม่เจอ หน้าต่างที่มีคือ " & ((name of every window) as string))
-				end tell
-			end tell
-		end timeout
-	end try
-	return false
-end waitForWindowNamed
-
-
-on findRolesPopupValue(destinationName)
-	--
-	-- อ่านค่าปัจจุบันของช่อง Roles as
-	--
-	-- ใช้หลักเดียวกับตอนเลือก คือหาช่องที่มีรายการ 3 Stereo อยู่ข้างใน
-	-- ไม่อ้างอิงชนิดของช่องเลย เพราะเดาผิดมาหลายรอบแล้ว
-	set foundValue to ""
-	try
-		with timeout of 25 seconds
-			tell application "System Events"
-				tell process fcpName
-					if not (exists window destinationName) then return ""
-					tell window destinationName
-						repeat with a in UI elements
-							set foundValue to my valueIfHas(a, "3 Stereo")
-							if foundValue is not "" then return foundValue
-							repeat with b in UI elements of a
-								set foundValue to my valueIfHas(b, "3 Stereo")
-								if foundValue is not "" then return foundValue
-								repeat with c in UI elements of b
-									set foundValue to my valueIfHas(c, "3 Stereo")
-									if foundValue is not "" then return foundValue
-									repeat with d in UI elements of c
-										set foundValue to my valueIfHas(d, "3 Stereo")
-										if foundValue is not "" then return foundValue
-									end repeat
-								end repeat
-							end repeat
-						end repeat
-					end tell
-				end tell
-			end tell
-		end timeout
-	end try
-	return ""
-end findRolesPopupValue
-
-
-on valueIfHas(elementRef, markerName)
-	-- ถ้าของชิ้นนี้มีรายการชื่อ markerName อยู่ข้างใน แปลว่าเป็นช่อง Roles as
-	-- ให้คืนค่าปัจจุบันของมันกลับไป ถ้าไม่ใช่ก็คืนค่าว่าง
-	try
-		tell application "System Events"
-			set itemNames to name of every menu item of menu 1 of elementRef
-			if itemNames contains markerName then
-				return (value of elementRef) as string
-			end if
-		end tell
-	end try
-	return ""
-end valueIfHas
-
-
-on openRolesTab(destinationName)
-	--
-	-- กดแท็บ Roles โดยไม่สนใจว่ามันเป็นชนิดอะไร
-	--
-	-- ที่ผ่านมาผมเดาชนิดของมันผิดหลายรอบ
-	-- เดาว่าเป็นปุ่มวิทยุในกลุ่มแท็บบ้าง เป็นปุ่มวิทยุตรง ๆ บ้าง
-	-- รอบนี้เลิกเดา ใช้วิธีหาสิ่งที่ชื่อ Roles แล้วกดมัน ไม่ว่าจะเป็นชนิดใด
-	set clicked to false
-	try
-		with timeout of 25 seconds
-			tell application "System Events"
-				tell process fcpName
-					set frontmost to true
-					delay 0.3
-					if not (exists window destinationName) then return false
-					tell window destinationName
-						repeat with a in UI elements
-							if my nameOf(a) is "Roles" then
-								click a
-								set clicked to true
-								exit repeat
-							end if
-							repeat with b in UI elements of a
-								if my nameOf(b) is "Roles" then
-									click b
-									set clicked to true
-									exit repeat
-								end if
-								repeat with c in UI elements of b
-									if my nameOf(c) is "Roles" then
-										click c
-										set clicked to true
-										exit repeat
-									end if
-									repeat with d in UI elements of c
-										if my nameOf(d) is "Roles" then
-											click d
-											set clicked to true
-											exit repeat
-										end if
-									end repeat
-									if clicked then exit repeat
-								end repeat
-								if clicked then exit repeat
-							end repeat
-							if clicked then exit repeat
-						end repeat
-					end tell
-				end tell
-			end tell
-		end timeout
-	on error e
-		logLine("กดแท็บ Roles พังกลางทาง " & e)
-	end try
-	if clicked then
-		logLine("กดแท็บ Roles สำเร็จ")
-	else
-		logLine("หาแท็บชื่อ Roles ไม่เจอในสี่ชั้นแรก")
-	end if
-	delay 1
-	return clicked
-end openRolesTab
-
-
-on nameOf(elementRef)
-	try
-		return (name of elementRef) as string
-	on error
-		return ""
-	end try
-end nameOf
-
-
-on clickRolesChoice(destinationName, wantedSetting)
-	--
-	-- หาช่องที่มีรายการชื่อที่ต้องการอยู่ข้างใน แล้วเลือกมัน
-	--
-	-- เลิกอ้างอิงชนิดของช่องโดยสิ้นเชิง
-	-- เพราะเดาผิดมาหลายรอบ ทั้งช่องเลือกและปุ่มเมนู
-	--
-	-- วิธีใหม่ ดูที่ของจริงเลยว่าใครมีรายการ 3 Stereo อยู่ข้างใน
-	-- ถ้ามี แปลว่านั่นคือช่องที่ถูกต้องแน่นอน ไม่ว่ามันจะเป็นชนิดอะไร
-	-- และไม่ต้องกดอะไรมั่วเพื่อลองด้วย จึงไม่มีทางไปกดโดนปุ่มอื่นผิด
-	set didChoose to false
-	try
-		with timeout of 30 seconds
-			tell application "System Events"
-				tell process fcpName
-					if not (exists window destinationName) then return false
-					tell window destinationName
-						repeat with a in UI elements
-							if my chooseIfHas(a, wantedSetting) then return true
-							repeat with b in UI elements of a
-								if my chooseIfHas(b, wantedSetting) then return true
-								repeat with c in UI elements of b
-									if my chooseIfHas(c, wantedSetting) then return true
-									repeat with d in UI elements of c
-										if my chooseIfHas(d, wantedSetting) then return true
-									end repeat
-								end repeat
-							end repeat
-						end repeat
-					end tell
-				end tell
-			end tell
-		end timeout
-	on error e
-		logLine("เลือกค่าพังกลางทาง " & e)
-	end try
-	return didChoose
-end clickRolesChoice
-
-
-on chooseIfHas(elementRef, wantedSetting)
-	-- ดูว่าของชิ้นนี้มีรายการที่ต้องการอยู่ข้างในไหม โดยยังไม่ต้องกดอะไร
-	-- ถ้ามีจึงค่อยกดเปิดแล้วเลือก
-	set itemNames to {}
-	try
-		tell application "System Events"
-			set itemNames to name of every menu item of menu 1 of elementRef
-		end tell
-	on error
-		return false
-	end try
-	if itemNames does not contain wantedSetting then return false
-
-	my logLine("เจอช่องที่มีรายการ " & wantedSetting & " แล้ว รายการทั้งหมด " & (itemNames as string))
-	try
-		tell application "System Events"
-			click elementRef
-			delay 0.6
-			click menu item wantedSetting of menu 1 of elementRef
-			delay 0.8
-		end tell
-		my logLine("เลือก " & wantedSetting & " เรียบร้อย")
-		return true
-	on error e
-		my logLine("กดเลือกไม่สำเร็จ " & e)
-		try
-			tell application "System Events" to key code 53
-		end try
-		return false
-	end try
-end chooseIfHas
-
-
 -- ============================================================
 -- สร้างแทร็กเสียงเอง ด้วยปุ่ม Add Audio Track
 -- ------------------------------------------------------------
@@ -1636,26 +1287,6 @@ on countAudioTracksAt(windowIndex)
 end countAudioTracksAt
 
 
-on clickFirstAt(windowIndex, wantedText)
-	-- กดชิ้นแรกที่ชื่อตรงกับที่ขอ
-	set candidates to my collectAt(windowIndex, {wantedText}, true)
-	if (count of candidates) is 0 then
-		logLine("ไม่เจอปุ่มชื่อ " & wantedText)
-		return false
-	end if
-	try
-		with timeout of uiTimeout seconds
-			tell application "System Events" to click (item 1 of candidates)
-		end timeout
-		delay 0.8
-		return true
-	on error errorText
-		logLine("กดปุ่ม " & wantedText & " ไม่สำเร็จ " & errorText)
-		return false
-	end try
-end clickFirstAt
-
-
 on openMenuAndPick(elementRef, itemName)
 	--
 	-- กดเปิดเมนูก่อน แล้วค่อยอ่านรายการข้างใน
@@ -1748,65 +1379,6 @@ on pressEscape()
 end pressEscape
 
 
-on addRolesToTrack(trackNumber)
-	--
-	-- ใส่ Role สามอย่างให้แทร็กเสียงหนึ่งแทร็ก
-	--
-	-- ตำแหน่งของปุ่ม Add Role นับรวม video track ที่อยู่บนสุดด้วย
-	-- ปุ่มของ audio track ที่หนึ่ง จึงเป็นปุ่มชิ้นที่สอง
-	--
-	-- ต้องค้นหาปุ่มใหม่ทุกครั้งก่อนกด เพราะกดหนึ่งครั้งหน้าต่างถูกสร้างใหม่
-	-- ของที่จำไว้จากรอบก่อนจะใช้ไม่ได้อีกแล้ว
-	--
-	set wantedRoles to {"All Dialogue", "All Effects", "All Music"}
-	set position to trackNumber + 1
-	set addedCount to 0
-
-	repeat with roleName in wantedRoles
-		set windowIndex to my findShareWindow()
-		if windowIndex is 0 then
-			logLine("หน้าต่างหายไประหว่างใส่ Role ให้แทร็กที่ " & trackNumber)
-			return addedCount
-		end if
-		set addButtons to my collectAt(windowIndex, {"Add Role"}, true)
-		if (count of addButtons) < position then
-			logLine("ไม่เจอปุ่ม Add Role ชิ้นที่ " & position & " มีอยู่ " & (count of addButtons) & " ชิ้น")
-			return addedCount
-		end if
-		if my openMenuAndPick(item position of addButtons, roleName as string) then
-			set addedCount to addedCount + 1
-		end if
-	end repeat
-	return addedCount
-end addRolesToTrack
-
-
-on ensureChannelsStereo(trackNumber)
-	--
-	-- ดูว่าช่อง Channels ของแทร็กนี้เป็น Stereo แล้วหรือยัง
-	--
-	-- หาช่องนี้จากค่าที่มันโชว์อยู่ ไม่ใช่จากชื่อ
-	-- เพราะในภาพ คำว่า Channels เป็นข้อความข้าง ๆ ไม่ใช่ชื่อของตัวช่อง
-	-- และรุ่นก่อนหาด้วยการอ่านเมนูก็ไม่สำเร็จ เพราะเมนูยังไม่ถูกสร้าง
-	--
-	set windowIndex to my findShareWindow()
-	if windowIndex is 0 then return false
-
-	set boxes to my collectAt(windowIndex, {"Stereo", "Mono", "Surround"}, true)
-	if (count of boxes) < trackNumber then
-		logLine("ไม่เจอช่อง Channels ของแทร็กที่ " & trackNumber & " เจออยู่ " & (count of boxes) & " ช่อง")
-		return false
-	end if
-
-	set theBox to item trackNumber of boxes
-	if my labelOf(theBox) is "Stereo" then
-		logLine("Channels ของแทร็กที่ " & trackNumber & " เป็น Stereo อยู่แล้ว")
-		return true
-	end if
-	return my openMenuAndPick(theBox, "Stereo")
-end ensureChannelsStereo
-
-
 -- ============================================================
 -- เลือก preset ในช่อง Roles as
 -- ------------------------------------------------------------
@@ -1844,15 +1416,25 @@ on selectRolesPreset(wantedSetting)
 	set windowIndex to my findShareWindow()
 	if windowIndex is 0 then return false
 
-	set candidates to my collectAt(windowIndex, my knownRolesValues(), true)
+	--
+	-- หาแบบขึ้นต้นด้วย ไม่ใช่ตรงเป๊ะ
+	--
+	-- ภาพหน้าจอของผู้ใช้แสดงว่าช่องนี้เขียนว่า
+	--   Multitrack MXF File (edited)
+	-- มีคำว่า edited ต่อท้ายด้วย เพราะมีการแก้จากค่าเดิม
+	--
+	-- รุ่นก่อนหาแบบตรงเป๊ะ จึงไม่เจอช่องนี้เลย ทั้งที่มันอยู่ตรงหน้า
+	-- นี่คือสาเหตุที่พลาดอีกครั้ง ไม่ใช่เพราะหาไม่เจอ แต่เพราะเทียบผิดวิธี
+	--
+	set candidates to my collectAt(windowIndex, my knownRolesValues(), false)
 	if (count of candidates) is 0 then
 		logLine("ไม่เจอช่อง Roles as จากค่าที่มันโชว์อยู่")
 		return false
 	end if
 
 	set theBox to item 1 of candidates
-	if my labelOf(theBox) is wantedSetting then
-		logLine("ช่อง Roles as เป็น " & wantedSetting & " อยู่แล้ว")
+	if my labelOf(theBox) starts with wantedSetting then
+		logLine("ช่อง Roles as เป็น " & my labelOf(theBox) & " อยู่แล้ว")
 		return true
 	end if
 
@@ -1928,116 +1510,28 @@ on buildRolesLayout(destinationName)
 		end if
 	end if
 
-	-- เลือก preset ไม่ได้ ค่อยลงมือสร้างแทร็กเองทีละแทร็ก
+	--
+	-- เลือก preset ไม่ได้
+	--
+	-- ผู้ใช้สั่งไว้ชัดว่า ต้องเลือกในช่องนั้น ไม่ใช่กด Add เพิ่มเอง
+	-- รุ่นนี้จึงไม่กด Add ให้อัตโนมัติอีกแล้ว
+	-- ถ้ามีแทร็กครบสามอยู่แล้วก็ผ่าน ถ้าไม่ครบก็บอกตรง ๆ ว่าไม่สำเร็จ
+	--
+	-- การกด Add ยังมีอยู่ แต่ย้ายไปอยู่ในเมนูเครื่องมือช่าง
+	-- ไว้ใช้ตอนฉุกเฉินเท่านั้น ไม่ใช่ตอนทำงานปกติ
+	--
 	set windowIndex to my findShareWindow()
 	set trackCount to my countAudioTracksAt(windowIndex)
-	logLine("ตอนนี้มีแทร็กเสียงอยู่ " & trackCount & " แทร็ก")
+	logLine("เลือก preset ไม่สำเร็จ ตอนนี้มีแทร็กเสียงอยู่ " & trackCount & " แทร็ก")
 
 	if trackCount ≥ 3 then
 		say("มีแทร็กเสียงครบสามแทร็กแล้ว")
 		return true
 	end if
 
-	repeat with trackNumber from (trackCount + 1) to 3
-		set windowIndex to my findShareWindow()
-		if windowIndex is 0 then
-			logLine("หน้าต่างหายไปก่อนจะเพิ่มแทร็กที่ " & trackNumber)
-			return false
-		end if
-		if not my clickFirstAt(windowIndex, "Add Audio Track") then
-			logLine("กดปุ่ม Add Audio Track ไม่ได้ หยุดการสร้างแทร็ก")
-			dumpWindowTree(destinationName)
-			return false
-		end if
-		logLine("เพิ่มแทร็กเสียงที่ " & trackNumber & " แล้ว")
-		my ensureChannelsStereo(trackNumber)
-		set addedCount to my addRolesToTrack(trackNumber)
-		logLine("แทร็กที่ " & trackNumber & " ใส่ Role ได้ " & addedCount & " จาก 3")
-	end repeat
-
-	set windowIndex to my findShareWindow()
-	set finalCount to my countAudioTracksAt(windowIndex)
-	logLine("สร้างเสร็จแล้ว มีแทร็กเสียง " & finalCount & " แทร็ก")
-	if finalCount ≥ 3 then
-		say("ตั้งแทร็กเสียงครบสามแทร็กแล้ว")
-		return true
-	end if
 	dumpWindowTree(destinationName)
 	return false
 end buildRolesLayout
-
-
-
-on setRolesTo(destinationName, wantedSetting)
-	--
-	-- ตั้งค่าช่อง Roles as ให้เป็นค่าที่ห้องข่าวต้องการ
-	--
-	-- ความผิดพลาดร้ายแรงของรุ่นก่อน
-	-- ตอนตั้งค่าอัตโนมัติไม่สำเร็จ โปรแกรมเปิดหน้าต่างเตือนขึ้นมาบอกให้ผู้ใช้ตั้งเอง
-	-- แต่หน้าต่างเตือนนั้นบล็อกทุกอย่างไว้ ผู้ใช้จึงกดอะไรไม่ได้เลย
-	-- กลายเป็นบอกให้ทำ แล้วตัวเองขวางไม่ให้ทำ
-	--
-	-- รุ่นนี้จึงไม่เปิดหน้าต่างเตือนขวางไว้อีก
-	-- ใช้การแจ้งเตือนแบบไม่ขวาง แล้วเฝ้าดูค่าไปเรื่อย ๆ
-	-- พอผู้ใช้ตั้งเองเสร็จ โปรแกรมจะรู้เองแล้วไปต่อทันที
-
-	-- ต้องรอหน้าต่างโผล่ก่อนเสมอ ห้ามรีบเข้าไปอ่าน
-	if not waitForWindowNamed(destinationName, 15) then
-		logLine("ไม่เจอหน้าต่าง " & destinationName & " จึงตั้ง Roles ไม่ได้")
-	end if
-	openRolesTab(destinationName)
-	set beforeValue to findRolesPopupValue(destinationName)
-	logLine("Roles as ตอนนี้คือ [" & beforeValue & "]")
-	if beforeValue is "" then
-		-- อ่านค่าไม่ได้ แปลว่ายังหาช่องไม่เจอ จดผังไว้ทันทีเพื่อหาสาเหตุ
-		dumpWindowTree(destinationName)
-	end if
-
-	if beforeValue is wantedSetting then
-		say("Roles เป็น " & wantedSetting & " อยู่แล้ว")
-		return true
-	end if
-
-	if clickRolesChoice(destinationName, wantedSetting) then
-		set afterValue to findRolesPopupValue(destinationName)
-		logLine("Roles as หลังตั้งคือ [" & afterValue & "]")
-		if afterValue is wantedSetting then
-			say("ตั้ง Roles เป็น " & wantedSetting & " แล้ว")
-			return true
-		end if
-	end if
-
-	-- ตั้งเองไม่สำเร็จ จดโครงสร้างไว้ก่อน แล้วขอให้ผู้ใช้ช่วย โดยไม่ขวางการกดใด ๆ
-	logLine("ตั้งค่าอัตโนมัติไม่สำเร็จ เปลี่ยนเป็นรอให้ผู้ใช้ตั้งเอง")
-	dumpWindowTree(destinationName)
-	say("กรุณาตั้ง Roles as เป็น " & wantedSetting & " ในหน้าต่าง " & destinationName)
-
-	-- ยกหน้าต่างของ Final Cut Pro ขึ้นมาให้ผู้ใช้กดได้สะดวก
-	try
-		tell application "Final Cut Pro" to activate
-	end try
-
-	repeat with i from 1 to 90
-		delay 2
-		set nowValue to findRolesPopupValue(destinationName)
-		if nowValue is wantedSetting then
-			logLine("ผู้ใช้ตั้งค่าเองเรียบร้อยแล้ว")
-			say("ตั้ง Roles เรียบร้อย ทำงานต่อ")
-			return true
-		end if
-		if nowValue is "" then
-			-- หน้าต่างหายไปแล้ว แปลว่าผู้ใช้กดต่อไปเองหรือปิดไปแล้ว
-			logLine("ไม่พบหน้าต่างแล้ว ถือว่าผู้ใช้จัดการต่อเอง")
-			return false
-		end if
-		if i mod 10 is 0 then
-			say("ยังรอให้ตั้ง Roles as เป็น " & wantedSetting & " อยู่")
-		end if
-	end repeat
-
-	logLine("รอครบเวลาแล้วยังไม่ได้ตั้ง")
-	return false
-end setRolesTo
 
 
 on shareTo(destinationName, humanName, rolesSetting)
@@ -2096,12 +1590,7 @@ on shareTo(destinationName, humanName, rolesSetting)
 		-- ปุ่มพวกนั้นมีชื่อเป็นตัวหนังสือ เราจึงหาเจอ ต่างจากช่อง Roles as
 		--
 		-- ถ้าสร้างเองไม่สำเร็จ ค่อยถอยไปใช้วิธีเลือก preset เป็นทางสำรอง
-		if rolesSetting is not "" then
-			if not buildRolesLayout(destinationName) then
-				logLine("สร้างแทร็กเองไม่สำเร็จ ลองวิธีเลือก preset เป็นทางสำรอง")
-				setRolesTo(destinationName, rolesSetting)
-			end if
-		end if
+		if rolesSetting is not "" then buildRolesLayout(destinationName)
 
 		if pressButtons({"Next…", "Next...", "Next"}) then logLine("กดปุ่ม Next แล้ว")
 		delay 2
