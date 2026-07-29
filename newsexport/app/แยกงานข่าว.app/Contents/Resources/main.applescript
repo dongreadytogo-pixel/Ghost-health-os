@@ -1552,21 +1552,45 @@ on openMenuAndPick(elementRef, itemName)
 		return false
 	end if
 
-	if itemNames does not contain itemName then
-		logLine("ในเมนูไม่มี " & itemName & " มีแต่ " & (itemNames as string))
+	-- จดรายการทั้งหมดไว้เสมอ เผื่อชื่อจริงไม่ตรงกับที่คิด จะได้เห็นของจริง
+	logLine("ในเมนูมี " & (itemNames as string))
+
+	--
+	-- หาชื่อที่จะกด
+	--
+	-- ลองแบบตรงเป๊ะก่อน ถ้าไม่เจอค่อยลองแบบมีคำนั้นอยู่ข้างใน
+	-- เพราะรายการที่เป็น preset ที่ผู้ใช้บันทึกเอง
+	-- บางทีมีช่องว่างหรือเครื่องหมายนำหน้า ทำให้ไม่ตรงเป๊ะ
+	--
+	set targetName to ""
+	if itemNames contains itemName then
+		set targetName to itemName
+	else
+		repeat with candidate in itemNames
+			set candidateText to candidate as string
+			if candidateText contains itemName then
+				set targetName to candidateText
+				logLine("เจอรายการที่ใกล้เคียง " & candidateText)
+				exit repeat
+			end if
+		end repeat
+	end if
+
+	if targetName is "" then
+		logLine("ในเมนูไม่มี " & itemName)
 		my pressEscape()
 		return false
 	end if
 
 	try
 		with timeout of uiTimeout seconds
-			tell application "System Events" to click menu item itemName of menu 1 of elementRef
+			tell application "System Events" to click menu item targetName of menu 1 of elementRef
 		end timeout
 		delay 0.7
-		logLine("ใส่ " & itemName & " แล้ว")
+		logLine("เลือก " & targetName & " แล้ว")
 		return true
 	on error errorText
-		logLine("เลือก " & itemName & " ไม่สำเร็จ " & errorText)
+		logLine("เลือก " & targetName & " ไม่สำเร็จ " & errorText)
 		my pressEscape()
 		return false
 	end try
@@ -1749,12 +1773,16 @@ on buildRolesLayout(destinationName)
 	-- รุ่นนี้ค้นหาจากค่าที่ช่องนั้นโชว์อยู่ ซึ่งเป็นวิธีที่ตรงกับความจริง
 	--
 	if my selectRolesPreset("3 Stereo") then
-		delay 1
+		delay 1.5
 		set windowIndex to my findShareWindow()
 		set afterPreset to my countAudioTracksAt(windowIndex)
-		logLine("เลือก preset 3 Stereo แล้ว ได้แทร็กเสียง " & afterPreset & " แทร็ก")
-		if afterPreset ≥ 3 then
-			say("เลือก preset 3 Stereo ได้ครบสามแทร็ก")
+		set nowShows to my rolesPresetIsSet("3 Stereo")
+		logLine("หลังเลือก preset ช่องโชว์ 3 Stereo ไหม " & nowShows & ¬
+			"  ได้แทร็กเสียง " & afterPreset & " แทร็ก")
+		-- ยืนยันสองทาง ทั้งค่าที่ช่องโชว์ และจำนวนแทร็กที่นับได้
+		-- ทางใดทางหนึ่งผ่านก็พอ เพราะการนับแทร็กอาจอ่านไม่ได้ในบางจังหวะ
+		if afterPreset ≥ 3 or nowShows then
+			say("เลือก preset 3 Stereo สำเร็จ")
 			return true
 		end if
 	end if
