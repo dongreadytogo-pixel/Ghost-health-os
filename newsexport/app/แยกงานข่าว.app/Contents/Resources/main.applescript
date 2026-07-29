@@ -128,7 +128,7 @@ on showOtherMenu()
 		-- สร้างรายการใหม่ทุกรอบ เพื่อให้ตัวเลขที่โชว์ตรงกับค่าล่าสุดเสมอ
 		set menuItems to {¬
 			"สร้างแทร็กเสียง  ให้โปรแกรมกด Add Audio Track ให้ครบสามแทร็ก", ¬
-			"ตั้งค่า Roles  เปิดหน้าต่าง MXF-50 ให้คุณตั้งเอง ครั้งเดียว", ¬
+			"ตรวจค่า Roles  เปิดหน้าต่าง MXF-50 ขึ้นมาดูว่าตั้งได้จริงไหม", ¬
 			"ดูค่าที่ตั้งไว้  อ่านค่า Roles ที่เครื่องนี้บันทึกไว้ในไฟล์", ¬
 			"จำค่านี้ไว้  ถ่ายสำเนาค่าที่ตั้งถูกแล้ว เก็บไว้ใช้ทีหลัง", ¬
 			"ใส่ค่าที่จำไว้กลับ  ใช้เมื่อค่า Roles เปลี่ยนไปเอง", ¬
@@ -145,7 +145,7 @@ on showOtherMenu()
 		set choice to item 1 of picked
 		if choice starts with "สร้างแทร็กเสียง" then
 			runBuildRolesLayout()
-		else if choice starts with "ตั้งค่า Roles" then
+		else if choice starts with "ตรวจค่า Roles" then
 			primeRolesSetting()
 		else if choice starts with "ดูค่าที่ตั้งไว้" then
 			reportRolesSettings()
@@ -544,65 +544,95 @@ on runBuildRolesLayout()
 end runBuildRolesLayout
 
 
+on rolesPresetIsSet(wantedSetting)
+	--
+	-- ดูว่าช่อง Roles as ตอนนี้เป็นค่าที่ต้องการแล้วหรือยัง
+	--
+	-- ช่องนั้นไม่มีชื่อให้จับ แต่มันโชว์ค่าปัจจุบันของตัวเองอยู่
+	-- เราจึงมองหาข้อความนั้นในหน้าต่างแทน ถ้าเจอ แปลว่าถูกตั้งไว้แล้ว
+	--
+	-- รุ่นก่อนอ่านค่าด้วยการเรียกหน้าต่างจากชื่อ ซึ่งบันทึกพิสูจน์แล้วว่าพัง
+	-- จึงรายงานว่าไม่สำเร็จทุกครั้ง ทั้งที่ผู้ใช้ตั้งถูกแล้ว
+	--
+	set windowIndex to my findShareWindow()
+	if windowIndex is 0 then return false
+	return (count of my collectAt(windowIndex, {wantedSetting}, true)) > 0
+end rolesPresetIsSet
+
+
+on describeRolesLayout()
+	-- อธิบายสภาพปัจจุบันของแท็บ Roles เป็นข้อความสั้น ๆ
+	set windowIndex to my findShareWindow()
+	if windowIndex is 0 then return "ไม่เจอหน้าต่างของ Share"
+	set trackCount to my countAudioTracksAt(windowIndex)
+	set roleCount to count of my collectAt(windowIndex, {"All Dialogue", "All Effects", "All Music"}, true)
+	return ("มีแทร็กเสียง " & trackCount & " แทร็ก  ใส่ Role ไว้รวม " & roleCount & " อัน")
+end describeRolesLayout
+
+
 on primeRolesSetting()
 	--
-	-- เปิดหน้าต่าง MXF-50 ขึ้นมาเฉย ๆ เพื่อให้ผู้ใช้ตั้ง Roles as เป็น 3 Stereo
+	-- เปิดหน้าต่าง MXF-50 ขึ้นมาให้ตรวจและตั้งค่าเสียงด้วยตัวเอง
 	--
-	-- ทำไมต้องมีเมนูนี้
-	-- ช่อง Roles as มีอยู่เฉพาะในหน้าต่างของ Share เท่านั้น
-	-- ปกติหน้าต่างนี้จะโผล่ก็ต่อเมื่อกำลังจะเอ็กพอร์ตจริง
-	-- ผู้ใช้จึงไม่มีจังหวะไหนเลยที่จะตั้งค่านี้ล่วงหน้าได้
+	-- ความจริงที่ต้องบอกก่อน
+	-- ค่าที่ตั้งในหน้าต่างนี้ ไม่ได้ถูกบันทึกไว้ถาวร
+	-- มันมีผลกับการเอ็กพอร์ตครั้งนั้นครั้งเดียว
+	-- เพราะเราปิดหน้าต่างด้วยปุ่ม Cancel จึงไม่มีอะไรถูกเก็บไว้เลย
 	--
-	-- เมนูนี้เปิดหน้าต่างนั้นขึ้นมาให้ตั้งค่าอย่างเดียว แล้วปิดทิ้ง
-	-- ไม่มีการเอ็กพอร์ตไฟล์ใด ๆ เกิดขึ้น
-	-- Final Cut Pro มักจำค่าที่ตั้งล่าสุดไว้ให้ รอบต่อ ๆ ไปจึงถูกต้องเอง
+	-- เมนูนี้จึงมีไว้ตรวจและทดลอง ไม่ใช่ไว้ตั้งค่าถาวร
+	-- ของจริงคือโปรแกรมจะตั้งให้เองทุกครั้งตอนเอ็กพอร์ต ก่อนกดปุ่ม Next
+	-- นั่นคือจังหวะเดียวที่ค่านี้มีผลจริง
 
 	if not ensureFinalCutRunning() then return
 	if not ensureAccessibility() then return
 
 	activate
 	display dialog ¬
-		"ตั้งค่า Roles ครั้งเดียว" & return & return & ¬
+		"ตรวจและตั้งค่าเสียงของ MXF-50" & return & return & ¬
 		"โปรแกรมจะเปิดหน้าต่าง MXF-50 ขึ้นมาให้" & return & ¬
 		"ไม่มีการเอ็กพอร์ตไฟล์ใด ๆ ทั้งสิ้น" & return & return & ¬
-		"ในหน้าต่างนั้นให้คุณ" & return & ¬
-		"1. ไปที่แท็บ Roles" & return & ¬
-		"2. ตั้งช่อง Roles as ให้เป็น 3 Stereo" & return & return & ¬
-		"พอตั้งเสร็จ โปรแกรมจะรู้เองแล้วปิดหน้าต่างให้" & return & ¬
-		"คุณไม่ต้องกดปุ่มอะไรบอกมันเลย" & return & return & ¬
+		"เรื่องที่ต้องรู้ก่อน" & return & ¬
+		"ค่าที่ตั้งในหน้าต่างนี้ไม่ถูกบันทึกถาวร" & return & ¬
+		"เพราะเราปิดหน้าต่างด้วยปุ่ม Cancel" & return & return & ¬
+		"ของจริงคือโปรแกรมจะตั้งให้เองทุกครั้งตอนเอ็กพอร์ต" & return & ¬
+		"เมนูนี้มีไว้ตรวจว่าตั้งได้จริงไหมเท่านั้น" & return & return & ¬
 		"ต้องเลือกงานในหน้าต่าง Browser ไว้ก่อนหนึ่งชิ้น" ¬
 		buttons {"เปิดให้เลย"} default button 1 with title appTitle
 
 	if not openShareWindow("MXF-50") then return
 
-	openRolesTab("MXF-50")
-	-- จดโครงสร้างจริงไว้เสมอ เพื่อให้ผู้พัฒนาเลิกเดาตำแหน่งช่อง Roles as
-	dumpWindowTree("MXF-50")
+	set windowIndex to findShareWindow()
+	openRolesTabAt(windowIndex)
 	logPresetLocations()
-	set startValue to findRolesPopupValue("MXF-50")
-	logLine("ตั้งค่า Roles ครั้งเดียว ค่าเริ่มต้นคือ [" & startValue & "]")
 
-	-- ลองตั้งให้เองก่อน ถ้าได้ก็จบเลย
-	if startValue is not "3 Stereo" then
-		clickRolesChoice("MXF-50", "3 Stereo")
+	set alreadySet to rolesPresetIsSet("3 Stereo")
+	logLine("ตอนเปิดมา 3 Stereo ถูกเลือกอยู่ไหม " & alreadySet)
+	logLine("สภาพแท็บ Roles ตอนเปิดมา " & describeRolesLayout())
+
+	if not alreadySet then
+		-- ลองสร้างแทร็กให้เองก่อน เผื่อสำเร็จก็จบเลย
+		buildRolesLayout("MXF-50")
 	end if
 
-	say("ตั้ง Roles as เป็น 3 Stereo ในหน้าต่างที่เปิดอยู่")
+	say("ดูหน้าต่าง MXF-50 ได้เลย ตั้งเพิ่มเองก็ได้")
 	try
 		tell application "Final Cut Pro" to activate
 	end try
 
 	-- เฝ้าดูเงียบ ๆ ไม่ขวางการกดใด ๆ
-	set didSet to false
+	-- จบเมื่อได้สามแทร็ก หรือเมื่อ 3 Stereo ถูกเลือก หรือเมื่อหน้าต่างหายไป
+	set finalNote to "หน้าต่างถูกปิดไปก่อน"
 	repeat with i from 1 to 90
 		delay 2
-		set nowValue to findRolesPopupValue("MXF-50")
-		if nowValue is "3 Stereo" then
-			set didSet to true
+		set windowIndex to findShareWindow()
+		if windowIndex is 0 then exit repeat
+		set trackCount to countAudioTracksAt(windowIndex)
+		if trackCount ≥ 3 or rolesPresetIsSet("3 Stereo") then
+			set finalNote to describeRolesLayout()
+			logLine("ตั้งค่าเสียงถูกต้องแล้ว " & finalNote)
 			exit repeat
 		end if
-		if nowValue is "" then exit repeat
-		if i mod 15 is 0 then say("ยังรอให้ตั้ง 3 Stereo อยู่")
+		if i mod 15 is 0 then say("ยังรออยู่ ตอนนี้ " & describeRolesLayout())
 	end repeat
 
 	-- ปิดหน้าต่างให้ ไม่ต้องเอ็กพอร์ตอะไร
@@ -610,24 +640,12 @@ on primeRolesSetting()
 	delay 1
 
 	activate
-	if didSet then
-		logLine("ตั้งค่า Roles ครั้งเดียวสำเร็จ")
-		display dialog ¬
-			"ตั้งค่าเรียบร้อยแล้ว" & return & return & ¬
-			"Roles as เป็น 3 Stereo แล้ว" & return & ¬
-			"ปิดหน้าต่างให้แล้ว ไม่มีไฟล์ไหนถูกสร้าง" & return & return & ¬
-			"Final Cut Pro มักจำค่านี้ไว้ให้" & return & ¬
-			"รอบเอ็กพอร์ตต่อไปจึงน่าจะถูกต้องเอง" ¬
-			buttons {"เข้าใจแล้ว"} default button 1 with title appTitle
-	else
-		logLine("ตั้งค่า Roles ครั้งเดียวไม่สำเร็จ")
-		activate
-		display dialog ¬
-			"ยังไม่ได้ตั้งเป็น 3 Stereo" & return & return & ¬
-			"ปิดหน้าต่างให้แล้ว ไม่มีไฟล์ไหนถูกสร้าง" & return & return & ¬
-			"ลองใหม่ได้จากเมนูเดิม" ¬
-			buttons {"ปิด"} default button 1 with title appTitle
-	end if
+	display dialog ¬
+		"ผลการตรวจ" & return & return & finalNote & return & return & ¬
+		"ปิดหน้าต่างให้แล้ว ไม่มีไฟล์ไหนถูกสร้าง" & return & return & ¬
+		"ค่านี้ไม่ถูกเก็บไว้ถาวร นั่นเป็นเรื่องปกติ" & return & ¬
+		"โปรแกรมจะตั้งให้ใหม่เองทุกครั้งตอนเอ็กพอร์ต" ¬
+		buttons {"เข้าใจแล้ว"} default button 1 with title appTitle
 end primeRolesSetting
 
 
