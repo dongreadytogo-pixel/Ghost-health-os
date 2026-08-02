@@ -195,6 +195,11 @@ def brief(results, expected, require=None):
     names = ", ".join(str(row["index"]) for row in short[:8])
     if len(short) > 8:
         names += " และอื่น ๆ"
+    if require is None:
+        # ไม่ได้ตั้งเกณฑ์จำนวนไว้ มาตรฐานจึงมาจากก้อนอื่นในไทม์ไลน์เดียวกัน
+        # เขียนให้ตรงตามนั้น จะได้ไม่เข้าใจผิดว่ามีเกณฑ์ตายตัวอยู่
+        return ("ก้อนที่ %s เสียงไม่เหมือนก้อนอื่น  ก้อนอื่นมี %d Role"
+                % (names, len(expected)))
     return ("เสียงไม่ครบ %d ก้อน คือก้อนที่ %s  ต้องได้ก้อนละ %d Role"
             % (len(short), names, standard))
 

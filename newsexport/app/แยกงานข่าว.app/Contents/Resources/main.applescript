@@ -83,12 +83,8 @@ on say(stepText)
 	-- ขั้นตอนย่อยที่อยู่ลึก ๆ ก็ต้องขึ้นในหน้าต่างนั้นเหมือนกัน
 	-- ไม่ใช่เฉพาะขั้นตอนใหญ่
 	--
+	-- logLine เขียนลงหน้าต่างความคืบหน้าให้แล้ว ตรงนี้จึงไม่ต้องเขียนซ้ำ
 	logLine(stepText)
-	try
-		set stamp to do shell script "date +%H:%M:%S"
-		do shell script "echo " & quoted form of ("[" & stamp & "]  " & stepText) & ¬
-			" >> " & quoted form of runLogPath
-	end try
 	try
 		do shell script "echo " & quoted form of stepText & " > " & quoted form of statusPath
 	end try
@@ -99,10 +95,31 @@ end say
 
 
 on logLine(theText)
+	--
+	-- เขียนลงทั้งไฟล์บันทึกถาวร และหน้าต่างความคืบหน้า
+	--
+	-- ทำไมต้องลงทั้งสองที่
+	-- รอบที่แล้วหน้าต่างความคืบหน้าแสดงแต่ขั้นตอนใหญ่
+	-- ส่วนบรรทัดที่บอกรายละเอียดจริง ๆ เช่น
+	--   กดปุ่ม Next แล้ว
+	--   หน้าต่างเซฟมีช่องกรอกกี่ช่อง
+	--   ช่อง Roles as ตอนนี้โชว์ว่าอะไร
+	-- ไปลงแต่ในไฟล์บันทึก ซึ่งไม่มีใครเห็นตอนนั้น
+	--
+	-- ผลคือพอมีปัญหา หน้าต่างกลับไม่มีข้อมูลที่ต้องใช้หาสาเหตุเลย
+	-- ทั้งที่ผู้ใช้ขอไว้ว่าทุกการทำงานต้องโชว์ว่าทำอะไรอยู่
+	--
+	set stamp to "--:--:--"
 	try
 		set stamp to do shell script "date +%H:%M:%S"
+	end try
+	try
 		do shell script "echo " & quoted form of ("[" & stamp & "] " & theText) & ¬
 			" >> " & quoted form of logPath
+	end try
+	try
+		do shell script "echo " & quoted form of ("[" & stamp & "]  " & theText) & ¬
+			" >> " & quoted form of runLogPath
 	end try
 end logLine
 
@@ -160,11 +177,6 @@ on showStep(stepText)
 	-- เพราะขั้นตอนใหญ่มีหลายขั้น ถ้าเด้งทุกขั้นจะกวนเกินไป
 	--
 	logLine(stepText)
-	try
-		set stamp to do shell script "date +%H:%M:%S"
-		do shell script "echo " & quoted form of ("[" & stamp & "]  " & stepText) & ¬
-			" >> " & quoted form of runLogPath
-	end try
 end showStep
 
 
@@ -850,7 +862,6 @@ on runWorkflow()
 			endProgressWindow("หยุดแล้ว ไม่ได้ไทม์ไลน์มา")
 			return
 		end if
-		showStep("ได้ไทม์ไลน์มาแล้ว")
 
 		set gapSeconds to savedGapSeconds()
 		showStep("ขั้นที่ 2  แยกก้อน ใช้ค่าช่องว่าง " & gapSeconds & " วินาที")
@@ -1791,12 +1802,30 @@ on monitorAndCollect(outFolder, namesFile, totalFiles)
 	repeat
 		set roundNumber to roundNumber + 1
 
+		--
 		-- ตามเก็บไฟล์ที่เขียนเสร็จแล้ว มาไว้ในโฟลเดอร์ปลายทาง
+		--
+		-- ตัวเก็บไฟล์บอกกลับมาสามตัวเลข
+		--   บรรทัดที่ 1  ย้ายมาแล้วกี่ไฟล์ในรอบนี้
+		--   บรรทัดที่ 2  เจอแล้วแต่ยังเขียนไม่เสร็จกี่ไฟล์
+		--   บรรทัดที่ 3  ยังไม่เจอเลยกี่ไฟล์
+		--
+		-- ตัวเลขที่ 2 สำคัญมากสำหรับผู้ใช้
+		-- มันคือคำตอบของคำถามว่า Final Cut Pro ทำงานอยู่จริงไหม
+		-- รอบก่อนหน้าต่างขึ้นแค่ 0% ค้างอยู่ ทั้งที่เครื่องกำลังเรนเดอร์อยู่
+		-- ผู้ใช้จึงเข้าใจว่าโปรแกรมค้าง ทั้งที่มันกำลังทำงานตามปกติ
+		--
+		set writingCount to 0
+		set unseenCount to totalFiles
 		try
-			do shell script "/usr/bin/env python3 " & ¬
+			set threeNumbers to paragraphs of (do shell script "/usr/bin/env python3 " & ¬
 				quoted form of (resourcesPath & "/tools/collect_outputs.py") & ¬
 				" " & quoted form of outFolder & " " & quoted form of namesFile & ¬
-				" --settle 2"
+				" --settle 2")
+			if (count of threeNumbers) ≥ 3 then
+				set writingCount to (item 2 of threeNumbers) as integer
+				set unseenCount to (item 3 of threeNumbers) as integer
+			end if
 		end try
 
 		set doneCount to 0
@@ -1812,15 +1841,26 @@ on monitorAndCollect(outFolder, namesFile, totalFiles)
 			exit repeat
 		end if
 
+		-- อธิบายให้เห็นภาพว่าตอนนี้เกิดอะไรขึ้นบ้าง
+		set situation to ""
+		if writingCount > 0 then
+			set situation to "Final Cut Pro กำลังเขียนอยู่ " & writingCount & " ไฟล์"
+		else if unseenCount ≥ totalFiles then
+			set situation to "ยังไม่เห็นไฟล์ไหนเลย Final Cut Pro น่าจะกำลังเรนเดอร์"
+		else
+			set situation to "รอไฟล์ที่เหลืออีก " & unseenCount & " ไฟล์"
+		end if
+
 		if doneCount > lastDone then
 			set quietRounds to 0
 			set lastDone to doneCount
-			my stepBar(doneCount, totalFiles, "กำลังทำงาน")
+			my stepBar(doneCount, totalFiles, situation)
 		else
 			set quietRounds to quietRounds + 1
 			-- บอกทุกสิบรอบพอ ไม่ให้หน้าต่างยาวเกินจนอ่านไม่ทัน
 			if quietRounds mod 10 is 0 then
-				my stepBar(doneCount, totalFiles, "ยังไม่มีไฟล์ใหม่มา " & quietRounds & " รอบ")
+				my stepBar(doneCount, totalFiles, situation & ¬
+					"   ผ่านไป " & (quietRounds * 4) & " วินาที")
 			end if
 		end if
 

@@ -193,6 +193,19 @@ class TestReport(unittest.TestCase):
         results, expected = self.build(timeline(spine, 450))
         self.assertIn("ครบทุกก้อน", aa.brief(results, expected))
 
+    def test_brief_without_a_bar_says_it_differs_from_the_others(self):
+        """
+        ไม่ได้ตั้งเกณฑ์จำนวนไว้ ข้อความต้องไม่พูดว่า ต้องได้ก้อนละเท่าไร
+        เพราะไม่มีเกณฑ์ตายตัวอยู่จริง มาตรฐานมาจากก้อนอื่นในงานเดียวกัน
+        """
+        spine = (clip(0, 200, SIX_MONO) + gap(200, 50)
+                 + clip(250, 200, SIX_MONO[:2]))
+        results, expected = self.build(timeline(spine, 450))
+        summary = aa.brief(results, expected)
+        self.assertIn("ไม่เหมือนก้อนอื่น", summary)
+        self.assertIn("ก้อนอื่นมี 6 Role", summary)
+        self.assertNotIn("ต้องได้ก้อนละ", summary)
+
     def test_brief_names_the_bad_blocks(self):
         spine = (clip(0, 200, SIX_MONO) + gap(200, 50)
                  + clip(250, 200, SIX_MONO[:2]))
