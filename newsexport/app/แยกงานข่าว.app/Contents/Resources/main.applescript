@@ -32,6 +32,10 @@ property uiTimeout : 12
 -- ของที่มีเฉพาะในหน้าต่างของ Share ใช้เป็นตัวชี้ว่านี่คือหน้าต่างนั้น
 property shareMarkers : {"Next…", "Next...", "Add Audio Track"}
 
+-- เพดานจำนวนบรรทัดของการจดสภาพหน้าจอ กันบันทึกบวมจนอ่านไม่ไหว
+property dumpLimit : 500
+property dumpCount : 0
+
 global resourcesPath
 global workPath
 global prefsPath
@@ -493,6 +497,125 @@ on dumpWindowTree(windowName)
 	end try
 	logLine("---- จบการจดโครงสร้าง ----")
 end dumpWindowTree
+
+
+on describeElement(elementRef)
+	set theClass to "ไม่ทราบชนิด"
+	try
+		set theClass to (class of elementRef) as string
+	end try
+	set theName to ""
+	try
+		set theName to (name of elementRef) as string
+	end try
+	if theName is "missing value" then set theName to ""
+	set theValue to ""
+	try
+		set theValue to (value of elementRef) as string
+	end try
+	if theValue is "missing value" then set theValue to ""
+	return theClass & " ชื่อ[" & theName & "] ค่า[" & theValue & "]"
+end describeElement
+
+
+on dumpUnder(elementRef, indentText)
+	--
+	-- จดของทุกชิ้นใต้จุดที่ให้มา ลึกสามชั้น
+	--
+	-- มีเพดานจำนวนบรรทัดกำกับไว้ เพราะหน้าต่างหลักของ Final Cut Pro
+	-- มีของเป็นพันชิ้น ถ้าจดหมดจะได้บันทึกที่ใหญ่จนอ่านไม่ไหว และช้ามาก
+	--
+	try
+		tell application "System Events"
+			repeat with a in UI elements of elementRef
+				if dumpCount > dumpLimit then return
+				set dumpCount to dumpCount + 1
+				my logLine(indentText & my describeElement(a))
+				repeat with b in UI elements of a
+					if dumpCount > dumpLimit then return
+					set dumpCount to dumpCount + 1
+					my logLine(indentText & "  " & my describeElement(b))
+					repeat with c in UI elements of b
+						if dumpCount > dumpLimit then return
+						set dumpCount to dumpCount + 1
+						my logLine(indentText & "    " & my describeElement(c))
+					end repeat
+				end repeat
+			end repeat
+		end tell
+	end try
+end dumpUnder
+
+
+on dumpShareArea()
+	--
+	-- จดสภาพหน้าจอตอนที่หาหน้าต่างของ Share ไม่เจอ
+	--
+	-- ทำไมต้องมี
+	-- ผู้พัฒนาไม่มี Final Cut Pro อยู่ในมือ ที่ผ่านมาจึงต้องเดาว่า
+	-- ปุ่ม Next… กับช่อง Roles as ถูกวางซ้อนอยู่ชั้นไหน และเดาผิดหลายรอบ
+	-- ตัวนี้จดของจริงลงบันทึกทันทีที่พลาด รอบหน้าจะได้แก้จากของจริง ไม่ใช่จากการเดา
+	--
+	set dumpCount to 0
+	logLine("---- จดสภาพหน้าจอตอนหาหน้าต่าง Share ไม่เจอ ----")
+	set howMany to 0
+	try
+		with timeout of 20 seconds
+			tell application "System Events"
+				tell process fcpName
+					set howMany to count of windows
+				end tell
+			end tell
+		end timeout
+	end try
+	logLine("Final Cut Pro มีหน้าต่างอยู่ " & howMany & " บาน")
+
+	repeat with i from 1 to howMany
+		set windowTitle to ""
+		set hasSheet to false
+		try
+			with timeout of 20 seconds
+				tell application "System Events"
+					tell process fcpName
+						try
+							set windowTitle to (name of window i) as string
+						end try
+						set hasSheet to (exists sheet 1 of window i)
+					end tell
+				end tell
+			end timeout
+		end try
+		if windowTitle is "missing value" then set windowTitle to ""
+		if hasSheet then
+			logLine("หน้าต่างที่ " & i & " ชื่อ[" & windowTitle & "] มีแผ่นซ้อน")
+		else
+			logLine("หน้าต่างที่ " & i & " ชื่อ[" & windowTitle & "] ไม่มีแผ่นซ้อน")
+		end if
+
+		try
+			with timeout of 60 seconds
+				tell application "System Events"
+					tell process fcpName
+						if hasSheet then
+							my dumpUnder(sheet 1 of window i, "  ")
+						else if i is 1 then
+							-- หน้าต่างหลักใหญ่มาก จดเฉพาะบานแรกและมีเพดานคุมอยู่แล้ว
+							my dumpUnder(window i, "  ")
+						end if
+					end tell
+				end tell
+			end timeout
+		end try
+	end repeat
+
+	repeat with processName in panelProcesses()
+		if (processName as string) is not fcpName then
+			logLine("มีกระบวนการหน้าต่างเซฟชื่อ " & processName)
+		end if
+	end repeat
+
+	logLine("---- จบการจดสภาพหน้าจอ จดไป " & dumpCount & " บรรทัด ----")
+end dumpShareArea
 
 
 -- ============================================================
@@ -962,13 +1085,28 @@ on runWorkflow()
 		-- มีตัวเลขกำกับ จะได้รู้ทันทีว่าแก้แล้วเร็วขึ้นจริงไหม
 		set startedAt to (current date)
 		showStep("ขั้นที่ 5  สั่งสร้างไฟล์ mov ทุกก้อนพร้อมกัน")
-		shareTo("Export File", "ไฟล์ mov", "")
+		set movOrdered to shareTo("Export File", "ไฟล์ mov", "")
 		showStep("ขั้นที่ 5 ใช้เวลา " & ((current date) - startedAt) & " วินาที")
 
 		set startedAt to (current date)
 		showStep("ขั้นที่ 6  สั่งสร้างไฟล์ mxf ทุกก้อนพร้อมกัน")
-		shareTo("MXF-50", "ไฟล์ mxf", "3 Stereo")
+		set mxfOrdered to shareTo("MXF-50", "ไฟล์ mxf", "3 Stereo")
 		showStep("ขั้นที่ 6 ใช้เวลา " & ((current date) - startedAt) & " วินาที")
+
+		-- ถ้าไม่มีคำสั่งไหนออกไปได้เลย ก็ไม่มีไฟล์ให้รอ
+		--
+		-- รุ่นก่อนไม่ได้ดูผลของสองขั้นบน แล้วเข้าไปเฝ้ารอไฟล์ต่อ
+		-- ผู้ใช้จึงเห็นหน้าจอนับไปถึง 480 วินาที ได้ 0 จาก 16 ไฟล์
+		-- ทั้งที่รู้ได้ตั้งแต่วินาทีแรกว่าจะไม่มีไฟล์มาแน่นอน
+		if (not movOrdered) and (not mxfOrdered) then
+			showStep("สั่งเอ็กพอร์ตไม่สำเร็จทั้ง mov และ mxf จึงไม่มีไฟล์ให้รอ")
+			showStep("โปรแกรมจดสภาพหน้าจอไว้ในบันทึกแล้ว ส่งบันทึกมาให้ผมดูได้เลย")
+			endProgressWindow("หยุดแล้ว คำสั่งเอ็กพอร์ตไม่ออกไปถึง Final Cut Pro")
+			putOnDesktop(logPath, "บันทึกการทำงาน.txt")
+			return
+		end if
+		if not movOrdered then showStep("ข้อควรรู้ สั่งไฟล์ mov ไม่สำเร็จ จะได้เฉพาะ mxf")
+		if not mxfOrdered then showStep("ข้อควรรู้ สั่งไฟล์ mxf ไม่สำเร็จ จะได้เฉพาะ mov")
 
 		showStep("ขั้นที่ 7  เฝ้าดูและเก็บไฟล์เข้าโฟลเดอร์ปลายทาง")
 		monitorAndCollect(outFolder, namesFile, totalFiles)
@@ -1220,25 +1358,20 @@ on fetchTimeline(outFolder)
 	set marker to workPath & "/เริ่มเมื่อ"
 	do shell script "rm -f " & quoted form of marker & " && touch " & quoted form of marker
 
+	-- ถ้ายังไม่ได้เลือกงาน ให้เลือกให้เอง ไม่ถามผู้ใช้
+	--
+	-- ผู้ใช้สั่งไว้ชัดว่า หลังเลือกโฟลเดอร์แล้วไม่ต้องกดอะไรอีกเลย
+	-- รุ่นก่อนเปิดหน้าต่างถามตรงนี้ ซึ่งขัดคำสั่งนั้นตรง ๆ
 	if menuState("File", "Export XML") is "disabled" then
-		activate
-		set answer to button returned of (display dialog ¬
-			"ยังไม่ได้เลือกงานข่าว" & return & return & ¬
-			"ใน Final Cut Pro ให้คลิกที่ ชื่องาน หนึ่งครั้ง" & return & ¬
-			"คลิกที่ตัวงานในหน้าต่าง Browser" & return & ¬
-			"ไม่ใช่คลิกที่ Event หรือ Library" & return & return & ¬
-			"คลิกเสร็จแล้วกดปุ่มข้างล่าง" ¬
-			buttons {"ยกเลิก", "เลือกแล้ว"} default button "เลือกแล้ว" with title appTitle)
-		if answer is "ยกเลิก" then return ""
+		say("ยังไม่ได้เลือกงาน กำลังเลือกให้เอง")
+		selectAllProjects()
+		delay 1
 	end if
-
-	activate
-	display dialog ¬
-		"กำลังจะอ่านไทม์ไลน์" & return & return & ¬
-		"จะมีหน้าต่างเซฟเด้งขึ้นมา โปรแกรมจะกดยืนยันเอง" & return & ¬
-		"ไม่ต้องสนใจว่ามันเซฟไว้ที่ไหน" & return & return & ¬
-		"ระหว่างนี้อย่าแตะเมาส์และคีย์บอร์ด" ¬
-		buttons {"เริ่มเลย"} default button 1 with title appTitle
+	if menuState("File", "Export XML") is "disabled" then
+		say("เลือกงานใน Final Cut Pro ไม่ได้ ให้คลิกที่ชื่องานใน Browser หนึ่งครั้งแล้วสั่งใหม่")
+		logLine("เมนู Export XML ยังกดไม่ได้ แปลว่าไม่มีงานถูกเลือกอยู่")
+		return ""
+	end if
 
 	say("กำลังสั่ง Final Cut Pro ส่งไทม์ไลน์ออกมา")
 	clickMenu("File", "Export XML")
@@ -1259,19 +1392,12 @@ on fetchTimeline(outFolder)
 		return foundPath
 	end if
 
-	activate
-		set answer to button returned of (display dialog ¬
-		"หาไฟล์ไทม์ไลน์ที่เพิ่งเซฟไม่เจอ" & return & return & ¬
-		"กดปุ่ม ชี้ให้ดู แล้วเลือกไฟล์นั้น" ¬
-		buttons {"ยกเลิก", "ชี้ให้ดู"} default button "ชี้ให้ดู" with title appTitle)
-	if answer is "ยกเลิก" then return ""
-	try
-		set picked to POSIX path of (choose file with prompt "เลือกไฟล์ที่เพิ่งเซฟ")
-		say("ผู้ใช้ชี้ไฟล์เอง")
-		return picked
-	on error
-		return ""
-	end try
+	-- หาไม่เจอ ก็จบไปตามตรง ไม่เปิดหน้าต่างขวางให้ผู้ใช้มาชี้ไฟล์เอง
+	-- การเปิดหน้าต่างตรงนี้ขัดคำสั่งที่ว่า ไม่ต้องคลิกอย่างอื่นอีกเลย
+	-- และมันยังค้างรออยู่อย่างนั้นจนกว่าจะมีคนมากด ซึ่งแย่กว่าการหยุดไปเลย
+	say("หาไฟล์ไทม์ไลน์ที่ Final Cut Pro เพิ่งเซฟไม่เจอ")
+	logLine("หาไทม์ไลน์ไม่เจอ โฟลเดอร์ที่ค้นเป็นอันดับแรกคือ " & outFolder)
+	return ""
 end fetchTimeline
 
 
@@ -1345,6 +1471,70 @@ on countPanelFields()
 end countPanelFields
 
 
+on savePanelPresent()
+	--
+	-- หน้าต่างเซฟโผล่มาจริงหรือยัง
+	--
+	-- ทำไมต้องมีตัวนี้ นี่คือจุดที่ทำให้ทั้งโปรแกรมโกหกมาตลอด
+	--
+	-- เดิมโปรแกรมตัดสินด้วยจำนวนช่องกรอกอย่างเดียว
+	--   ได้ 0 ช่อง แปลว่าถามหาแค่โฟลเดอร์ เลือกงานครบ ถือว่าสำเร็จ
+	-- แต่ 0 ช่อง ยังแปลว่าไม่มีหน้าต่างเซฟอยู่เลยได้ด้วย
+	-- สองกรณีนี้ให้เลข 0 เหมือนกัน แต่ความหมายตรงข้ามกันคนละขั้ว
+	--
+	-- ผลที่ตามมาคือสิ่งที่ผู้ใช้เจอจริง
+	-- ทุกขั้นขึ้นว่า สั่งไฟล์ mov เรียบร้อย สั่งไฟล์ mxf เรียบร้อย
+	-- แล้วขั้นเก็บไฟล์รอไป 480 วินาที ได้ 0 จาก 16 ไฟล์
+	-- เพราะคำสั่งเอ็กพอร์ตไม่เคยออกไปถึง Final Cut Pro เลยสักครั้ง
+	--
+	-- ตัวนี้จึงไปดูของจริง ไม่เดาจากตัวเลข
+	--
+	repeat with processName in panelProcesses()
+		if (processName as string) is not fcpName then
+			try
+				with timeout of uiTimeout seconds
+					tell application "System Events"
+						tell process processName
+							if (count of windows) > 0 then return true
+						end tell
+					end tell
+				end timeout
+			end try
+		end if
+	end repeat
+
+	-- บางเครื่องหน้าต่างเซฟเป็นแผ่นซ้อนบนหน้าต่างของ Final Cut Pro เอง
+	-- แยกจากแผ่นซ้อนของ Share ได้ด้วยปุ่ม Next… ซึ่งมีเฉพาะในแผ่นของ Share
+	set foundPanel to false
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events"
+				tell process fcpName
+					repeat with windowRef in windows
+						if (exists sheet 1 of windowRef) then
+							if not my markersInside(sheet 1 of windowRef) then
+								set foundPanel to true
+								exit repeat
+							end if
+						end if
+					end repeat
+				end tell
+			end tell
+		end timeout
+	end try
+	return foundPanel
+end savePanelPresent
+
+
+on waitForSavePanel(maxSeconds)
+	repeat with waited from 1 to maxSeconds
+		if my savePanelPresent() then return true
+		delay 1
+	end repeat
+	return false
+end waitForSavePanel
+
+
 -- ============================================================
 -- สร้างแทร็กเสียงเอง ด้วยปุ่ม Add Audio Track
 -- ------------------------------------------------------------
@@ -1416,28 +1606,38 @@ end matchesAny
 
 on markersInside(elementRef)
 	--
-	-- ของชิ้นนี้ หรือของที่อยู่ใต้มันสองชั้น มีปุ่มที่เป็นตัวชี้ไหม
+	-- ของชิ้นนี้ หรือของที่อยู่ใต้มัน มีปุ่มที่เป็นตัวชี้ไหม
 	-- แยกออกมาเป็นฟังก์ชันเดี่ยว เพื่อให้เรียกใช้กับแผ่นซ้อนก็ได้ กับหน้าต่างก็ได้
 	--
-	set marker to false
+	-- ความลึกต้องเท่ากับที่ collectAt ใช้ นี่คือบทเรียนราคาแพงจากรุ่นก่อน
+	--
+	-- รุ่นก่อนตัวนี้ค้นแค่สองชั้น แต่ collectAt ค้นห้าชั้น
+	-- แปลว่าปุ่มที่ collectAt หยิบมาใช้ได้จริง อยู่ลึกกว่าที่ตัวนี้มองเห็น
+	-- ผลคือตัวนี้ตอบว่าไม่ใช่หน้าต่างของ Share ทั้งที่มันคือหน้าต่างนั้น
+	-- บันทึกจากเครื่องจริงขึ้นว่า ไม่เจอหน้าต่างของ MXF-50 จึงสร้างแทร็กเสียงไม่ได้
+	--
+	-- สองตัวนี้ต้องลึกเท่ากันเสมอ ถ้าจะแก้ความลึก ต้องแก้ทั้งคู่พร้อมกัน
+	--
 	try
 		tell application "System Events"
 			repeat with a in UI elements of elementRef
-				if my matchesAny(a, shareMarkers, true) then
-					set marker to true
-					exit repeat
-				end if
+				if my matchesAny(a, shareMarkers, true) then return true
 				repeat with b in UI elements of a
-					if my matchesAny(b, shareMarkers, true) then
-						set marker to true
-						exit repeat
-					end if
+					if my matchesAny(b, shareMarkers, true) then return true
+					repeat with c in UI elements of b
+						if my matchesAny(c, shareMarkers, true) then return true
+						repeat with d in UI elements of c
+							if my matchesAny(d, shareMarkers, true) then return true
+							repeat with f in UI elements of d
+								if my matchesAny(f, shareMarkers, true) then return true
+							end repeat
+						end repeat
+					end repeat
 				end repeat
-				if marker then exit repeat
 			end repeat
 		end tell
 	end try
-	return marker
+	return false
 end markersInside
 
 
@@ -1927,51 +2127,69 @@ on shareTo(destinationName, humanName, rolesSetting)
 			logLine("ขั้นตั้งเสียงใช้เวลา " & ((current date) - rolesStartedAt) & " วินาที")
 		end if
 
-		if pressButtons({"Next…", "Next...", "Next"}) then logLine("กดปุ่ม Next แล้ว")
-		delay 2
-
-		-- ตรวจว่าเลือกงานครบหรือไม่
-		-- ถ้าครบ หน้าต่างจะถามหาแค่โฟลเดอร์ ไม่มีช่องกรอกชื่อไฟล์
-		set fieldCount to countPanelFields()
-		logLine("รอบที่ " & attemptNumber & " หน้าต่างเซฟมีช่องกรอก " & fieldCount & " ช่อง")
-
-		if fieldCount is 0 then
-			-- เลือกครบแล้ว เซฟได้เลย
-			if pressButtons({"Save", "Choose", "Open", "Export"}) then
-				logLine("กดยืนยันหน้าต่างเซฟแล้ว")
-			else
-				try
-					with timeout of uiTimeout seconds
-						tell application "System Events" to tell process fcpName to key code 36
-					end timeout
-					logLine("ใช้ปุ่ม Return แทน")
-				end try
-			end if
-			delay 1.5
-			pressButtons({"Replace", "แทนที่"})
-			say("สั่ง " & humanName & " เรียบร้อย")
-			return true
+		if pressButtons({"Next…", "Next...", "Next"}) then
+			logLine("กดปุ่ม Next แล้ว")
+		else
+			logLine("ไม่เจอปุ่ม Next ในหน้าต่างของ " & humanName)
 		end if
 
-		-- มีช่องกรอกชื่อไฟล์ แปลว่า Final Cut Pro เห็นงานที่เลือกอยู่แค่ชิ้นเดียว
-		-- ถ้าปล่อยไปจะได้ไฟล์มาก้อนเดียว ซึ่งคือปัญหาที่เจอมาตลอด
-		-- ยกเลิกก่อน แล้วซ่อมการเลือกด้วยตัวเอง ไม่รบกวนผู้ใช้
-		logLine("เลือกงานไม่ครบ ยกเลิกแล้วซ่อมการเลือกเอง")
-		pressButtons({"Cancel", "ยกเลิก"})
-		delay 1
-		pressButtons({"Cancel", "ยกเลิก"})
-		delay 1
+		-- ต้องเห็นหน้าต่างเซฟจริงก่อน ถึงจะเชื่อว่าคำสั่งออกไปแล้ว
+		-- ห้ามข้ามด่านนี้เด็ดขาด อ่านเหตุผลเต็มได้ที่ savePanelPresent
+		if my waitForSavePanel(20) then
+			-- ตรวจว่าเลือกงานครบหรือไม่
+			-- ถ้าครบ หน้าต่างจะถามหาแค่โฟลเดอร์ ไม่มีช่องกรอกชื่อไฟล์
+			set fieldCount to countPanelFields()
+			logLine("รอบที่ " & attemptNumber & " หน้าต่างเซฟมีช่องกรอก " & fieldCount & " ช่อง")
+
+			if fieldCount is 0 then
+				-- เลือกครบแล้ว เซฟได้เลย
+				if pressButtons({"Save", "Choose", "Open", "Export"}) then
+					logLine("กดยืนยันหน้าต่างเซฟแล้ว")
+				else
+					try
+						with timeout of uiTimeout seconds
+							tell application "System Events" to tell process fcpName to key code 36
+						end timeout
+						logLine("ใช้ปุ่ม Return แทน")
+					end try
+				end if
+				delay 1.5
+				pressButtons({"Replace", "แทนที่"})
+				say("สั่ง " & humanName & " เรียบร้อย")
+				return true
+			end if
+
+			-- มีช่องกรอกชื่อไฟล์ แปลว่า Final Cut Pro เห็นงานที่เลือกอยู่แค่ชิ้นเดียว
+			-- ถ้าปล่อยไปจะได้ไฟล์มาก้อนเดียว ซึ่งคือปัญหาที่เจอมาตลอด
+			-- ยกเลิกก่อน แล้วซ่อมการเลือกด้วยตัวเอง ไม่รบกวนผู้ใช้
+			logLine("เลือกงานไม่ครบ ยกเลิกแล้วซ่อมการเลือกเอง")
+			pressButtons({"Cancel", "ยกเลิก"})
+			delay 1
+			pressButtons({"Cancel", "ยกเลิก"})
+			delay 1
+		else
+			-- ไม่มีหน้าต่างเซฟ แปลว่าคำสั่งยังไม่ได้ออกไปจริง
+			-- ต้องบอกตามจริง ห้ามขึ้นว่าเรียบร้อย
+			logLine("หน้าต่างเซฟไม่โผล่ คำสั่ง " & humanName & " ยังไม่ได้ออกไปจริง")
+			say("สั่ง " & humanName & " ยังไม่ผ่าน หน้าต่างเซฟไม่โผล่")
+			-- จดโครงสร้างของจริงไว้ จะได้เลิกเดาว่าหน้าต่างนั้นหน้าตาแบบไหน
+			my dumpShareArea()
+			pressButtons({"Cancel", "ยกเลิก"})
+			delay 1
+			my pressEscape()
+			delay 1
+		end if
 
 		if attemptNumber is 3 then exit repeat
 
-		say("เลือกงานย่อยไม่ครบ กำลังเลือกใหม่ให้เอง")
+		say("กำลังเลือกงานย่อยใหม่ให้เอง")
 		selectAllProjects()
 		delay 1
 		say("กำลังลองสั่ง " & humanName & " อีกครั้ง")
 	end repeat
 
-	logLine("ลองครบ 3 รอบแล้วยังเลือกไม่ครบ")
-	say("ยังเลือกงานไม่ครบ ข้าม " & humanName & " ไปก่อน")
+	logLine("ลองครบ 3 รอบแล้วยังสั่ง " & humanName & " ไม่สำเร็จ")
+	say("สั่ง " & humanName & " ไม่สำเร็จ")
 	return false
 end shareTo
 
