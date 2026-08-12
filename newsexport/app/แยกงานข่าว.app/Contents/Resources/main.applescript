@@ -41,6 +41,7 @@ global channelsPath
 global runLogPath
 global watcherPath
 global gapPath
+global boardPath
 
 
 on run argv
@@ -57,6 +58,7 @@ on run argv
 	set runLogPath to workPath & "/กำลังทำงาน.txt"
 	set watcherPath to workPath & "/แสดงความคืบหน้า.command"
 	set gapPath to workPath & "/ค่าช่องว่าง.txt"
+	set boardPath to workPath & "/สรุปสด.txt"
 	logLine("===== เริ่มรอบใหม่ " & ((current date) as string) & " =====")
 	showMainMenu()
 end run
@@ -158,6 +160,10 @@ on startProgressWindow(headline)
 	try
 		do shell script "echo " & quoted form of headline & " > " & quoted form of runLogPath
 	end try
+	-- ล้างกระดานสรุปของรอบก่อนทิ้ง จะได้ไม่แสดงค่าค้างจากรอบที่แล้ว
+	try
+		do shell script "printf 'กำลังเริ่ม\n\n\n' > " & quoted form of boardPath
+	end try
 
 	try
 		do shell script "cp " & quoted form of (resourcesPath & "/แสดงความคืบหน้า.command") & ¬
@@ -177,14 +183,62 @@ on showStep(stepText)
 	-- เพราะขั้นตอนใหญ่มีหลายขั้น ถ้าเด้งทุกขั้นจะกวนเกินไป
 	--
 	logLine(stepText)
+	setBoardStep(stepText)
 end showStep
 
 
+on setBoardStep(stepText)
+	--
+	-- เขียนบรรทัดแรกของกระดานสรุป คือขั้นตอนที่กำลังทำอยู่
+	--
+	-- กระดานสรุปคือสามบรรทัดที่หน้าต่างความคืบหน้าเอาไปแสดงตัวใหญ่ด้านบน
+	-- อยู่ที่เดิมเสมอ ผู้ใช้จึงกวาดตาดูจุดเดียวก็รู้ว่าถึงไหนแล้ว
+	-- ไม่ต้องไล่อ่านข้อความที่ไหลผ่านไปเรื่อย ๆ
+	--
+	try
+		set barLine to ""
+		set situationLine to ""
+		try
+			set barLine to do shell script "sed -n '2p' " & quoted form of boardPath
+		end try
+		try
+			set situationLine to do shell script "sed -n '3p' " & quoted form of boardPath
+		end try
+		do shell script "printf '%s\n%s\n%s\n' " & ¬
+			quoted form of stepText & " " & ¬
+			quoted form of barLine & " " & ¬
+			quoted form of situationLine & " > " & quoted form of boardPath
+	end try
+end setBoardStep
+
+
+on setBoardProgress(barLine, situationLine)
+	-- เขียนบรรทัดที่สองและสาม คือแถบความคืบหน้าและคำอธิบาย
+	try
+		set stepLine to ""
+		try
+			set stepLine to do shell script "sed -n '1p' " & quoted form of boardPath
+		end try
+		do shell script "printf '%s\n%s\n%s\n' " & ¬
+			quoted form of stepLine & " " & ¬
+			quoted form of barLine & " " & ¬
+			quoted form of situationLine & " > " & quoted form of boardPath
+	end try
+end setBoardProgress
+
+
 on stepBar(doneCount, totalCount, noteText)
-	-- บรรทัดความคืบหน้าแบบมีแถบ ให้ดูออกในแวบเดียวว่าถึงไหนแล้ว
+	--
+	-- ความคืบหน้าไปอยู่บนกระดานสรุป ไม่ไหลลงรายละเอียด
+	--
+	-- รุ่นก่อนเขียนบรรทัดนี้ต่อท้ายเรื่อย ๆ ทุกไม่กี่วินาที
+	-- ผลคือรายละเอียดเต็มไปด้วยแถบความคืบหน้าซ้ำ ๆ จนกลบเรื่องอื่นหมด
+	-- ตอนนี้มันทับที่เดิมบนกระดาน จึงเห็นค่าล่าสุดเสมอโดยไม่รก
+	--
 	set percent to 0
 	if totalCount > 0 then set percent to round (doneCount * 100 / totalCount)
-	my showStep(bar(percent) & "  " & percent & "%   ได้ " & doneCount & " จาก " & totalCount & " ไฟล์   " & noteText)
+	my setBoardProgress(bar(percent) & "  " & percent & "%   ได้ " & doneCount & ¬
+		" จาก " & totalCount & " ไฟล์", noteText)
 end stepBar
 
 
@@ -231,23 +285,22 @@ on showOtherMenu()
 	-- เมนูนี้เคยยาวถึงเก้าหัวข้อ ซึ่งมากเกินไปสำหรับการใช้งานจริง
 	-- ผู้ใช้บอกตรง ๆ ว่าควรกดปุ่มเดียวแล้วจบ ไม่ใช่มานั่งเลือกเมนู
 	--
-	-- ของที่ใช้บ่อยจริง ๆ มีแค่สองอย่าง คือดูบันทึก กับเก็บไฟล์ที่ตกค้าง
-	-- ที่เหลือเป็นเครื่องมือสำหรับหาสาเหตุเวลามีปัญหา
-	-- จึงยุบไปไว้ในข้อเดียวชื่อ เครื่องมือช่าง ไม่ต้องเห็นตอนใช้งานปกติ
+	-- เหลือสามปุ่มที่ใช้จริง ที่เหลือยุบไปไว้ในเครื่องมือช่าง
 	--
 	repeat
 		activate
 		set choice to button returned of (display dialog ¬
 			"เมนูเพิ่มเติม" & return & return & ¬
-			"เก็บไฟล์ที่ตกค้าง  ใช้เมื่อรอบก่อนหยุดกลางคัน" & return & return & ¬
-			"ดูบันทึก          ไฟล์บอกว่าโปรแกรมทำอะไรไปบ้าง" ¬
-			buttons {"เครื่องมือช่าง", "เก็บไฟล์ที่ตกค้าง", "ดูบันทึก"} ¬
+			"เปลี่ยนโฟลเดอร์  ตอนนี้เก็บไฟล์ไว้ที่" & return & ¬
+			"                " & currentOutputFolder() & return & return & ¬
+			"ดูบันทึก        ไฟล์บอกว่าโปรแกรมทำอะไรไปบ้าง" ¬
+			buttons {"เครื่องมือช่าง", "เปลี่ยนโฟลเดอร์", "ดูบันทึก"} ¬
 			default button "ดูบันทึก" with title appTitle)
 		if choice is "ดูบันทึก" then
 			showLog()
 			return
-		else if choice is "เก็บไฟล์ที่ตกค้าง" then
-			collectLeftovers()
+		else if choice is "เปลี่ยนโฟลเดอร์" then
+			chooseOutputFolder()
 			return
 		else
 			showToolMenu()
@@ -256,12 +309,23 @@ on showOtherMenu()
 end showOtherMenu
 
 
+on currentOutputFolder()
+	-- โฟลเดอร์ปลายทางที่จำไว้ เอาไว้โชว์ในเมนูให้เห็นว่าตอนนี้เก็บที่ไหน
+	try
+		set saved to do shell script "cat " & quoted form of prefsPath
+		if saved is not "" then return saved
+	end try
+	return "ยังไม่ได้เลือก"
+end currentOutputFolder
+
+
 on showToolMenu()
 	--
 	-- เครื่องมือสำหรับหาสาเหตุเวลามีปัญหา ไม่ใช่ของที่ต้องใช้ทุกวัน
 	--
 	repeat
 		set menuItems to {¬
+			"เก็บไฟล์ที่ตกค้าง  ใช้เมื่อรอบก่อนหยุดกลางคัน", ¬
 			"ทดสอบเลือก preset  ดูว่าโปรแกรมเลือก 3 Stereo ได้ไหม", ¬
 			"ตรวจ preset  อ่านไฟล์ 3 Stereo ในเครื่องว่าถูกต้องไหม", ¬
 			"เก็บไฟล์ตั้งค่ามาให้ผม  รวมไฟล์ตั้งค่าไว้บนหน้าจอ", ¬
@@ -279,7 +343,9 @@ on showToolMenu()
 		if picked is false then return
 
 		set choice to item 1 of picked
-		if choice starts with "ทดสอบเลือก preset" then
+		if choice starts with "เก็บไฟล์ที่ตกค้าง" then
+			collectLeftovers()
+		else if choice starts with "ทดสอบเลือก preset" then
 			runBuildRolesLayout()
 		else if choice starts with "ตรวจ preset" then
 			checkRolePreset()
@@ -820,7 +886,8 @@ on collectLeftovers()
 			buttons {"ปิด"} default button 1 with title appTitle
 		return
 	end try
-	set outFolder to chooseOutputFolder()
+	-- ใช้โฟลเดอร์เดิมเหมือนตอนเอ็กพอร์ต จะได้ไม่ต้องเลือกซ้ำ
+	set outFolder to outputFolder()
 	if outFolder is "" then return
 	monitorAndCollect(outFolder, namesFile, totalFiles)
 end collectLeftovers
@@ -846,7 +913,7 @@ on runWorkflow()
 		if not ensureFinalCutRunning() then return
 		if not ensureAccessibility() then return
 
-		set outFolder to chooseOutputFolder()
+		set outFolder to outputFolder()
 		if outFolder is "" then return
 
 		startProgressWindow("แยกงานข่าว  กำลังทำงาน" & return & ¬
@@ -1094,6 +1161,33 @@ on ensureAccessibility()
 		return false
 	end try
 end ensureAccessibility
+
+
+on outputFolder()
+	--
+	-- ใช้โฟลเดอร์เดิมทันที ไม่ต้องเลือกใหม่ทุกครั้ง
+	--
+	-- ผู้ใช้บอกไว้ชัดว่า มีหน้าที่แค่เลือกโฟลเดอร์ปลายทางเพียงครั้งเดียว
+	-- ไม่ต้องคลิกอย่างอื่นอีกเลย
+	--
+	-- ครั้งแรกจึงถาม ครั้งต่อไปใช้ของเดิมเงียบ ๆ
+	-- ถ้าโฟลเดอร์เดิมหายไป เช่นถอดไดรฟ์ออก จะถามใหม่ให้เอง
+	-- เปลี่ยนเองได้ที่ เมนูอื่น แล้ว เปลี่ยนโฟลเดอร์ปลายทาง
+	--
+	set lastFolder to ""
+	try
+		set lastFolder to do shell script "cat " & quoted form of prefsPath
+	end try
+	if lastFolder is not "" then
+		try
+			do shell script "test -d " & quoted form of lastFolder
+			return lastFolder
+		on error
+			logLine("โฟลเดอร์เดิมหายไปแล้ว " & lastFolder & " จะถามใหม่")
+		end try
+	end if
+	return chooseOutputFolder()
+end outputFolder
 
 
 on chooseOutputFolder()
@@ -1946,11 +2040,27 @@ on monitorAndCollect(outFolder, namesFile, totalFiles)
 
 	endProgressWindow(headline & return & return & "ไฟล์อยู่ที่ " & outFolder)
 
+	--
+	-- เปิดโฟลเดอร์ปลายทางให้เลย แล้วแจ้งเตือนแบบไม่ขวาง
+	--
+	-- ผู้ใช้ขอไว้ว่าไม่ต้องคลิกอะไรอีกเลยหลังเลือกโฟลเดอร์
+	-- กล่องสรุปเดิมค้างรอให้กด ซึ่งขัดกับข้อนั้น
+	-- ถ้าเดินออกไปทำอย่างอื่น กลับมาก็เจอกล่องค้างอยู่ ไม่มีประโยชน์
+	--
+	-- รุ่นนี้เปิดโฟลเดอร์ให้ดูผลเลย และกล่องสรุปหายเองใน 30 วินาที
+	--
+	try
+		do shell script "open " & quoted form of outFolder
+	end try
+	try
+		display notification headline with title appTitle sound name "Glass"
+	end try
 	activate
-	set answer to button returned of (display dialog ¬
-		headline & return & return & "ไฟล์อยู่ที่" & return & outFolder ¬
-		buttons {"ปิด", "เปิดโฟลเดอร์"} default button "เปิดโฟลเดอร์" with title appTitle)
-	if answer is "เปิดโฟลเดอร์" then do shell script "open " & quoted form of outFolder
+	try
+		display dialog headline & return & return & "ไฟล์อยู่ที่" & return & outFolder ¬
+			buttons {"ปิด"} default button "ปิด" with title appTitle ¬
+			giving up after 30
+	end try
 end monitorAndCollect
 
 
