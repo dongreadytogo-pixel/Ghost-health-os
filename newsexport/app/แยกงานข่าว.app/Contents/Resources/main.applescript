@@ -1414,39 +1414,64 @@ end matchesAny
 -- ปุ่ม Next… มีเฉพาะในหน้าต่างของ Share เท่านั้น จึงใช้เป็นตัวชี้ได้ดี
 -- ============================================================
 
+on markersInside(elementRef)
+	--
+	-- ของชิ้นนี้ หรือของที่อยู่ใต้มันสองชั้น มีปุ่มที่เป็นตัวชี้ไหม
+	-- แยกออกมาเป็นฟังก์ชันเดี่ยว เพื่อให้เรียกใช้กับแผ่นซ้อนก็ได้ กับหน้าต่างก็ได้
+	--
+	set marker to false
+	try
+		tell application "System Events"
+			repeat with a in UI elements of elementRef
+				if my matchesAny(a, shareMarkers, true) then
+					set marker to true
+					exit repeat
+				end if
+				repeat with b in UI elements of a
+					if my matchesAny(b, shareMarkers, true) then
+						set marker to true
+						exit repeat
+					end if
+				end repeat
+				if marker then exit repeat
+			end repeat
+		end tell
+	end try
+	return marker
+end markersInside
+
+
 on windowHasMarker(windowIndex)
 	--
 	-- หน้าต่างนี้ใช่หน้าต่างของ Share ไหม ดูจากปุ่มที่มีเฉพาะในหน้าต่างนั้น
 	--
-	-- ค้นแค่สองชั้น ไม่ใช่สามชั้น
+	-- บทเรียนจากบันทึกจริง อ่านให้ดีก่อนแก้ตรงนี้
 	--
-	-- เหตุผลสำคัญมาก หน้าต่างหลักของ Final Cut Pro มีของอยู่ข้างในมหาศาล
-	-- การไล่ดูสามชั้นในหน้าต่างนั้นกินเวลาหลายสิบวินาที
-	-- บันทึกรอบที่แล้วแสดงชัด ขั้นสั่งสร้าง mov ใช้เวลา 35 วินาที
-	-- ทั้งที่รอบที่เคยสำเร็จใช้เพียง 6 วินาที เวลาที่หายไปคือตรงนี้
+	-- รุ่น 10.3 ค้นสามชั้น หาเจอ แต่ช้ามาก
+	-- รุ่น 10.4 ผมลดเหลือสองชั้นเพื่อให้เร็ว ผลคือหาไม่เจอเลย
+	--   บันทึกขึ้นว่า ไม่เจอหน้าต่างของ MXF-50 จึงสร้างแทร็กเสียงไม่ได้
+	--   และยิ่งช้ากว่าเดิม เพราะวนหาจนครบสิบห้ารอบแล้วก็ไม่เจอ
+	--   ขั้นที่ 5 ใช้ 31 วินาที ขั้นที่ 6 ใช้ 52 วินาที
 	--
-	-- ปุ่ม Next กับ Add Audio Track อยู่ตื้น ๆ เสมอ สองชั้นจึงพอ
+	-- สาเหตุที่แท้จริง หน้าต่างของ Share เป็นแผ่นซ้อนบนหน้าต่างหลัก
+	-- ของที่เราหาจึงอยู่ลึกลงไปอีกหนึ่งชั้น คือ หน้าต่าง แล้วแผ่นซ้อน แล้วปุ่ม
+	-- สองชั้นจึงไปไม่ถึง
+	--
+	-- ทางออกที่ทั้งเร็วและถูก ดูที่แผ่นซ้อนก่อนโดยตรง
+	-- ไม่ต้องไล่ของทุกชิ้นในหน้าต่างหลักซึ่งมีเป็นพันชิ้น
 	--
 	set marker to false
 	try
 		with timeout of 8 seconds
 			tell application "System Events"
 				tell process fcpName
-					tell window windowIndex
-						repeat with a in UI elements
-							if my matchesAny(a, shareMarkers, true) then
-								set marker to true
-								exit repeat
-							end if
-							repeat with b in UI elements of a
-								if my matchesAny(b, shareMarkers, true) then
-									set marker to true
-									exit repeat
-								end if
-							end repeat
-							if marker then exit repeat
-						end repeat
-					end tell
+					-- แผ่นซ้อนก่อน เพราะเป็นที่ที่หน้าต่าง Share อยู่จริงบ่อยที่สุด
+					if (exists sheet 1 of window windowIndex) then
+						if my markersInside(sheet 1 of window windowIndex) then
+							return true
+						end if
+					end if
+					set marker to my markersInside(window windowIndex)
 				end tell
 			end tell
 		end timeout
@@ -1455,14 +1480,40 @@ on windowHasMarker(windowIndex)
 end windowHasMarker
 
 
+on shareSheetOf(windowIndex)
+	--
+	-- คืนค่าตัวแผ่นซ้อน ถ้าหน้าต่าง Share เป็นแผ่นซ้อน
+	-- ถ้าไม่ใช่ ก็คืนตัวหน้าต่างเอง
+	--
+	-- ส่วนที่ไปหาปุ่มต่าง ๆ จะได้เริ่มจากจุดที่ถูกต้อง
+	-- ไม่ต้องเผื่อความลึกเพิ่มอีกชั้นทุกที่
+	--
+	try
+		with timeout of 8 seconds
+			tell application "System Events"
+				tell process fcpName
+					if (exists sheet 1 of window windowIndex) then
+						if my markersInside(sheet 1 of window windowIndex) then
+							return sheet 1 of window windowIndex
+						end if
+					end if
+					return window windowIndex
+				end tell
+			end tell
+		end timeout
+	on error
+		return missing value
+	end try
+end shareSheetOf
+
+
 on findShareWindow()
 	--
 	-- คืนค่าเป็นลำดับที่ของหน้าต่าง Share หรือ 0 ถ้าไม่เจอ
 	--
 	-- ดูหน้าต่างที่หนึ่งก่อนเสมอ
 	-- หน้าต่างของ Share เป็นหน้าต่างที่เพิ่งเปิดและอยู่หน้าสุด
-	-- เก้าในสิบครั้งจึงเจอตั้งแต่ครั้งแรก ไม่ต้องไล่ดูหน้าต่างอื่นเลย
-	-- ซึ่งเร็วกว่าการไล่ดูทุกหน้าต่างมาก
+	-- หรือไม่ก็เป็นแผ่นซ้อนบนหน้าต่างหลัก ซึ่งก็คือหน้าต่างที่หนึ่งอยู่ดี
 	--
 	if my windowHasMarker(1) then return 1
 
@@ -1496,35 +1547,33 @@ on collectAt(windowIndex, wantedList, mustBeExact)
 	-- ปุ่ม Add Role ชิ้นแรกเป็นของ video track
 	-- ชิ้นที่สองเป็นของ audio track-1 ไล่ลงไปเรื่อย ๆ
 	--
-	-- ค้นลึกห้าชั้นแล้วหยุด ไม่ใช้ entire contents เพราะเคยทำให้ค้างยาว
+	-- เริ่มค้นจากแผ่นซ้อนถ้ามี ไม่ใช่จากตัวหน้าต่าง
+	-- เพราะหน้าต่าง Share มักเป็นแผ่นซ้อนบนหน้าต่างหลัก
+	-- ถ้าเริ่มจากหน้าต่าง จะต้องเผื่อความลึกเพิ่มอีกหนึ่งชั้นทุกที่
+	-- และต้องไล่ของในหน้าต่างหลักซึ่งมีเป็นพันชิ้น ทั้งช้าและไม่จำเป็น
 	--
 	set found to {}
 	if windowIndex is 0 then return {}
+	set searchRoot to my shareSheetOf(windowIndex)
+	if searchRoot is missing value then return {}
 	try
 		with timeout of 30 seconds
 			tell application "System Events"
-				tell process fcpName
-					tell window windowIndex
-						repeat with a in UI elements
-							if my matchesAny(a, wantedList, mustBeExact) then set end of found to (contents of a)
-							repeat with b in UI elements of a
-								if my matchesAny(b, wantedList, mustBeExact) then set end of found to (contents of b)
-								repeat with c in UI elements of b
-									if my matchesAny(c, wantedList, mustBeExact) then set end of found to (contents of c)
-									repeat with d in UI elements of c
-										if my matchesAny(d, wantedList, mustBeExact) then set end of found to (contents of d)
-										repeat with f in UI elements of d
-											if my matchesAny(f, wantedList, mustBeExact) then set end of found to (contents of f)
-											repeat with g in UI elements of f
-												if my matchesAny(g, wantedList, mustBeExact) then set end of found to (contents of g)
-											end repeat
-										end repeat
-									end repeat
+				repeat with a in UI elements of searchRoot
+					if my matchesAny(a, wantedList, mustBeExact) then set end of found to (contents of a)
+					repeat with b in UI elements of a
+						if my matchesAny(b, wantedList, mustBeExact) then set end of found to (contents of b)
+						repeat with c in UI elements of b
+							if my matchesAny(c, wantedList, mustBeExact) then set end of found to (contents of c)
+							repeat with d in UI elements of c
+								if my matchesAny(d, wantedList, mustBeExact) then set end of found to (contents of d)
+								repeat with f in UI elements of d
+									if my matchesAny(f, wantedList, mustBeExact) then set end of found to (contents of f)
 								end repeat
 							end repeat
 						end repeat
-					end tell
-				end tell
+					end repeat
+				end repeat
 			end tell
 		end timeout
 	on error errorText
@@ -1832,7 +1881,7 @@ on shareTo(destinationName, humanName, rolesSetting)
 		-- บางครั้งเป็นแผ่นซ้อนบนหน้าต่างหลัก บางครั้งชื่อเป็นค่าว่าง
 		--
 		-- จึงเปลี่ยนมารอด้วยของที่อยู่ข้างในหน้าต่างแทน ซึ่งไม่เปลี่ยนไปมา
-		repeat with waited from 1 to 15
+		repeat with waited from 1 to 10
 			if my findShareWindow() is not 0 then exit repeat
 			delay 1
 		end repeat
@@ -1845,7 +1894,11 @@ on shareTo(destinationName, humanName, rolesSetting)
 		-- ปุ่มพวกนั้นมีชื่อเป็นตัวหนังสือ เราจึงหาเจอ ต่างจากช่อง Roles as
 		--
 		-- ถ้าสร้างเองไม่สำเร็จ ค่อยถอยไปใช้วิธีเลือก preset เป็นทางสำรอง
-		if rolesSetting is not "" then buildRolesLayout(destinationName)
+		if rolesSetting is not "" then
+			set rolesStartedAt to (current date)
+			buildRolesLayout(destinationName)
+			logLine("ขั้นตั้งเสียงใช้เวลา " & ((current date) - rolesStartedAt) & " วินาที")
+		end if
 
 		if pressButtons({"Next…", "Next...", "Next"}) then logLine("กดปุ่ม Next แล้ว")
 		delay 2
