@@ -1354,6 +1354,85 @@ end chooseOutputFolder
 -- ไปเอาไทม์ไลน์ ไม่ยุ่งกับหน้าต่างเซฟเลย
 -- ============================================================
 
+on setPanelValue(newValue)
+	--
+	-- ใส่ข้อความลงช่องกรอกของหน้าต่างเซฟ โดยไม่พิมพ์
+	--
+	-- ทำไมต้องไม่พิมพ์
+	-- คำสั่งพิมพ์ตัวอักษรจะถูกแปลผ่านผังแป้นพิมพ์ที่เปิดอยู่ตอนนั้น
+	-- ถ้าเครื่องอยู่ผังภาษาไทย ตัว a จะกลายเป็น ฟ ทันที
+	-- นี่คือเหตุผลที่ตลอดมาผมไม่ยอมแตะชื่อไฟล์และที่เก็บเลย
+	--
+	-- แต่การใส่ค่าลงช่องโดยตรงแบบนี้ ไม่ได้ผ่านแป้นพิมพ์
+	-- ระบบเอาข้อความยัดลงไปในช่องตรง ๆ ภาษาอะไรก็ไม่เพี้ยน
+	-- ทางนี้จึงปลอดภัย และเปลี่ยนเกมทั้งหมด
+	--
+	-- ดูในแผ่นซ้อนก่อนเสมอ เพราะช่อง ไปที่โฟลเดอร์ เป็นแผ่นซ้อนบนหน้าต่างเซฟ
+	repeat with processName in panelProcesses()
+		try
+			with timeout of uiTimeout seconds
+				tell application "System Events"
+					tell process processName
+						repeat with windowRef in windows
+							repeat with sheetRef in sheets of windowRef
+								try
+									set value of text field 1 of sheetRef to newValue
+									return true
+								end try
+							end repeat
+							try
+								set value of text field 1 of windowRef to newValue
+								return true
+							end try
+						end repeat
+					end tell
+				end tell
+			end timeout
+		end try
+	end repeat
+	return false
+end setPanelValue
+
+
+on goToFolderInPanel(folderPath)
+	--
+	-- บังคับให้หน้าต่างเซฟไปอยู่ที่โฟลเดอร์ที่เราเลือก
+	--
+	-- ใช้ปุ่มลัด Command Shift G ซึ่งเป็นช่อง ไปที่โฟลเดอร์ ของระบบ
+	-- สั่งด้วยหมายเลขปุ่ม ไม่ใช่ตัวอักษร
+	-- หมายเลขปุ่มหมายถึงปุ่มตัวจริงบนแป้น ไม่เกี่ยวกับผังภาษาที่เปิดอยู่
+	-- จึงไม่เพี้ยนแบบการพิมพ์ตัวอักษร
+	try
+		with timeout of uiTimeout seconds
+			tell application "System Events" to key code 5 using {command down, shift down}
+		end timeout
+	on error errorText
+		logLine("เปิดช่อง ไปที่โฟลเดอร์ ไม่สำเร็จ " & errorText)
+		return false
+	end try
+	delay 1
+
+	if not my setPanelValue(folderPath) then
+		logLine("ใส่ที่อยู่โฟลเดอร์ลงหน้าต่างเซฟไม่ได้")
+		my pressEscape()
+		delay 0.5
+		return false
+	end if
+	delay 0.5
+
+	if not pressButtons({"Go", "ไป"}) then
+		try
+			with timeout of uiTimeout seconds
+				tell application "System Events" to key code 36
+			end timeout
+		end try
+	end if
+	delay 1.5
+	logLine("บังคับที่เก็บไทม์ไลน์เป็น " & folderPath)
+	return true
+end goToFolderInPanel
+
+
 on fetchTimeline(outFolder)
 	set marker to workPath & "/เริ่มเมื่อ"
 	do shell script "rm -f " & quoted form of marker & " && touch " & quoted form of marker
@@ -1363,7 +1442,20 @@ on fetchTimeline(outFolder)
 	-- ผู้ใช้สั่งไว้ชัดว่า หลังเลือกโฟลเดอร์แล้วไม่ต้องกดอะไรอีกเลย
 	-- รุ่นก่อนเปิดหน้าต่างถามตรงนี้ ซึ่งขัดคำสั่งนั้นตรง ๆ
 	if menuState("File", "Export XML") is "disabled" then
-		say("ยังไม่ได้เลือกงาน กำลังเลือกให้เอง")
+		-- ลองย้ายโฟกัสไปที่ Timeline ก่อน
+		--
+		-- ผู้ใช้เปิดโปรเจคไว้แล้ว งานที่ต้องการจึงอยู่ใน Timeline ตรงหน้า
+		-- แค่โฟกัสยังไม่ได้อยู่ตรงนั้น เมนูจึงกดไม่ได้
+		--
+		-- ทางนี้ต้องลองก่อนการสั่งเลือกทั้งหมดใน Browser เสมอ
+		-- เพราะการเลือกทั้งหมดจะกวาดเอางานเก่าใน Event มาด้วยทั้งกอง
+		-- ซึ่งไม่ใช่งานที่ผู้ใช้เปิดอยู่
+		say("โฟกัสยังไม่อยู่ที่งาน กำลังย้ายไปที่ Timeline ให้เอง")
+		goToArea("Timeline")
+		delay 1
+	end if
+	if menuState("File", "Export XML") is "disabled" then
+		say("ยังกดไม่ได้ กำลังเลือกงานใน Browser ให้เอง")
 		selectAllProjects()
 		delay 1
 	end if
@@ -1373,11 +1465,31 @@ on fetchTimeline(outFolder)
 		return ""
 	end if
 
+	-- เตรียมที่เก็บของเราเอง ชื่อเป็นอังกฤษล้วน
+	--
+	-- ทำไมต้องอังกฤษล้วน เพราะที่อยู่นี้จะถูกใส่ลงหน้าต่างเซฟ
+	-- และเราต้องมั่นใจร้อยเปอร์เซ็นต์ว่าไม่มีตัวอักษรตัวไหนเพี้ยนได้เลย
+	set xmlFolder to workPath & "/xml"
+	do shell script "mkdir -p " & quoted form of xmlFolder
+
 	say("กำลังสั่ง Final Cut Pro ส่งไทม์ไลน์ออกมา")
 	clickMenu("File", "Export XML")
 	if waitForSheet(15) then
-		-- กดยืนยันอย่างเดียว ไม่แตะชื่อไฟล์ ไม่แตะที่เก็บ
-		-- สองอย่างนั้นพิสูจน์แล้วว่าควบคุมไม่ได้ และทำให้พังทุกครั้ง
+		-- บังคับที่เก็บให้อยู่ในโฟลเดอร์ของเราเอง
+		--
+		-- นี่คือการเปลี่ยนวิธีคิดทั้งหมดของขั้นนี้
+		--
+		-- เดิมปล่อยให้ Final Cut Pro เซฟตรงไหนก็ได้ แล้วค่อยออกตามหา
+		-- เพราะผมเคยสรุปว่าบังคับที่เก็บไม่ได้ ซึ่งจริงเฉพาะกับการพิมพ์
+		-- แต่การใส่ค่าลงช่องตรง ๆ ทำได้ และไม่เพี้ยนตามผังแป้นพิมพ์
+		--
+		-- พอบังคับที่เก็บได้ ปัญหาหาไฟล์ไม่เจอก็หายไปทั้งหมด
+		-- เพราะเรารู้อยู่แล้วว่าไฟล์ต้องอยู่ตรงไหน ไม่ต้องเดา ไม่ต้องกวาดไดรฟ์
+		set forced to goToFolderInPanel(xmlFolder)
+		if not forced then
+			logLine("บังคับที่เก็บไม่สำเร็จ จะกลับไปใช้วิธีตามหาไฟล์แบบเดิม")
+		end if
+
 		pressButtons({"Save", "Export", "OK"})
 		delay 1
 		pressButtons({"Replace", "แทนที่"})
@@ -1386,7 +1498,9 @@ on fetchTimeline(outFolder)
 		logLine("หน้าต่างเซฟไม่โผล่")
 	end if
 
-	set foundPath to waitForTimeline(marker, outFolder, 25)
+	-- ค้นในโฟลเดอร์ของเราก่อน แล้วค่อยเผื่อโฟลเดอร์ปลายทางไว้เป็นทางรอง
+	set folderArgs to " " & quoted form of xmlFolder & " " & quoted form of outFolder
+	set foundPath to waitForTimeline(marker, folderArgs, 30)
 	if foundPath is not "" then
 		say("ได้ไทม์ไลน์มาแล้ว")
 		return foundPath
@@ -1396,17 +1510,18 @@ on fetchTimeline(outFolder)
 	-- การเปิดหน้าต่างตรงนี้ขัดคำสั่งที่ว่า ไม่ต้องคลิกอย่างอื่นอีกเลย
 	-- และมันยังค้างรออยู่อย่างนั้นจนกว่าจะมีคนมากด ซึ่งแย่กว่าการหยุดไปเลย
 	say("หาไฟล์ไทม์ไลน์ที่ Final Cut Pro เพิ่งเซฟไม่เจอ")
-	logLine("หาไทม์ไลน์ไม่เจอ โฟลเดอร์ที่ค้นเป็นอันดับแรกคือ " & outFolder)
+	logLine("หาไทม์ไลน์ไม่เจอ ที่เก็บที่บังคับไว้คือ " & xmlFolder)
+	logLine(do shell script "ls -la " & quoted form of xmlFolder & " 2>&1 | head -20")
 	return ""
 end fetchTimeline
 
 
-on waitForTimeline(marker, outFolder, maxTries)
+on waitForTimeline(marker, folderArgs, maxTries)
 	repeat with i from 1 to maxTries
 		try
 			set found to do shell script "/usr/bin/env python3 " & ¬
 				quoted form of (resourcesPath & "/tools/find_recent.py") & ¬
-				" " & quoted form of marker & " " & quoted form of outFolder
+				" " & quoted form of marker & folderArgs
 			if found is not "" then
 				logLine("เจอไทม์ไลน์ที่ " & found)
 				delay 1

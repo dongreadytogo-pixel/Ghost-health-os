@@ -34,6 +34,44 @@ SUFFIXES = (".fcpxmld", ".fcpxml")
 # โฟลเดอร์ในบ้านของผู้ใช้ ที่คนมักเซฟลงไป
 HOME_FOLDERS = ("Desktop", "Documents", "Movies", "Downloads")
 
+# ที่เก็บค่าที่ Final Cut Pro จำไว้ ว่าหน้าต่างเซฟเปิดอยู่ที่โฟลเดอร์ไหนล่าสุด
+# Final Cut Pro มาจาก App Store จึงอยู่ในกรอบความปลอดภัย
+# ค่าของมันจะไปอยู่ในกล่องส่วนตัวของโปรแกรม ไม่ใช่ที่เก็บค่าปกติ
+# จึงต้องดูทั้งสองที่
+FCP_PREF_FILES = (
+    "~/Library/Containers/com.apple.FinalCut/Data/Library/Preferences/com.apple.FinalCut",
+    "~/Library/Preferences/com.apple.FinalCut",
+)
+
+# ชื่อค่าที่ระบบใช้จำโฟลเดอร์ล่าสุดของหน้าต่างเซฟ เป็นมาตรฐานของ macOS เอง
+NAV_KEYS = ("NSNavLastRootDirectory", "NSNavLastCurrentDirectory")
+
+
+def fcp_last_folders():
+    """
+    โฟลเดอร์ที่ Final Cut Pro เพิ่งเปิดค้างไว้ในหน้าต่างเซฟ
+
+    ทำไมถึงคุ้มที่จะถาม
+    เวลาผู้ใช้กด Export XML หน้าต่างเซฟจะเปิดที่เดิมกับครั้งก่อนเสมอ
+    ระบบจดที่นั้นไว้ให้อยู่แล้ว เราจึงถามตรง ๆ ได้ ไม่ต้องเดา
+    และมันชี้ตรงจุดกว่าการไล่กวาดทั้งไดรฟ์หลายเท่า
+    """
+    folders = []
+    for pref in FCP_PREF_FILES:
+        path = os.path.expanduser(pref)
+        for key in NAV_KEYS:
+            try:
+                answer = subprocess.run(["defaults", "read", path, key],
+                                        capture_output=True, text=True, timeout=5)
+            except (OSError, subprocess.SubprocessError):
+                continue
+            if answer.returncode != 0:
+                continue
+            folder = os.path.expanduser(answer.stdout.strip())
+            if folder and os.path.isdir(folder) and folder not in folders:
+                folders.append(folder)
+    return folders
+
 
 def looks_like_timeline(name):
     return name.endswith(SUFFIXES)
@@ -112,12 +150,16 @@ def search_rounds(home, extra_folders):
 
     เรื่องความเร็ว
     ไดรฟ์เครือข่ายอ่านช้ากว่าไดรฟ์ในเครื่องมาก การเดินลึกหลายชั้นจึงกินเวลานาน
-    รอบสุดท้ายจึงจำกัดความลึกไว้แค่ 2 ชั้น พอให้เจอไฟล์ที่เพิ่งเซฟ
-    โดยไม่ต้องรื้อทั้งไดรฟ์
+    รอบท้าย ๆ จึงจำกัดความลึกไว้ พอให้เจอไฟล์ที่เพิ่งเซฟ โดยไม่ต้องรื้อทั้งไดรฟ์
+
+    รอบที่สองสำคัญที่สุดในทางปฏิบัติ
+    เป็นการถามระบบตรง ๆ ว่าหน้าต่างเซฟของ Final Cut Pro เปิดค้างไว้ที่ไหน
+    ตรงจุดกว่าการกวาดหาเป็นไหน ๆ และเร็วกว่ามาก
     """
-    yield [(folder, 2) for folder in extra_folders]
+    yield [(folder, 3) for folder in extra_folders]
+    yield [(folder, 2) for folder in fcp_last_folders()]
     yield [(os.path.join(home, name), 3) for name in HOME_FOLDERS]
-    yield [(volume, 2) for volume in mounted_volumes()]
+    yield [(volume, 3) for volume in mounted_volumes()]
 
 
 def main(argv=None):
