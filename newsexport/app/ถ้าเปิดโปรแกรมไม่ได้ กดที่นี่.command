@@ -24,16 +24,35 @@ if [ ! -d "$APP" ]; then
 fi
 
 echo "  กำลังลอกป้ายกันของ macOS ออก…"
+
+# ลอกป้ายออกจากทั้งโฟลเดอร์ ไม่ใช่แค่ตัวโปรแกรม
+# เพราะไฟล์อื่นที่มากับชุดเดียวกันก็มีป้ายติดมาด้วย
+# รวมถึงไฟล์ตัวช่วยนี้เอง จะได้กดใช้ครั้งหน้าได้เลย
+xattr -cr . 2>/dev/null
 xattr -cr "$APP" 2>/dev/null
 chmod +x "$APP/Contents/MacOS/launcher" 2>/dev/null
+chmod +x "$APP/Contents/Resources/แสดงความคืบหน้า.command" 2>/dev/null
+
+# ตรวจว่าลอกออกจริงไหม แล้วบอกผลตรงไปตรงมา
+LEFT="$(xattr -lr "$APP" 2>/dev/null | grep -c quarantine || true)"
+if [ "${LEFT:-0}" -gt 0 ]; then
+    echo
+    echo "  ยังลอกป้ายออกไม่หมด"
+    echo "  ให้ใช้วิธีที่ 1 ในไฟล์  1 วิธีเปิดครั้งแรก อ่านก่อน.txt"
+    echo
+    read -r -p "  กด Enter เพื่อปิด "
+    exit 1
+fi
 
 echo "  เรียบร้อย"
 echo
 echo "  ลองดับเบิลคลิกที่ $APP อีกครั้งได้เลย"
 echo
-echo "  ถ้ายังเปิดไม่ได้ ให้ไปที่"
-echo "     เมนู Apple > System Settings > Privacy & Security"
-echo "     เลื่อนลงไปล่างสุด จะเห็นข้อความเกี่ยวกับโปรแกรมนี้"
-echo "     กดปุ่ม Open Anyway"
+echo "  ถ้ายังเปิดไม่ได้ มีอีกสองทางในไฟล์"
+echo "     1 วิธีเปิดครั้งแรก อ่านก่อน.txt"
+echo
+echo "  ทางที่ได้ผลแน่นอนที่สุดคือ"
+echo "     เปิด Terminal  พิมพ์  xattr -cr  แล้วเว้นวรรค"
+echo "     ลากตัวโปรแกรมมาวางในหน้าต่าง Terminal  แล้วกด Enter"
 echo
 read -r -p "  กด Enter เพื่อปิด "
