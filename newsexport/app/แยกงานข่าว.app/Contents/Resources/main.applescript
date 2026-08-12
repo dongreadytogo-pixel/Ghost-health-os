@@ -1701,6 +1701,30 @@ end pressEscape
 -- เจอชิ้นที่โชว์ค่าเหล่านั้น ก็คือเจอช่องที่ถูกต้อง แล้วค่อยกดเปิดเมนู
 -- ============================================================
 
+on wantedPresetName()
+	--
+	-- ชื่อ preset ที่จะไปเลือกในช่อง Roles as
+	--
+	-- ผู้ใช้ยืนยันแล้วว่า ให้ใช้ preset ตัวนี้ เพราะเซ็ตช่องเสียงไว้ครบแล้ว
+	-- หน้าที่ของโปรแกรมจึงเหลืออย่างเดียว คือเลือกให้ถูกตัว
+	--
+	-- ไม่เขียนชื่อตายตัวไว้ แต่ถามจากไฟล์จริงในเครื่อง
+	-- ถ้าวันไหนผู้ใช้เปลี่ยนชื่อ preset โปรแกรมจะตามไปได้เอง
+	-- ไม่ใช่เลือกไม่เจอแล้วเงียบหายไปจนกว่าจะเปิดไฟล์เสียงมาฟัง
+	--
+	-- ตัวที่เลือกมาให้ คือตัวที่ตรวจแล้วว่าตั้งค่าถูกต้องจริง
+	-- ไม่ใช่ตัวแรกที่บังเอิญเจอ
+	--
+	try
+		set foundName to do shell script "/usr/bin/env python3 " & ¬
+			quoted form of (resourcesPath & "/tools/roles_presets.py") & ¬
+			" bestname " & quoted form of "3 Stereo"
+		if foundName is not "" then return foundName
+	end try
+	return "3 Stereo"
+end wantedPresetName
+
+
 on knownRolesValues()
 	--
 	-- ค่าที่เคยเห็นจริงในช่อง Roles as ของเครื่องนี้
@@ -1709,7 +1733,8 @@ on knownRolesValues()
 	-- Multitrack MXF File  มาจากภาพหน้าจออีกใบของผู้ใช้
 	-- ที่เหลือเป็นตัวเลือกมาตรฐานที่มีอยู่ในเมนูเดียวกัน
 	--
-	return {"3 Stereo", "Multitrack MXF File", "Multitrack QuickTime Movie", "Single Track"}
+	return {my wantedPresetName(), "3 Stereo", "Multitrack MXF File", ¬
+		"Multitrack QuickTime Movie", "Single Track"}
 end knownRolesValues
 
 
@@ -1804,16 +1829,18 @@ on buildRolesLayout(destinationName)
 	-- ที่ผ่านมาทำไม่ได้ เพราะวิธีค้นหาช่องนั้นของผมผิด ไม่ใช่เพราะเลือกไม่ได้
 	-- รุ่นนี้ค้นหาจากค่าที่ช่องนั้นโชว์อยู่ ซึ่งเป็นวิธีที่ตรงกับความจริง
 	--
-	if my selectRolesPreset("3 Stereo") then
+	set presetName to my wantedPresetName()
+	logLine("preset ที่จะเลือกคือ " & presetName)
+	if my selectRolesPreset(presetName) then
 		delay 1.5
 		set afterPreset to my countAudioTracksAt(windowIndex)
-		set nowShows to my rolesPresetIsSet("3 Stereo")
-		logLine("หลังเลือก preset ช่องโชว์ 3 Stereo ไหม " & nowShows & ¬
+		set nowShows to my rolesPresetIsSet(presetName)
+		logLine("หลังเลือก preset ช่องโชว์ " & presetName & " ไหม " & nowShows & ¬
 			"  ได้แทร็กเสียง " & afterPreset & " แทร็ก")
 		-- ยืนยันสองทาง ทั้งค่าที่ช่องโชว์ และจำนวนแทร็กที่นับได้
 		-- ทางใดทางหนึ่งผ่านก็พอ เพราะการนับแทร็กอาจอ่านไม่ได้ในบางจังหวะ
 		if afterPreset ≥ 3 or nowShows then
-			say("เลือก preset 3 Stereo สำเร็จ")
+			say("เลือก preset " & presetName & " สำเร็จ")
 			return true
 		end if
 	end if

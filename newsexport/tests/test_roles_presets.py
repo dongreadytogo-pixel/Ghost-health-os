@@ -298,6 +298,62 @@ class TestRolePresetFile(Sandbox):
                                   "--also-look-in", self.roots()[0]]), 1)
 
 
+class TestBestPresetName(Sandbox):
+    """
+    โปรแกรมต้องยึดชื่อ preset จากไฟล์จริงในเครื่อง ไม่ใช่ชื่อที่เขียนตายตัวไว้
+
+    ผู้ใช้ยืนยันว่าให้ใช้ preset ที่เซ็ตช่องเสียงไว้ครบแล้ว
+    ถ้าวันหนึ่งเขาเปลี่ยนชื่อ preset โปรแกรมต้องตามไปได้เอง
+    ไม่ใช่เลือกไม่เจอแล้วเงียบหายไปโดยไม่มีใครรู้
+    """
+
+    def write_preset(self, data, name):
+        write_plist(os.path.join(self.settings, name), data)
+
+    def test_uses_the_name_from_the_file(self):
+        data = three_stereo_preset()
+        data["name"] = "เสียงข่าวเช้า"
+        self.write_preset(data, "เสียงข่าวเช้า.rolepreset")
+        self.assertEqual(rp.best_preset_name(self.roots()), "เสียงข่าวเช้า")
+
+    def test_prefers_the_expected_name_when_several_are_correct(self):
+        first = three_stereo_preset()
+        first["name"] = "อีกชุดหนึ่ง"
+        self.write_preset(first, "อีกชุดหนึ่ง.rolepreset")
+        self.write_preset(three_stereo_preset(), "3 Stereo.rolepreset")
+        self.assertEqual(rp.best_preset_name(self.roots()), "3 Stereo")
+
+    def test_skips_a_preset_that_is_set_up_wrong(self):
+        broken = three_stereo_preset()
+        broken["name"] = "ตั้งผิด"
+        broken["outputs"] = broken["outputs"][:2]
+        self.write_preset(broken, "ตั้งผิด.rolepreset")
+        good = three_stereo_preset()
+        good["name"] = "ตั้งถูก"
+        self.write_preset(good, "ตั้งถูก.rolepreset")
+        self.assertEqual(rp.best_preset_name(self.roots()), "ตั้งถูก")
+
+    def test_falls_back_when_nothing_is_correct(self):
+        broken = three_stereo_preset()
+        broken["outputs"] = broken["outputs"][:2]
+        self.write_preset(broken, "3 Stereo.rolepreset")
+        self.assertEqual(rp.best_preset_name(self.roots()), "3 Stereo")
+
+    def test_falls_back_when_there_is_no_preset_at_all(self):
+        self.assertEqual(rp.best_preset_name(self.roots()), "3 Stereo")
+
+    def test_command_line_prints_the_name(self):
+        import io
+        import contextlib
+        data = three_stereo_preset()
+        data["name"] = "เสียงข่าวเช้า"
+        self.write_preset(data, "เสียงข่าวเช้า.rolepreset")
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            rp.main(["bestname", "3 Stereo", "--also-look-in", self.roots()[0]])
+        self.assertEqual(buffer.getvalue().strip(), "เสียงข่าวเช้า")
+
+
 class TestCollecting(Sandbox):
     """ปุ่มเก็บไฟล์ตั้งค่าต้องได้ของครบ และบอกที่มาไว้ด้วย"""
 

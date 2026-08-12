@@ -398,6 +398,41 @@ def describe_role_preset(summary, problems=None):
     return lines
 
 
+def best_preset_name(roots, fallback="3 Stereo"):
+    """
+    หาชื่อ preset ที่ตั้งค่าไว้ถูกต้องแล้วในเครื่องนี้
+
+    ทำไมต้องหาชื่อ ไม่เขียนชื่อตายตัวไว้ในโปรแกรม
+    ----------------------------------------------
+    ผู้ใช้ยืนยันว่าให้ใช้ preset ตัวนี้ เพราะเซ็ตช่องเสียงไว้ครบแล้ว
+    สิ่งที่โปรแกรมต้องทำจึงมีอย่างเดียว คือเลือก preset ตัวนั้นให้ถูก
+
+    ถ้าเขียนชื่อตายตัวไว้ วันไหนผู้ใช้เปลี่ยนชื่อ preset โปรแกรมจะเลือกไม่เจอ
+    แล้วเงียบหายไปโดยไม่มีใครรู้ จนกว่าจะเปิดไฟล์เสียงมาฟัง
+
+    ตัวนี้จึงอ่านจากไฟล์จริงในเครื่อง แล้วเลือกตัวที่ตรวจแล้วว่าถูกต้อง
+    ถ้าไม่เจอตัวที่ถูกต้องเลย ค่อยใช้ชื่อสำรองที่ให้มา
+    """
+    correct = []
+    others = []
+    for path in find_role_presets(roots):
+        summary = read_role_preset(path)
+        if summary is None:
+            continue
+        if check_role_preset(summary):
+            others.append(summary["name"])
+        else:
+            correct.append(summary["name"])
+
+    if fallback in correct:
+        return fallback
+    if correct:
+        return correct[0]
+    if fallback in others:
+        return fallback
+    return fallback
+
+
 def install_role_preset(source, roots):
     """
     ติดตั้งไฟล์ preset ลงในโฟลเดอร์เดียวกับ preset ตัวอื่นที่มีอยู่
@@ -628,10 +663,12 @@ def main(argv=None):
         description="อ่าน จำ และคืนค่าตั้ง Roles ของ Final Cut Pro")
     parser.add_argument("command",
                         choices=["report", "snapshot", "restore", "snapshots", "roots",
-                                 "presets", "check", "install", "collect", "collectall"],
+                                 "presets", "check", "install", "collect", "collectall",
+                                 "bestname"],
                         help="report สำรวจ  snapshot จำ  restore คืนค่า  "
                              "presets ดู preset  check ตรวจ preset  install ติดตั้ง preset  "
-                             "collect เก็บเฉพาะไฟล์ที่รู้จัก  collectall เก็บทั้งโฟลเดอร์")
+                             "collect เก็บเฉพาะไฟล์ที่รู้จัก  collectall เก็บทั้งโฟลเดอร์  "
+                             "bestname บอกชื่อ preset ที่ถูกต้องในเครื่อง")
     parser.add_argument("name", nargs="?", default="ค่ามาตรฐาน",
                         help="ชื่อของชุดที่จำไว้ หรือชื่อ preset หรือที่อยู่ไฟล์ที่จะติดตั้ง")
     parser.add_argument("--find", default=None, help="แสดงเฉพาะบรรทัดที่มีคำนี้")
@@ -674,6 +711,14 @@ def main(argv=None):
             print("ไม่พบไฟล์ตั้งค่าเลย", file=sys.stderr)
             return 1
         print(copied)
+        return 0
+
+    if args.command == "bestname":
+        # ชื่อที่ให้มาเป็นชื่อสำรอง ใช้เมื่อหาตัวที่ถูกต้องในเครื่องไม่เจอ
+        wanted = args.name
+        if wanted == "ค่ามาตรฐาน":
+            wanted = "3 Stereo"
+        print(best_preset_name(roots, wanted))
         return 0
 
     if args.command == "presets":
