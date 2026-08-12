@@ -114,6 +114,77 @@ def move_into(source, target_folder):
         return None, "ย้ายไม่สำเร็จ %s" % error
 
 
+# นามสกุลของไฟล์ที่ Final Cut Pro สร้างออกมา
+OUTPUT_EXTENSIONS = (".mov", ".mxf", ".mp4", ".m4v")
+
+
+def survey_recent(folders, minutes=60, max_depth=3, limit=40):
+    """
+    สำรวจว่ามีไฟล์วิดีโอไหนถูกสร้างขึ้นใหม่บ้างในช่วงที่ผ่านมา
+
+    ทำไมต้องมีตัวนี้
+    ----------------
+    เวลาผลออกมาเป็นศูนย์ไฟล์ คำถามแรกคือ
+    Final Cut Pro ไม่ยอมเอ็กพอร์ตเลย หรือเอ็กพอร์ตแล้วแต่เราหาไม่เจอ
+    สองอย่างนี้แก้คนละแบบกันสิ้นเชิง แต่เดาจากข้างนอกไม่ได้
+
+    ตัวนี้ตอบคำถามนั้นตรง ๆ โดยไม่สนใจว่าชื่อไฟล์จะตรงกับที่เราคำนวณไว้ไหม
+    ถ้าเจอไฟล์ใหม่ แปลว่าเครื่องทำงาน แต่ชื่อหรือที่อยู่ไม่ตรงกับที่เราคาด
+    ถ้าไม่เจอเลย แปลว่าคำสั่งเอ็กพอร์ตไม่ได้ถูกส่งไปจริง
+
+    คืนค่าเป็นรายการของ (ที่อยู่ไฟล์, ขนาด, อายุเป็นนาที) เรียงใหม่สุดก่อน
+    """
+    cutoff = time.time() - minutes * 60
+    found = []
+    seen = set()
+    for folder in folders:
+        if not os.path.isdir(folder):
+            continue
+        base_depth = folder.rstrip("/").count("/")
+        try:
+            for current, dirnames, filenames in os.walk(folder, onerror=lambda e: None):
+                dirnames[:] = [d for d in dirnames
+                               if not d.startswith(".")
+                               and not d.endswith((".fcpbundle", ".photoslibrary",
+                                                   ".app", ".framework"))]
+                if current.count("/") - base_depth >= max_depth:
+                    dirnames[:] = []
+                for name in filenames:
+                    if not name.lower().endswith(OUTPUT_EXTENSIONS):
+                        continue
+                    path = os.path.join(current, name)
+                    real = os.path.realpath(path)
+                    if real in seen:
+                        continue
+                    try:
+                        info = os.stat(path)
+                    except OSError:
+                        continue
+                    if info.st_mtime < cutoff:
+                        continue
+                    seen.add(real)
+                    found.append((path, info.st_size,
+                                  int((time.time() - info.st_mtime) / 60)))
+        except OSError:
+            continue
+    found.sort(key=lambda row: row[2])
+    return found[:limit]
+
+
+def format_survey(rows):
+    """เขียนผลสำรวจเป็นข้อความไทยอ่านง่าย"""
+    if not rows:
+        return ["ไม่พบไฟล์วิดีโอที่สร้างใหม่เลยในช่วงที่ผ่านมา",
+                "แปลว่า Final Cut Pro ยังไม่ได้สร้างไฟล์ไหนออกมาจริง ๆ",
+                "ปัญหาจึงอยู่ที่ขั้นสั่งเอ็กพอร์ต ไม่ใช่ขั้นตามเก็บไฟล์"]
+    lines = ["พบไฟล์วิดีโอที่สร้างใหม่ %d ไฟล์" % len(rows),
+             "แปลว่า Final Cut Pro ทำงานจริง แต่ชื่อหรือที่อยู่ไม่ตรงกับที่เราคาดไว้"]
+    for path, size, age in rows:
+        lines.append("  %s   %.1f MB   สร้างเมื่อ %d นาทีที่แล้ว"
+                     % (path, size / 1024.0 / 1024.0, age))
+    return lines
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description="ตามเก็บไฟล์ที่เอ็กพอร์ตแล้ว มาไว้ในโฟลเดอร์ที่ต้องการ")
@@ -123,6 +194,8 @@ def main(argv=None):
                         help="โฟลเดอร์เพิ่มเติมที่ให้ไปหาด้วย")
     parser.add_argument("--settle", type=float, default=2.0,
                         help="รอกี่วินาทีเพื่อดูว่าไฟล์เขียนเสร็จแล้ว")
+    parser.add_argument("--survey", type=int, default=None, metavar="นาที",
+                        help="สำรวจว่ามีไฟล์วิดีโอใหม่ถูกสร้างในกี่นาทีที่ผ่านมา")
     args = parser.parse_args(argv)
 
     try:
@@ -137,6 +210,12 @@ def main(argv=None):
         return 2
 
     folders = candidate_folders(args.also_look_in + [args.target])
+
+    # โหมดสำรวจ ใช้ตอนผลออกมาเป็นศูนย์ไฟล์ เพื่อแยกว่าปัญหาอยู่ตรงไหน
+    if args.survey is not None:
+        print("\n".join(format_survey(survey_recent(folders, args.survey))))
+        return 0
+
     found = find_named_files(wanted, folders)
 
     moved = 0

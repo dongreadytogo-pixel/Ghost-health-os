@@ -891,11 +891,17 @@ on runWorkflow()
 		--
 		-- สั่ง Share สองรอบติดกันเลย ไม่ต้องรอไฟล์รอบแรกเสร็จ
 		-- เพราะ Final Cut Pro รับงานเข้าคิวแล้วทยอยทำเองพร้อมกันได้
+		-- จับเวลาไว้ด้วย รอบที่แล้วขั้นนี้ใช้เวลานานผิดปกติ
+		-- มีตัวเลขกำกับ จะได้รู้ทันทีว่าแก้แล้วเร็วขึ้นจริงไหม
+		set startedAt to (current date)
 		showStep("ขั้นที่ 5  สั่งสร้างไฟล์ mov ทุกก้อนพร้อมกัน")
 		shareTo("Export File", "ไฟล์ mov", "")
+		showStep("ขั้นที่ 5 ใช้เวลา " & ((current date) - startedAt) & " วินาที")
 
+		set startedAt to (current date)
 		showStep("ขั้นที่ 6  สั่งสร้างไฟล์ mxf ทุกก้อนพร้อมกัน")
 		shareTo("MXF-50", "ไฟล์ mxf", "3 Stereo")
+		showStep("ขั้นที่ 6 ใช้เวลา " & ((current date) - startedAt) & " วินาที")
 
 		showStep("ขั้นที่ 7  เฝ้าดูและเก็บไฟล์เข้าโฟลเดอร์ปลายทาง")
 		monitorAndCollect(outFolder, namesFile, totalFiles)
@@ -1315,51 +1321,67 @@ end matchesAny
 -- ============================================================
 
 on windowHasMarker(windowIndex)
+	--
+	-- หน้าต่างนี้ใช่หน้าต่างของ Share ไหม ดูจากปุ่มที่มีเฉพาะในหน้าต่างนั้น
+	--
+	-- ค้นแค่สองชั้น ไม่ใช่สามชั้น
+	--
+	-- เหตุผลสำคัญมาก หน้าต่างหลักของ Final Cut Pro มีของอยู่ข้างในมหาศาล
+	-- การไล่ดูสามชั้นในหน้าต่างนั้นกินเวลาหลายสิบวินาที
+	-- บันทึกรอบที่แล้วแสดงชัด ขั้นสั่งสร้าง mov ใช้เวลา 35 วินาที
+	-- ทั้งที่รอบที่เคยสำเร็จใช้เพียง 6 วินาที เวลาที่หายไปคือตรงนี้
+	--
+	-- ปุ่ม Next กับ Add Audio Track อยู่ตื้น ๆ เสมอ สองชั้นจึงพอ
+	--
 	set marker to false
 	try
-		tell application "System Events"
-			tell process fcpName
-				tell window windowIndex
-					repeat with a in UI elements
-						if my matchesAny(a, shareMarkers, true) then
-							set marker to true
-							exit repeat
-						end if
-						repeat with b in UI elements of a
-							if my matchesAny(b, shareMarkers, true) then
+		with timeout of 8 seconds
+			tell application "System Events"
+				tell process fcpName
+					tell window windowIndex
+						repeat with a in UI elements
+							if my matchesAny(a, shareMarkers, true) then
 								set marker to true
 								exit repeat
 							end if
-							repeat with c in UI elements of b
-								if my matchesAny(c, shareMarkers, true) then
+							repeat with b in UI elements of a
+								if my matchesAny(b, shareMarkers, true) then
 									set marker to true
 									exit repeat
 								end if
 							end repeat
 							if marker then exit repeat
 						end repeat
-						if marker then exit repeat
-					end repeat
+					end tell
 				end tell
 			end tell
-		end tell
+		end timeout
 	end try
 	return marker
 end windowHasMarker
 
 
 on findShareWindow()
+	--
 	-- คืนค่าเป็นลำดับที่ของหน้าต่าง Share หรือ 0 ถ้าไม่เจอ
+	--
+	-- ดูหน้าต่างที่หนึ่งก่อนเสมอ
+	-- หน้าต่างของ Share เป็นหน้าต่างที่เพิ่งเปิดและอยู่หน้าสุด
+	-- เก้าในสิบครั้งจึงเจอตั้งแต่ครั้งแรก ไม่ต้องไล่ดูหน้าต่างอื่นเลย
+	-- ซึ่งเร็วกว่าการไล่ดูทุกหน้าต่างมาก
+	--
+	if my windowHasMarker(1) then return 1
+
 	set foundIndex to 0
 	try
-		with timeout of 25 seconds
+		with timeout of 10 seconds
 			tell application "System Events"
 				tell process fcpName
 					set howMany to count of windows
 				end tell
 			end tell
 		end timeout
-		repeat with i from 1 to howMany
+		repeat with i from 2 to howMany
 			if my windowHasMarker(i) then
 				set foundIndex to i
 				exit repeat
@@ -1368,9 +1390,6 @@ on findShareWindow()
 	on error errorText
 		logLine("หาหน้าต่าง Share ไม่สำเร็จ " & errorText)
 	end try
-	if foundIndex is 0 then
-		logLine("ไม่เจอหน้าต่างของ Share เลย")
-	end if
 	return foundIndex
 end findShareWindow
 
@@ -1552,6 +1571,7 @@ end knownRolesValues
 
 
 on selectRolesPreset(wantedSetting)
+	-- หาหน้าต่างเองเพียงครั้งเดียว เพราะถูกเรียกครั้งเดียวต่อหนึ่งรอบ
 	set windowIndex to my findShareWindow()
 	if windowIndex is 0 then return false
 
@@ -1628,6 +1648,13 @@ on buildRolesLayout(destinationName)
 	end if
 
 	--
+	-- ใช้ลำดับหน้าต่างเดิมต่อไปเลย ไม่ต้องหาใหม่
+	--
+	-- การกดแท็บ Roles ไม่ได้เปลี่ยนว่าหน้าต่างไหนเป็นหน้าต่างที่เท่าไร
+	-- การหาใหม่ทุกครั้งจึงเสียเวลาเปล่า ซึ่งรวมกันแล้วเป็นนาที
+	--
+
+	--
 	-- ลองเลือก preset ที่ผู้ใช้ตั้งไว้ก่อนเป็นอันดับแรก
 	--
 	-- นี่คือทางที่ควรจะเป็นตั้งแต่แรก กดครั้งเดียวได้ครบทั้งสามแทร็ก
@@ -1636,7 +1663,6 @@ on buildRolesLayout(destinationName)
 	--
 	if my selectRolesPreset("3 Stereo") then
 		delay 1.5
-		set windowIndex to my findShareWindow()
 		set afterPreset to my countAudioTracksAt(windowIndex)
 		set nowShows to my rolesPresetIsSet("3 Stereo")
 		logLine("หลังเลือก preset ช่องโชว์ 3 Stereo ไหม " & nowShows & ¬
@@ -1656,10 +1682,6 @@ on buildRolesLayout(destinationName)
 	-- รุ่นนี้จึงไม่กด Add ให้อัตโนมัติอีกแล้ว
 	-- ถ้ามีแทร็กครบสามอยู่แล้วก็ผ่าน ถ้าไม่ครบก็บอกตรง ๆ ว่าไม่สำเร็จ
 	--
-	-- การกด Add ยังมีอยู่ แต่ย้ายไปอยู่ในเมนูเครื่องมือช่าง
-	-- ไว้ใช้ตอนฉุกเฉินเท่านั้น ไม่ใช่ตอนทำงานปกติ
-	--
-	set windowIndex to my findShareWindow()
 	set trackCount to my countAudioTracksAt(windowIndex)
 	logLine("เลือก preset ไม่สำเร็จ ตอนนี้มีแทร็กเสียงอยู่ " & trackCount & " แทร็ก")
 
@@ -1851,7 +1873,14 @@ on monitorAndCollect(outFolder, namesFile, totalFiles)
 			set situation to "รอไฟล์ที่เหลืออีก " & unseenCount & " ไฟล์"
 		end if
 
-		if doneCount > lastDone then
+		--
+		-- ถือว่ามีความคืบหน้า เมื่อได้ไฟล์เพิ่ม หรือเมื่อยังมีไฟล์กำลังถูกเขียนอยู่
+		--
+		-- ข้อหลังสำคัญมาก ไฟล์ MXF ของข่าวสามนาทีใช้เวลาเขียนนาน
+		-- ถ้านับว่าเงียบทั้งที่เครื่องกำลังเขียนอยู่ โปรแกรมจะเลิกรอกลางคัน
+		-- แล้วสรุปว่าไม่สำเร็จ ทั้งที่อีกครู่เดียวไฟล์ก็จะเสร็จ
+		--
+		if doneCount > lastDone or writingCount > 0 then
 			set quietRounds to 0
 			set lastDone to doneCount
 			my stepBar(doneCount, totalFiles, situation)
@@ -1867,11 +1896,12 @@ on monitorAndCollect(outFolder, namesFile, totalFiles)
 		--
 		-- เลิกรอเองเมื่อเงียบนานพอ
 		--
-		-- หนึ่งร้อยห้าสิบรอบคือประมาณสิบสองนาทีที่ไม่มีไฟล์ใหม่เลย
-		-- นานพอสำหรับไฟล์ที่ยาวที่สุด และสั้นพอที่จะไม่ค้างทั้งคืน
+		-- สองร้อยยี่สิบห้ารอบคือประมาณสิบห้านาทีที่เงียบสนิท
+		-- คำว่าเงียบสนิทตรงนี้แปลว่า ไม่มีไฟล์ใหม่ และไม่มีไฟล์ไหนกำลังถูกเขียนด้วย
+		-- ถ้าเครื่องยังเขียนอยู่ จะรอต่อไปเรื่อย ๆ ไม่นับเวลานี้
 		-- รุ่นก่อนต้องให้คนมากดหยุดเอง ซึ่งขัดกับการรันเองจนจบ
 		--
-		if quietRounds > 150 then exit repeat
+		if quietRounds > 225 then exit repeat
 		delay 4
 	end repeat
 
@@ -1890,6 +1920,25 @@ on monitorAndCollect(outFolder, namesFile, totalFiles)
 		end try
 		showStep("หยุดรอแล้ว ยังขาดไฟล์อยู่")
 		showStep("ไฟล์ที่ยังขาด" & return & missingList)
+
+		--
+		-- สำรวจว่า Final Cut Pro สร้างไฟล์อะไรออกมาบ้าง โดยไม่สนใจชื่อ
+		--
+		-- ตอบคำถามสำคัญที่สุดเวลาได้ศูนย์ไฟล์
+		--   ถ้าเจอไฟล์ใหม่  เครื่องทำงานจริง แต่ชื่อหรือที่อยู่ไม่ตรงที่เราคาด
+		--   ถ้าไม่เจอเลย    คำสั่งเอ็กพอร์ตไม่ได้ถูกส่งไปจริง
+		-- สองอย่างนี้แก้คนละแบบ เดาจากข้างนอกไม่ได้ ต้องดูของจริง
+		--
+		showStep("กำลังสำรวจว่า Final Cut Pro สร้างไฟล์อะไรออกมาบ้าง")
+		try
+			set surveyText to do shell script "/usr/bin/env python3 " & ¬
+				quoted form of (resourcesPath & "/tools/collect_outputs.py") & ¬
+				" " & quoted form of outFolder & " " & quoted form of namesFile & ¬
+				" --survey 90"
+			showStep(surveyText)
+		on error e
+			showStep("สำรวจไม่สำเร็จ " & e)
+		end try
 		set headline to "ยังได้ไม่ครบ" & return & return & ¬
 			"ไฟล์ที่ยังขาด" & return & missingList & return & return & ¬
 			"ใช้ เมนูอื่น แล้ว เก็บไฟล์ที่ตกค้าง เพื่อตามเก็บอีกรอบ"
